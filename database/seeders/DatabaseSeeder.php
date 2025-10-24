@@ -17,9 +17,12 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // User::factory()->create([ 'name' => 'Test User', 'email' => 'test@example.com', ]);
+
+        $this->call(UsersTableSeeder::class);
+        $this->call(StatesTableSeeder::class);
+        $this->call(RegionsTableSeeder::class);
+        $this->call(ProvincesTableSeeder::class);
+        $this->call(CitiesTableSeeder::class);
     }
 }
