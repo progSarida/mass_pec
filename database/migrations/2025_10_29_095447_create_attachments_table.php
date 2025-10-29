@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('attachments', function (Blueprint $table) {
+        Schema::create('attachments', function (Blueprint $table) {                                         // tabell aallegati
             $table->id();
-            $table->string('name')->nullable();
-            $table->string('path')->nullable();
-            $table->string('extension')->nullable();
-            $table->date('insert_date')->nullable();
+            $table->string('name')->nullable();                                                             // nome file
+            $table->string('path')->nullable();                                                             // percorso file
+            $table->string('extension')->nullable();                                                        // tipo file
+            $table->date('upload_date')->nullable();                                                        // data caricamento file
+            $table->foreignId('upload_user_id')->nullable()->constrained('users')->onUpdate('cascade');     // id utente che ha caricato file
             $table->timestamps();
         });
     }
@@ -26,6 +27,8 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('attachments');
+        Schema::enableForeignKeyConstraints();
     }
 };

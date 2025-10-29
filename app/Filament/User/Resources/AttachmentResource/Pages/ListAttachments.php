@@ -18,7 +18,8 @@ class ListAttachments extends ListRecords
                 ->modalHeading('Carica Nuovo Allegato')
                 ->modalWidth('md')
                 ->label('Carica allegato')
-                ->icon('heroicon-o-plus'),
+                ->icon('heroicon-o-plus')
+                ->createAnother(false),
         ];
     }
 

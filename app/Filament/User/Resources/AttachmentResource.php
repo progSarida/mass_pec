@@ -7,6 +7,7 @@ use App\Filament\User\Resources\AttachmentResource\Pages;
 use App\Filament\User\Resources\AttachmentResource\RelationManagers;
 use App\Models\Attachment;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -14,6 +15,7 @@ use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -58,47 +60,64 @@ class AttachmentResource extends Resource
             ->columns([
                 TextColumn::make('name')
                     ->label('Nome File')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->searchable(),
                 TextColumn::make('path')
                     ->label('Percorso Relativo')
-                    ->color('success'),
+                    ->color('success')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('extension')
                     ->label('Estensione'),
-                TextColumn::make('insert_date')
-                    ->label('Data inserimento')
-                    ->dateTime()
+                TextColumn::make('upload_date')
+                    ->label('Data caricamento')
+                    ->date('d/m/Y')
                     ->sortable(),
-                TextColumn::make('full_path')
-                    ->label('Link Download')
-                    ->url(fn ($record) => asset('storage/' . $record->path)) // Assumendo storage/public
-                    ->openUrlInNewTab()
-                    ->icon('heroicon-o-download'),
+                TextColumn::make('uploadUser.name')
+                    ->label('Caricato da'),
             ])
             ->filters([
-                // Aggiungi filtri, es. per estensione
-                // Tables\Filters\SelectFilter::make('extension')
-                //     ->options([
-                //         'pdf' => 'PDF',
-                //         'jpg' => 'Immagini',
-                //         // ...
-                //     ]),
+                Filter::make('upload_date_range')
+                    ->label('Intervallo Date')
+                    ->form([
+                        DatePicker::make('date_from')
+                            ->label('Da data'),
+                        DatePicker::make('date_to')
+                            ->label('A data')
+                            ->minDate(fn (Get $get) => $get('date_from') ?: null),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        return $query
+                            ->when(
+                                $data['date_from'],
+                                fn (Builder $q) => $q->whereDate('upload_date', '>=', $data['date_from'])
+                            )
+                            ->when(
+                                $data['date_to'],
+                                fn (Builder $q) => $q->whereDate('upload_date', '<=', $data['date_to'])
+                            );
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        $from = $data['date_from'] ? \Carbon\Carbon::parse($data['date_from'])->format('d/m/Y') : null;
+                        $to = $data['date_to'] ? \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y') : null;
+                        if ($from && $to) { return "Dal {$from} al {$to}"; }
+                        if ($from) { return "Dal {$from}"; }
+                        if ($to) { return "Al {$to}"; }
+                        return null;
+                    }),
             ])
             ->actions([
-                Tables\Actions\Action::make('download')
+                Tables\Actions\Action::make('view')
+                    ->label('Apri file')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->url(fn ($record) => asset('storage/' . $record->path)),
+                    ->color('primary')
+                    ->url(fn ($record) => asset('storage/' . $record->path))
+                    ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make()
-                    ->before(function ($record) {
-                        // Elimina il file fisico prima
-                        File::delete(storage_path('app/public/' . $record->path));
-                    }),
+                    ->label('Elimina file'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->before(function ($records) {
-                            // Elimina file in bulk
                             collect($records)->each(fn ($record) => File::delete(storage_path('app/public/' . $record->path)));
                         }),
                 ]),
