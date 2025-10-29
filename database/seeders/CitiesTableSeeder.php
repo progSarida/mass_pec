@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class CitiesTableSeeder extends Seeder
 {
@@ -17,9 +16,9 @@ class CitiesTableSeeder extends Seeder
     {
         
 
-        DB::table('cities')->delete();
+        \DB::table('cities')->delete();
         
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 1,
@@ -5021,7 +5020,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 501,
@@ -10023,7 +10022,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 1001,
@@ -15025,7 +15024,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 1501,
@@ -20027,7 +20026,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 2001,
@@ -25029,7 +25028,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 2501,
@@ -30031,7 +30030,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 3001,
@@ -35033,7 +35032,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 3501,
@@ -40035,7 +40034,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 4001,
@@ -45037,7 +45036,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 4501,
@@ -50039,7 +50038,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 5001,
@@ -55041,7 +55040,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 5501,
@@ -60043,7 +60042,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 6001,
@@ -65045,7 +65044,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 6501,
@@ -70047,7 +70046,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 7001,
@@ -75049,7 +75048,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 7501,
@@ -80051,7 +80050,7 @@ class CitiesTableSeeder extends Seeder
                 'updated_at' => NULL,
             ),
         ));
-        DB::table('cities')->insert(array (
+        \DB::table('cities')->insert(array (
             0 => 
             array (
                 'id' => 8001,
@@ -80991,6 +80990,516 @@ class CitiesTableSeeder extends Seeder
                 'zip_code' => '46034',
                 'created_at' => NULL,
                 'updated_at' => NULL,
+            ),
+            94 => 
+            array (
+                'id' => 8095,
+                'province_id' => 25,
+                'name' => 'Alpago',
+                'code' => 'M375',
+                'zip_code' => '32016',
+                'created_at' => '2025-10-29 17:41:13',
+                'updated_at' => '2025-10-29 17:41:13',
+            ),
+            95 => 
+            array (
+                'id' => 8096,
+                'province_id' => 22,
+                'name' => 'Borgo Chiese',
+                'code' => 'M352',
+                'zip_code' => '38083',
+                'created_at' => '2025-10-29 17:43:13',
+                'updated_at' => '2025-10-29 17:43:13',
+            ),
+            96 => 
+            array (
+                'id' => 8097,
+                'province_id' => 22,
+                'name' => 'Altavalle',
+                'code' => 'M349',
+                'zip_code' => '38092',
+                'created_at' => '2025-10-29 17:44:23',
+                'updated_at' => '2025-10-29 17:44:23',
+            ),
+            97 => 
+            array (
+                'id' => 8098,
+                'province_id' => 13,
+                'name' => 'Alta Valle Intelvi',
+                'code' => 'M383',
+                'zip_code' => '22024',
+                'created_at' => '2025-10-29 17:45:49',
+                'updated_at' => '2025-10-29 17:45:49',
+            ),
+            98 => 
+            array (
+                'id' => 8099,
+                'province_id' => 37,
+                'name' => 'Alto Reno Terme',
+                'code' => 'M369',
+                'zip_code' => '40046',
+                'created_at' => '2025-10-29 17:47:04',
+                'updated_at' => '2025-10-29 17:47:04',
+            ),
+            99 => 
+            array (
+                'id' => 8100,
+                'province_id' => 22,
+                'name' => 'Altopiano della Vigolana',
+                'code' => 'M350',
+                'zip_code' => '38049',
+                'created_at' => '2025-10-29 17:50:09',
+                'updated_at' => '2025-10-29 17:50:09',
+            ),
+            100 => 
+            array (
+                'id' => 8101,
+                'province_id' => 22,
+                'name' => 'Amblar Don',
+                'code' => 'M351',
+                'zip_code' => '38011',
+                'created_at' => '2025-10-29 17:51:20',
+                'updated_at' => '2025-10-29 17:51:20',
+            ),
+            101 => 
+            array (
+                'id' => 8102,
+                'province_id' => 22,
+                'name' => 'Borgo Lares',
+                'code' => 'M353',
+                'zip_code' => '38079',
+                'created_at' => '2025-10-29 17:52:19',
+                'updated_at' => '2025-10-29 17:52:19',
+            ),
+            102 => 
+            array (
+                'id' => 8103,
+                'province_id' => 103,
+                'name' => 'Borgomezzavalle',
+                'code' => 'M370',
+                'zip_code' => '28846',
+                'created_at' => '2025-10-29 17:54:16',
+                'updated_at' => '2025-10-29 17:54:16',
+            ),
+            103 => 
+            array (
+                'id' => 8106,
+                'province_id' => 87,
+                'name' => 'Casciana Terme Lari',
+                'code' => 'M327',
+                'zip_code' => '56035',
+                'created_at' => '2025-10-29 18:01:37',
+                'updated_at' => '2025-10-29 18:01:37',
+            ),
+            104 => 
+            array (
+                'id' => 8107,
+                'province_id' => 22,
+                'name' => 'Castel Ivano',
+                'code' => 'M354',
+                'zip_code' => '38059',
+                'created_at' => '2025-10-29 18:02:20',
+                'updated_at' => '2025-10-29 18:02:20',
+            ),
+            105 => 
+            array (
+                'id' => 8108,
+                'province_id' => 51,
+                'name' => 'Castelfranco Piandiscò',
+                'code' => 'M322',
+                'zip_code' => '52020',
+                'created_at' => '2025-10-29 18:04:48',
+                'updated_at' => '2025-10-29 18:04:48',
+            ),
+            106 => 
+            array (
+                'id' => 8109,
+                'province_id' => 22,
+                'name' => 'Cembra Lisignago',
+                'code' => 'M355',
+                'zip_code' => '38034',
+                'created_at' => '2025-10-29 18:06:05',
+                'updated_at' => '2025-10-29 18:06:05',
+            ),
+            107 => 
+            array (
+                'id' => 8110,
+                'province_id' => 41,
+                'name' => 'Colli al Metauro',
+                'code' => 'M380',
+                'zip_code' => '61036',
+                'created_at' => '2025-10-29 18:07:18',
+                'updated_at' => '2025-10-29 18:07:18',
+            ),
+            108 => 
+            array (
+                'id' => 8111,
+                'province_id' => 13,
+                'name' => 'Colverde',
+                'code' => 'M336',
+                'zip_code' => '22020',
+                'created_at' => '2025-10-29 18:08:32',
+                'updated_at' => '2025-10-29 18:08:32',
+            ),
+            109 => 
+            array (
+                'id' => 8112,
+                'province_id' => 22,
+                'name' => 'Contà',
+                'code' => 'M356',
+                'zip_code' => '38093',
+                'created_at' => '2025-10-29 18:19:15',
+                'updated_at' => '2025-10-29 18:19:15',
+            ),
+            110 => 
+            array (
+                'id' => 8113,
+                'province_id' => 18,
+                'name' => 'Cornale e Bastida',
+                'code' => 'M338',
+                'zip_code' => '27056',
+                'created_at' => '2025-10-29 18:26:25',
+                'updated_at' => '2025-10-29 18:26:25',
+            ),
+            111 => 
+            array (
+                'id' => 8114,
+                'province_id' => 18,
+                'name' => 'Corteolona e Genzone',
+                'code' => 'M372',
+                'zip_code' => '27014',
+                'created_at' => '2025-10-29 18:27:59',
+                'updated_at' => '2025-10-29 18:27:59',
+            ),
+            112 => 
+            array (
+                'id' => 8115,
+                'province_id' => 50,
+                'name' => 'Crespina Lorenzana',
+                'code' => 'M328',
+                'zip_code' => '56042',
+                'created_at' => '2025-10-29 18:29:13',
+                'updated_at' => '2025-10-29 18:29:13',
+            ),
+            113 => 
+            array (
+                'id' => 8116,
+                'province_id' => 22,
+                'name' => 'Dimaro Folgarida',
+                'code' => 'M366',
+                'zip_code' => '38025',
+                'created_at' => '2025-10-29 18:30:15',
+                'updated_at' => '2025-10-29 18:30:15',
+            ),
+            114 => 
+            array (
+                'id' => 8117,
+                'province_id' => 46,
+                'name' => 'Fabbriche di Vergemoli',
+                'code' => 'M319',
+                'zip_code' => '55020',
+                'created_at' => '2025-10-29 18:32:15',
+                'updated_at' => '2025-10-29 18:32:15',
+            ),
+            115 => 
+            array (
+                'id' => 8118,
+                'province_id' => 38,
+                'name' => 'Fiscaglia',
+                'code' => 'M323',
+                'zip_code' => '44027',
+                'created_at' => '2025-10-29 18:33:52',
+                'updated_at' => '2025-10-29 18:33:52',
+            ),
+            116 => 
+            array (
+                'id' => 8119,
+                'province_id' => 12,
+                'name' => 'Maccagno con Pino e Veddasca',
+                'code' => 'M339',
+                'zip_code' => '21061',
+                'created_at' => '2025-10-29 18:36:29',
+                'updated_at' => '2025-10-29 18:36:29',
+            ),
+            117 => 
+            array (
+                'id' => 8120,
+                'province_id' => 22,
+                'name' => 'Madruzzo',
+                'code' => 'M357',
+                'zip_code' => '38076',
+                'created_at' => '2025-10-29 18:37:26',
+                'updated_at' => '2025-10-29 18:37:26',
+            ),
+            118 => 
+            array (
+                'id' => 8121,
+                'province_id' => 99,
+                'name' => 'Montescudo-Monte Colombo',
+                'code' => 'M368',
+                'zip_code' => '47854',
+                'created_at' => '2025-10-29 18:38:20',
+                'updated_at' => '2025-10-29 18:38:20',
+            ),
+            119 => 
+            array (
+                'id' => 8122,
+                'province_id' => 64,
+                'name' => 'Montoro',
+                'code' => 'M330',
+                'zip_code' => '83025',
+                'created_at' => '2025-10-29 18:39:26',
+                'updated_at' => '2025-10-29 18:39:26',
+            ),
+            120 => 
+            array (
+                'id' => 8123,
+                'province_id' => 13,
+                'name' => 'Tremezzina',
+                'code' => 'M341',
+                'zip_code' => '22016',
+                'created_at' => '2025-10-29 19:10:12',
+                'updated_at' => '2025-10-29 19:10:12',
+            ),
+            121 => 
+            array (
+                'id' => 8124,
+                'province_id' => 30,
+                'name' => 'Rivignano Teor',
+                'code' => 'M317',
+                'zip_code' => '33061',
+                'created_at' => '2025-10-29 19:11:00',
+                'updated_at' => '2025-10-29 19:11:00',
+            ),
+            122 => 
+            array (
+                'id' => 8125,
+                'province_id' => 47,
+                'name' => 'San Marcello Piteglio',
+                'code' => 'M377',
+                'zip_code' => '51028',
+                'created_at' => '2025-10-29 19:12:05',
+                'updated_at' => '2025-10-29 19:12:05',
+            ),
+            123 => 
+            array (
+                'id' => 8126,
+                'province_id' => 25,
+                'name' => 'Quero Vas',
+                'code' => 'M332',
+                'zip_code' => '32038',
+                'created_at' => '2025-10-29 19:12:54',
+                'updated_at' => '2025-10-29 19:12:54',
+            ),
+            124 => 
+            array (
+                'id' => 8127,
+                'province_id' => 41,
+                'name' => 'Vallefoglia',
+                'code' => 'M331',
+                'zip_code' => '61022',
+                'created_at' => '2025-10-29 19:13:46',
+                'updated_at' => '2025-10-29 19:13:46',
+            ),
+            125 => 
+            array (
+                'id' => 8128,
+                'province_id' => 34,
+                'name' => 'Sissa Trecasali',
+                'code' => 'M325',
+                'zip_code' => '43018',
+                'created_at' => '2025-10-29 19:14:38',
+                'updated_at' => '2025-10-29 19:14:38',
+            ),
+            126 => 
+            array (
+                'id' => 8129,
+                'province_id' => 37,
+                'name' => 'Valsamoggia',
+                'code' => 'M320',
+                'zip_code' => '40053',
+                'created_at' => '2025-10-29 19:15:44',
+                'updated_at' => '2025-10-29 19:15:44',
+            ),
+            127 => 
+            array (
+                'id' => 8130,
+                'province_id' => 22,
+                'name' => 'Primiero San Martino di Castrozza',
+                'code' => 'M359',
+                'zip_code' => '38054',
+                'created_at' => '2025-10-29 19:17:45',
+                'updated_at' => '2025-10-29 19:17:45',
+            ),
+            128 => 
+            array (
+                'id' => 8132,
+                'province_id' => 51,
+                'name' => 'Pratovecchio Stia',
+                'code' => 'M329',
+                'zip_code' => '52015',
+                'created_at' => '2025-10-29 19:20:47',
+                'updated_at' => '2025-10-29 19:20:47',
+            ),
+            129 => 
+            array (
+                'id' => 8133,
+                'province_id' => 22,
+                'name' => 'Porte di Rendena',
+                'code' => 'M358',
+                'zip_code' => '38094',
+                'created_at' => '2025-10-29 19:21:52',
+                'updated_at' => '2025-10-29 19:21:52',
+            ),
+            130 => 
+            array (
+                'id' => 8134,
+                'province_id' => 22,
+                'name' => 'Vallelaghi',
+                'code' => 'M362',
+                'zip_code' => '38096',
+                'created_at' => '2025-10-29 19:22:58',
+                'updated_at' => '2025-10-29 19:22:58',
+            ),
+            131 => 
+            array (
+                'id' => 8135,
+                'province_id' => 42,
+                'name' => 'Trecastelli',
+                'code' => 'M318',
+                'zip_code' => '60012',
+                'created_at' => '2025-10-29 19:23:41',
+                'updated_at' => '2025-10-29 19:23:41',
+            ),
+            132 => 
+            array (
+                'id' => 8137,
+                'province_id' => 22,
+                'name' => 'Pieve di Bono-Prezzo',
+                'code' => 'M365',
+                'zip_code' => '38085',
+                'created_at' => '2025-10-29 19:27:05',
+                'updated_at' => '2025-10-29 19:27:05',
+            ),
+            133 => 
+            array (
+                'id' => 8138,
+                'province_id' => 99,
+                'name' => 'Poggio Torriana',
+                'code' => 'M324',
+                'zip_code' => '47824',
+                'created_at' => '2025-10-29 19:29:46',
+                'updated_at' => '2025-10-29 19:29:46',
+            ),
+            134 => 
+            array (
+                'id' => 8139,
+                'province_id' => 34,
+                'name' => 'Polesine Zibello',
+                'code' => 'M367',
+                'zip_code' => '43016',
+                'created_at' => '2025-10-29 19:30:36',
+                'updated_at' => '2025-10-29 19:30:36',
+            ),
+            135 => 
+            array (
+                'id' => 8140,
+                'province_id' => 22,
+                'name' => 'San Lorenzo Dorsino',
+                'code' => 'M345',
+                'zip_code' => '38078',
+                'created_at' => '2025-10-29 19:36:46',
+                'updated_at' => '2025-10-29 19:36:46',
+            ),
+            136 => 
+            array (
+                'id' => 8141,
+                'province_id' => 48,
+                'name' => 'Scarperia e San Piero',
+                'code' => 'M326',
+                'zip_code' => '50038',
+                'created_at' => '2025-10-29 19:37:47',
+                'updated_at' => '2025-10-29 19:37:47',
+            ),
+            137 => 
+            array (
+                'id' => 8142,
+                'province_id' => 22,
+                'name' => 'Sella Giudicarie',
+                'code' => 'M360',
+                'zip_code' => '38087',
+                'created_at' => '2025-10-29 19:38:33',
+                'updated_at' => '2025-10-29 19:38:33',
+            ),
+            138 => 
+            array (
+                'id' => 8143,
+                'province_id' => 17,
+                'name' => 'Terre del Reno',
+                'code' => 'M381',
+                'zip_code' => '44047',
+                'created_at' => '2025-10-29 19:40:27',
+                'updated_at' => '2025-10-29 19:40:27',
+            ),
+            139 => 
+            array (
+                'id' => 8144,
+                'province_id' => 16,
+                'name' => 'Val Brembilla',
+                'code' => 'M334',
+                'zip_code' => '24012',
+                'created_at' => '2025-10-29 19:48:29',
+                'updated_at' => '2025-10-29 19:48:29',
+            ),
+            140 => 
+            array (
+                'id' => 8145,
+                'province_id' => 25,
+                'name' => 'Val di Zoldo',
+                'code' => 'M374',
+                'zip_code' => '32012',
+                'created_at' => '2025-10-29 19:49:12',
+                'updated_at' => '2025-10-29 19:49:12',
+            ),
+            141 => 
+            array (
+                'id' => 8146,
+                'province_id' => 43,
+                'name' => 'Valfornace',
+                'code' => 'M382',
+                'zip_code' => '62031',
+                'created_at' => '2025-10-29 19:49:56',
+                'updated_at' => '2025-10-29 19:49:56',
+            ),
+            142 => 
+            array (
+                'id' => 8147,
+                'province_id' => 35,
+                'name' => 'Ventasso',
+                'code' => 'M364',
+                'zip_code' => '42032',
+                'created_at' => '2025-10-29 19:51:39',
+                'updated_at' => '2025-10-29 19:51:39',
+            ),
+            143 => 
+            array (
+                'id' => 8148,
+                'province_id' => 97,
+                'name' => 'Verderio',
+                'code' => 'M337',
+                'zip_code' => '23879',
+                'created_at' => '2025-10-29 19:52:15',
+                'updated_at' => '2025-10-29 19:52:15',
+            ),
+            144 => 
+            array (
+                'id' => 8149,
+                'province_id' => 22,
+                'name' => 'Ville d\'Anaunia',
+                'code' => 'M363',
+                'zip_code' => '38019',
+                'created_at' => '2025-10-29 19:54:13',
+                'updated_at' => '2025-10-29 19:54:13',
             ),
         ));
         

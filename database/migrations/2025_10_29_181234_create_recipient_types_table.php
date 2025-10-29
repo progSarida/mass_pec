@@ -11,19 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Schema::create('istat_types', function (Blueprint $table) {                                                 // tabella tipi istat
-        //     $table->id();
-        //     $table->string('name');                                                                                 // tipo istat
-        //     $table->integer('position');                                                                            // posizione il selezione
-        //     $table->timestamps();
-        // });
+        Schema::create('istat_types', function (Blueprint $table) {                                                 // tabella tipi istat
+            $table->id();
+            $table->string('name');                                                                                 // tipo istat
+            $table->integer('position');                                                                            // posizione il selezione
+            $table->timestamps();
+        });
 
-        // Schema::create('admin_types', function (Blueprint $table) {                                                 // tabella tipi ammministrazioni
-        //     $table->id();
-        //     $table->string('name');                                                                                 // tipo amministrazione
-        //     $table->integer('position');                                                                            // posizione il selezione
-        //     $table->timestamps();       
-        // });
+        Schema::create('admin_types', function (Blueprint $table) {                                                 // tabella tipi ammministrazioni
+            $table->id();
+            $table->string('name');                                                                                 // tipo amministrazione
+            $table->integer('position');                                                                            // posizione il selezione
+            $table->timestamps();       
+        });
     }
 
     /**

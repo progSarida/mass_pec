@@ -12,6 +12,7 @@ enum MailType: string implements HasLabel
     case CORPORATE = "corporate";
     case ENCRYPTED = "encrypted";
     case OTHER = "other";
+    case CECPAC = "cecpac";
 
     public function getLabel(): string
     {
@@ -22,6 +23,7 @@ enum MailType: string implements HasLabel
             self::CORPORATE => 'Aziendale',
             self::ENCRYPTED => 'Crittografata',
             self::OTHER => 'Altro',
+            self::CECPAC => 'Cecpac',
         };
     }
 }
