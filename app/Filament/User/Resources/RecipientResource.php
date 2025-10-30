@@ -26,7 +26,7 @@ class RecipientResource extends Resource
     protected static ?string $model = Recipient::class;
     public static ?string $pluralModelLabel = 'Destinatari';
     public static ?string $modelLabel = 'Destinatario';
-    protected static ?string $navigationIcon = 'ri-user-received-2-fill';
+    protected static ?string $navigationIcon = 'fluentui-person-mail-20';
     protected static ?string $navigationLabel = 'Destinatari';
 
     public static function form(Form $form): Form
@@ -62,12 +62,14 @@ class RecipientResource extends Resource
                         $set('city_province', $city->province->code);
                         $set('city_region', $city->province->region->name);
                     })
-                    ->afterStateHydrated(function (callable $set, $state) {
-                        $city = City::find($state);
-                        $set('city_code', $city->code);
-                        $set('city_cap', $city->zip_code);
-                        $set('city_province', $city->province->code);
-                        $set('city_region', $city->province->region->name);
+                    ->afterStateHydrated(function (callable $set, $state, $record) {
+                        if($record){
+                            $city = City::find($state);
+                            $set('city_code', $city->code);
+                            $set('city_cap', $city->zip_code);
+                            $set('city_province', $city->province->code);
+                            $set('city_region', $city->province->region->name);
+                        }
                     })
                     ->columnSpan(6),
                 TextInput::make('address')->label('Indirizzo')
