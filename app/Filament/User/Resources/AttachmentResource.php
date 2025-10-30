@@ -44,7 +44,7 @@ class AttachmentResource extends Resource
                     ->directory('attachments')
                     ->visibility('public')
                     ->columnSpan('full')
-                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, Get $get) {
+                    ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, callable $get) {
                         if ($get('name') && trim($get('name')) !== '') {
                             $extension = $file->getClientOriginalExtension();
                             return sprintf('%s.%s', $get('name'), $extension);
@@ -82,7 +82,7 @@ class AttachmentResource extends Resource
                             ->label('Da data'),
                         DatePicker::make('date_to')
                             ->label('A data')
-                            ->minDate(fn (Get $get) => $get('date_from') ?: null),
+                            ->minDate(fn (callable $get) => $get('date_from') ?: null),
                     ])
                     ->query(function (Builder $query, array $data) {
                         return $query

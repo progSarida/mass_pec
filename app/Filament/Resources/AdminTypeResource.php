@@ -38,6 +38,7 @@ class AdminTypeResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('position'))
             ->columns([
                 TextColumn::make('position')
                     ->label('Posizione'),

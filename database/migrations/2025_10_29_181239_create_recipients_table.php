@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('resp_title');                                                                           // titolo responsabile
             $table->string('resp_surname');                                                                         // cognome responsabile
             $table->string('resp_name');                                                                            // nome responsabile
-            $table->string('tax_code');                                                                             // codice fiscale
+            $table->string('resp_tax_code');                                                                         // codice fiscale responsabile
             $table->string('mail_1')->nullable();                                                                   // email 1
             $table->string('mail_type_1')->nullable();                                                              // tipo email 1 (enum MailType)
             $table->string('mail_2')->nullable();                                                                   // email 2

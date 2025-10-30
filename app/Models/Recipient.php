@@ -18,7 +18,7 @@ class Recipient extends Model
         'resp_title',
         'resp_surname',
         'resp_name',
-        'tax_code',
+        'resp_tax_code',
         'mail_1',
         'mail_type_1',
         'mail_2',
