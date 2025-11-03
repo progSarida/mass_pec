@@ -18,6 +18,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use ZipArchive;
@@ -25,6 +26,7 @@ use ZipArchive;
 class CreateShipment extends CreateRecord
 {
     protected static string $resource = ShipmentResource::class;
+    public $selectedReceiversCount = 0;
 
     // Stato persistente
     public array $attachmentList = [];                                                                                                                      // id degli allegati selezionati
@@ -35,6 +37,11 @@ class CreateShipment extends CreateRecord
         'region_id' => null,
         'province_id' => null,
     ];
+
+    public function mount(): void
+    {
+        $this->selectedReceiversCount = $this->countSelectedEmails();
+    }
 
     protected function getHeaderActions(): array
     {
@@ -49,7 +56,7 @@ class CreateShipment extends CreateRecord
                         ->schema([
                             TextInput::make('name')->label('Nome')->disabled()->columnSpan(6),
                             DatePicker::make('date')->label('Data caricamento')->disabled()->displayFormat('d/m/Y')->columnSpan(3),
-                            Placeholder::make('blank')->columnSpan(1),
+                            Placeholder::make('blank')->label('')->columnSpan(1),
                             Checkbox::make('selected')->label('Allega')->columnSpan(2),
                         ])
                         ->columns(12)
@@ -73,7 +80,10 @@ class CreateShipment extends CreateRecord
 
             // === DESTINATARI PEC ===
             Actions\Action::make('receivers')
-                ->label(fn () => 'Destinatari PEC' . ($this->countSelectedEmails() > 0 ? ' (' . $this->countSelectedEmails() . ')' : ''))
+                ->label(fn () => $this->selectedReceiversCount > 0
+                    ? "Destinatari PEC ({$this->selectedReceiversCount})"
+                    : 'Destinatari PEC'
+                )
                 ->modalHeading('Selezione Destinatari PEC')
                 ->modalWidth('5xl')
                 ->form([
@@ -116,6 +126,7 @@ class CreateShipment extends CreateRecord
                 ])
                 ->action(function () {
                     $count = $this->countSelectedEmails();
+                    $this->selectedReceiversCount = $count;
                     $this->notifySelection($count, 'destinatario', 'destinatario(i) selezionato(i)');
                 })
                 ->modalSubmitActionLabel('Conferma selezione')
@@ -159,7 +170,7 @@ class CreateShipment extends CreateRecord
             return new HtmlString('<em class="text-gray-500">Seleziona almeno regione o provincia per vedere i destinatari.</em>');
         }
 
-        
+
         $recipients = Recipient::with('city.province.region')                                                                                               // ricerca dinamica: solo regione, o regione e provincia
             ->when($provinceId, function ($q) use ($provinceId, $regionId) {
                 $validProvince = $regionId                                                                                                                  // verifico che la provincia appartenga alla regione selezionata
@@ -185,8 +196,9 @@ class CreateShipment extends CreateRecord
             $emails = [];
             for ($i = 1; $i <= 5; $i++) {
                 $mail = $recipient->{"mail_$i"};
+                $type = $recipient->{"mail_type_$i"};
                 if (!empty($mail)) {
-                    $emails[] = ['field' => "mail_$i", 'email' => $mail];
+                    $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
                 }
             }
             if (empty($emails)) continue;
@@ -223,7 +235,7 @@ class CreateShipment extends CreateRecord
                     >
                     <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
                         <span class="font-medium">' . e($email['email']) . '</span>
-                        <span class="text-gray-500 text-xs ml-1">(' . $email['field'] . ')</span>
+                        <span class="text-gray-500 text-xs ml-1">(' . $email['type']->getLabel() . ')</span>
                     </label>
                 </div>';
             }
@@ -235,60 +247,45 @@ class CreateShipment extends CreateRecord
         return new HtmlString($html);
     }
 
-    // === CREAZIONE ZIP ===
-    protected function handleRecordCreation(array $data): \Illuminate\Database\Eloquent\Model                                                               // sovrascrivo il salvataggio per creare lo ZIP
+    protected function handleRecordCreation(array $data): \Illuminate\Database\Eloquent\Model
     {
-        $data['receiverList'] = $this->receiverList;
-        $data['attachmentList'] = $this->attachmentList;
-        dd($data);
-        $shipment = parent::handleRecordCreation($data);                                                                                                    // creo la spedizione
+        DB::beginTransaction();
 
-        if (!empty($this->attachmentList)) {
-            $this->createZipFromAttachments($shipment);                                                                                                     // se ci sono allegati selezionati, creo lo ZIP
-        }
+        try {
+            $shipment = parent::handleRecordCreation($data);                                                                                                    // creo la spedizione base
 
-        // Qui puoi usare $this->receiverList per inviare PEC
-        // if (!empty($this->receiverList)) {
-        //     $this->sendPecWithZip($shipment);
-        // }
+            $shipment->receiverList = $this->receiverList;                                                                                                      // aggiungo l'array con la lista dei destinatari
+            $shipment->attachmentList = $this->attachmentList;                                                                                                  // aggiungo l'array con la lista degli allegati
 
-        return $shipment;
-    }
+            $shipment->createShipmentFolder();                                                                                                                  // creo la cartella della spedizione
 
-    private function createZipFromAttachments($shipment): void
-    {
-        $attachments = Attachment::whereIn('id', $this->attachmentList)->get();                                                                             // recupera gli allegati dalla tabella attachments
-
-        if ($attachments->isEmpty()) return;
-
-        $zipFileName = $shipment->attachment . '.zip';                                                                                                      // nome del file ZIP (da $shipment->attachment)
-        $zipPath = storage_path('app/temp/' . $zipFileName);
-        $tempDir = dirname($zipPath);                                                                                                                       // creo la directory se non esiste
-        if (!is_dir($tempDir)) mkdir($tempDir, 0755, true);
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            Notification::make()->title('Errore creazione ZIP')->danger()->send();
-            return;
-        }
-
-        foreach ($attachments as $attachment) {                                                                                                             // inserisco file in ZIP
-            $filePath = storage_path('app/public/' . $attachment->path);                                                                                    // recupero il path del file
-            if (file_exists($filePath)) {
-                $fileName = pathinfo($attachment->path, PATHINFO_BASENAME);
-                $zip->addFile($filePath, $fileName);
+            if (!empty($shipment->receiverList)) {
+                $shipment->createReceivers();                                                                                                                   // creo i destinatari
             }
+
+            if (!empty($shipment->attachmentList)) {
+                $shipment->createZip();                                                                                                                         // creo lo ZIP
+            }
+
+            DB::commit();                                                                                                                                       // confermo il salvataggio dei dati
+
+            Notification::make()
+                ->title('Spedizione creata correttamente')
+                ->success()
+                ->send();
+
+            return $shipment;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Notification::make()
+                ->title('Errore durante la creazione della spedizione')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+
+            throw $e;
         }
-
-        $zip->close();                                                                                                                                      // chiudo ZIP
-
-        $publicPath = 'shipments/zips/' . $zipFileName;                                                                                                     // sposto lo ZIP in storage pubblico
-        Storage::disk('public')->putFileAs('shipments/zips', $zipPath, $zipFileName);
-        @unlink($zipPath);                                                                                                                                  // pulizia file temporaneo
-
-        Notification::make()
-            ->title('ZIP creato: ' . $zipFileName)
-            ->success()
-            ->send();
     }
 }

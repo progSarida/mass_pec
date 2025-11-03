@@ -50,6 +50,7 @@ class ShipmentResource extends Resource
                     ->label('Allegato')
                     ->default('allegati_' . $time . '.zip')
                     ->disabled()
+                    ->dehydrated()
                     ->columnSpan(4),
             ]);
     }
