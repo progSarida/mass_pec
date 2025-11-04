@@ -2,7 +2,9 @@
 
 namespace App\Filament\User\Resources\ShipmentResource\Pages;
 
+use App\Enums\MailType;
 use App\Filament\User\Resources\ShipmentResource;
+use App\Models\City;
 use App\Models\Receiver;
 use App\Models\Sender;
 use App\Models\Shipment;
@@ -17,6 +19,9 @@ use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use PHPMailer\PHPMailer\PHPMailer;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use ZipArchive;
 
 class EditShipment extends EditRecord
 {
@@ -123,8 +128,27 @@ class EditShipment extends EditRecord
                 }),
             Actions\Action::make('extract')
                 ->label('Estrazione')
-                ->action(function (array $data) {
-                    dd('ESTRAZIONE');
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('success')
+                ->requiresConfirmation()
+                ->modalHeading('Confermi estrazione?')
+                ->modalDescription('Verrà generato un file ZIP con Excel e ricevute.')
+                ->modalSubmitActionLabel('Sì, estrai')
+                ->action(function () {
+                    $this->extractShipment($this->record->id);
+
+                    $shipment = $this->record->fresh();
+                    if ($shipment->extraction_zip_file) {
+                        $path = storage_path("app/public{$shipment->shipment_path}/{$shipment->extraction_zip_file}");
+                        if (file_exists($path)) {
+                            return response()->download($path, $shipment->extraction_zip_file);
+                        }
+                    }
+
+                    Notification::make()
+                        ->warning()
+                        ->title('File non trovato')
+                        ->send();
                 }),
             Actions\Action::make('receivers')
                 ->label('Pec  destinatari')
@@ -485,5 +509,177 @@ class EditShipment extends EditRecord
             DB::rollBack();
             throw $e;
         }
+    }
+
+    private function extractShipment($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $shipment = \App\Models\Shipment::findOrFail($id);
+            $sender = \App\Models\Sender::findOrFail($shipment->sender_id);
+
+            $recipients = \App\Models\Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
+                ->where('shipment_id', $id)
+                ->select('R.description', 'R.city_id', 'receivers.ref as object_ref', 'receivers.address', 'receivers.mail_type')
+                ->get();
+
+            $folder = storage_path("app/public" . $shipment->shipment_path);
+            if (!is_dir($folder)) {
+                mkdir($folder, 0755, true);
+            }
+
+            $filename = 'ricevute-pec_' . $id . '_' . now()->format('Y-m-d_h-i-s');
+            $zipFilename = $filename . '.zip';
+            $xlsFilename = $filename . '.xlsx';
+            $zipFile = $folder . $zipFilename;
+
+            // Rimuovi vecchia estrazione
+            if ($shipment->extraction_zip_file && file_exists($folder . $shipment->extraction_zip_file)) {
+                $oldZip = $folder . $shipment->extraction_zip_file;
+                if ($this->extractZip($oldZip, $folder)) {
+                    @unlink($oldZip);
+                    @unlink($folder . str_replace('.zip', '.xlsx', $shipment->extraction_zip_file));
+                }
+            }
+
+            // Leggi file nella cartella (ricevute scaricate)
+            $receipts = array_diff(scandir($folder), ['.', '..']);
+
+            $header = ["Descrizione", "Comune", "Indirizzo Mail", "Tipo", "Accettazione", "File Acc.", "Consegna", "File Cons.", "Anomalia", "File An."];
+            $dataExcel = [];
+            $toZip = [];
+
+            foreach ($recipients as $row) {
+                $input = $row->object_ref;
+                $result = preg_grep("/{$input}/i", $receipts);
+
+                $recSend = $recSendFile = $recDeliver = $recDeliverFile = $recAnomaly = $recAnomalyFile = '';
+
+                foreach ($result as $line) {
+                    $fullPath = $folder . $line;
+                    if (!is_file($fullPath)) continue;
+
+                    $name = pathinfo($line, PATHINFO_FILENAME);
+                    $refs = explode('_', $name);
+                    if (count($refs) < 4) continue;
+
+                    $recType = str_replace('-', ' ', $refs[3]);
+                    $toZip[] = $fullPath;
+
+                    match (strtoupper($recType)) {
+                        'ACCETTAZIONE', 'AVVISO DI MANCATA ACCETTAZIONE' => [$recSend, $recSendFile] = [$recType, $line],
+                        'CONSEGNA', 'AVVISO DI MANCATA CONSEGNA' => [$recDeliver, $recDeliverFile] = [$recType, $line],
+                        'ANOMALIA MESSAGGIO' => [$recAnomaly, $recAnomalyFile] = [$recType, $line],
+                        default => null,
+                    };
+                }
+
+                $dataExcel[] = [
+                    $row->description,
+                    City::find($row->city_id)->name ?? '',
+                    $row->address,
+                    MailType::from($row->mail_type)->getLabel(),
+                    $recSend,
+                    $recSendFile,
+                    $recDeliver,
+                    $recDeliverFile,
+                    $recAnomaly,
+                    $recAnomalyFile,
+                ];
+            }
+
+            // Crea Excel
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray($header, null, 'A1');
+            $sheet->fromArray($dataExcel, null, 'A2');
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save($folder . $xlsFilename);
+            $toZip[] = $folder . $xlsFilename;
+
+            // Aggiungi allegato originale
+            $attachmentPath = storage_path("app/public/archive/shipments/{$id}/{$shipment->attachment}");
+            if (file_exists($attachmentPath)) {
+                $toZip[] = $attachmentPath;
+            }
+
+            // Crea ZIP
+            $zip = new ZipArchive();
+            if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new \Exception("Impossibile creare ZIP");
+            }
+            foreach ($toZip as $file) {
+                if (file_exists($file)) {
+                    $zip->addFile($file, basename($file));
+                }
+            }
+            $zip->close();
+
+            // Aggiorna DB
+            $shipment->update([
+                'extraction_date' => now()->format('Y-m-d'),
+                'extraction_zip_file' => $zipFilename
+            ]);
+
+            // Pulizia (tranne ZIP finale)
+            foreach ($toZip as $file) {
+                if (basename($file) !== $zipFilename && file_exists($file)) {
+                    @unlink($file);
+                }
+            }
+
+            DB::commit();
+
+            Notification::make()
+                ->success()
+                ->title('Estrazione completata')
+                ->body("File: {$zipFilename}")
+                ->send();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Estrazione fallita [ID: {$id}]: " . $e->getMessage());
+
+            Notification::make()
+                ->danger()
+                ->title('Errore estrazione')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    private function readZip($id, $filename)
+    {
+        try {
+            $zipPath = storage_path("app/public/archive/shipments/{$id}/{$filename}");
+            if (!file_exists($zipPath)) {
+                return [];
+            }
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath) !== true) {
+                return [];
+            }
+            $fileNames = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $stat = $zip->statIndex($i);
+                $fileNames[] = basename($stat['name']);
+            }
+            $zip->close();
+            return $fileNames;
+        } catch (\Exception $e) {
+            Log::error("Errore lettura ZIP: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function extractZip($file, $path)
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($file) && $zip->extractTo($path)) {
+            $zip->close();
+            return true;
+        }
+        return false;
     }
 }
