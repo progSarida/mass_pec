@@ -42,12 +42,15 @@ class Shipment extends Model
         return $this->belongsTo(Sender::class);
     }
 
+    public function receivers(){
+        return $this->hasMany(Receiver::class);
+    }
+
     protected static function booted()
     {
         static::creating(function ($shipment) {
             $shipment->insert_date = date('Y-m-d');                                                                                 // inserisco la data di oggi come data di inserimento della spedizione
-            $shipment->total_no_mails = count($shipment->receiverList, true);                                                       // inserisco il numero di email totali della spedizione
-            $shipment->no_mails_to_send = count($shipment->receiverList, true);                                                     // inserisco il numero di email da inviare
+            // $shipment->attachment = 'allegati_2025-11-03_16-27-00.zip';
         });
 
         static::created(function ($shipment) {
@@ -67,7 +70,11 @@ class Shipment extends Model
         });
 
         static::deleted(function ($shipment) {
-            //
+            $directory = "public/archive/shipments/{$shipment->id}";
+
+            if (Storage::exists($directory)) {
+                Storage::deleteDirectory($directory);
+            }
         });
 
     }

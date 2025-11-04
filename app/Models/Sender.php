@@ -38,4 +38,36 @@ class Sender extends Model
         'out_mail_protocol_type' => MailProtocolType::class,
         'out_authentication' => 'boolean',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($sender) {
+            //
+        });
+
+        static::created(function ($sender) {
+            //
+        });
+
+        static::updating(function ($sender) {
+            //
+        });
+
+        static::saving(function ($sender) {
+            //
+        });
+
+        static::saved(function ($sender) {
+            //
+        });
+
+        static::deleting(function ($sender) {
+            //
+        });
+
+        static::deleted(function ($sender) {
+            //
+        });
+
+    }
 }

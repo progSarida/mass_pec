@@ -68,7 +68,10 @@ class SenderResource extends Resource
                         TextInput::make('password')->label('Password')->columnSpan(6)
                             ->required()
                             ->password()
-                            ->revealable(),
+                            ->revealable()
+                            ->afterStateHydrated(fn ($set, $record) => $record->password != '' ? $set('password', decrypt($record->password)) : $set('password', null)
+                            )
+                            ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : ''),
                     ]),
                 Section::make('Configurazione invio')
                     ->collapsed(fn ($record) => $record)
@@ -87,9 +90,12 @@ class SenderResource extends Resource
                         TextInput::make('out_password')->label('Password')->columnSpan(4)
                             ->required()
                             ->password()
-                            ->revealable(),
+                            ->revealable()
+                            ->afterStateHydrated(fn ($set, $record) => $record->out_password != '' ? $set('out_password', decrypt($record->out_password)) : $set('out_password', null)
+                            )
+                            ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : ''),
                     ]),
-            ]);
+                ]);
     }
 
     public static function table(Table $table): Table

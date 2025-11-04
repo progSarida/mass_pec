@@ -56,6 +56,10 @@ class Recipient extends Model
         return $this->belongsTo(City::class);
     }
 
+    public function receivers(){
+        return $this->hasMany(Receiver::class);
+    }
+
     protected static function booted()
     {
         static::creating(function ($attachment) {

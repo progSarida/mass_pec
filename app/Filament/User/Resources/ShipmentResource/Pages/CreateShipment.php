@@ -28,11 +28,23 @@ class CreateShipment extends CreateRecord
     protected static string $resource = ShipmentResource::class;
     public $selectedReceiversCount = 0;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (!empty($data['out_password'])) {
+            $data['out_password'] = encrypt($data['out_password']);
+        }
+        if (!empty($data['password'])) {
+            $data['password'] = encrypt($data['password']);
+        }
+
+        return $data;
+    }
+
     // Stato persistente
-    public array $attachmentList = [];                                                                                                                      // id degli allegati selezionati
-                                                                                                                                                            // [1, 3, 7]
-    public array $receiverList = [];                                                                                                                        // id e campi dei destinatari selezionati
-                                                                                                                                                            // [12 => ['mail_1', 'mail_3'], 15 => ['mail_2']]
+    public array $attachmentList = [];                                                                                  // id degli allegati selezionati
+                                                                                                                        // [1, 3, 7]
+    public array $receiverList = [];                                                                                    // id e campi dei destinatari selezionati
+                                                                                                                        // [12 => ['mail_1', 'mail_3'], 15 => ['mail_2']]
     public array $receiverFilters = [ // filtri ricerca destinatari
         'region_id' => null,
         'province_id' => null,
@@ -109,7 +121,7 @@ class CreateShipment extends CreateRecord
                             ->afterStateUpdated(fn ($state) => $this->receiverFilters['province_id'] = $state),
                     ]),
 
-                    Placeholder::make('recipients_list')                                                                                                    // elenco dinamico con checkbox persistenti
+                    Placeholder::make('recipients_list')                                                                // elenco dinamico con checkbox persistenti
                         ->label('Destinatari')
                         ->content(fn (callable $get) => $this->renderRecipientsList(
                             $get('region_id') ?? $this->receiverFilters['region_id'],
@@ -171,16 +183,16 @@ class CreateShipment extends CreateRecord
         }
 
 
-        $recipients = Recipient::with('city.province.region')                                                                                               // ricerca dinamica: solo regione, o regione e provincia
+        $recipients = Recipient::with('city.province.region')                                                           // ricerca dinamica: solo regione, o regione e provincia
             ->when($provinceId, function ($q) use ($provinceId, $regionId) {
-                $validProvince = $regionId                                                                                                                  // verifico che la provincia appartenga alla regione selezionata
+                $validProvince = $regionId                                                                              // verifico che la provincia appartenga alla regione selezionata
                     ? Province::where('id', $provinceId)->where('region_id', $regionId)->exists()
                     : false;
                 if ($validProvince) {
                     return $q->whereHas('city.province', fn($p) => $p->where('id', $provinceId));
                 }
 
-                return $q;                                                                                                                                  // altrimenti ignora province_id
+                return $q;                                                                                              // altrimenti ignora province_id
             })
             ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
             ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
@@ -214,9 +226,9 @@ class CreateShipment extends CreateRecord
                 $field = "receiverList.{$recipient->id}.{$email['field']}";
                 $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
 
-                $hasSelection = isset($this->receiverList[$recipient->id]);                                                                                 // verifico se il Recipient ha già selezioni salvate
+                $hasSelection = isset($this->receiverList[$recipient->id]);                                             // verifico se il Recipient ha già selezioni salvate
 
-                $isFirstEmail = ($index === 0);                                                                                                             // spunto di default solo se è la prima email e non c'è selezione
+                $isFirstEmail = ($index === 0);                                                                         // spunto di default solo se è la prima email e non c'è selezione
                 $checked = $hasSelection
                     ? in_array($email['field'], $this->receiverList[$recipient->id] ?? [])
                     : $isFirstEmail;
@@ -252,22 +264,27 @@ class CreateShipment extends CreateRecord
         DB::beginTransaction();
 
         try {
-            $shipment = parent::handleRecordCreation($data);                                                                                                    // creo la spedizione base
+            $shipment = parent::handleRecordCreation($data);                                                            // creo la spedizione base
 
-            $shipment->receiverList = $this->receiverList;                                                                                                      // aggiungo l'array con la lista dei destinatari
-            $shipment->attachmentList = $this->attachmentList;                                                                                                  // aggiungo l'array con la lista degli allegati
+            $shipment->receiverList = $this->receiverList;                                                              // aggiungo l'array con la lista dei destinatari
+            $shipment->attachmentList = $this->attachmentList;                                                          // aggiungo l'array con la lista degli allegati
 
-            $shipment->createShipmentFolder();                                                                                                                  // creo la cartella della spedizione
+            $shipment->update([
+                'total_no_mails' => count($shipment->receiverList, true),                                               // inserisco il numero di email totali della spedizione
+                'no_mails_to_send' => count($shipment->receiverList, true)                                              // inserisco il numero di email da inviare
+            ]);
+
+            $shipment->createShipmentFolder();                                                                          // creo la cartella della spedizione
 
             if (!empty($shipment->receiverList)) {
-                $shipment->createReceivers();                                                                                                                   // creo i destinatari
+                $shipment->createReceivers();                                                                           // creo i destinatari
             }
 
             if (!empty($shipment->attachmentList)) {
-                $shipment->createZip();                                                                                                                         // creo lo ZIP
+                $shipment->createZip();                                                                                 // creo lo ZIP
             }
 
-            DB::commit();                                                                                                                                       // confermo il salvataggio dei dati
+            DB::commit();                                                                                               // confermo il salvataggio dei dati
 
             Notification::make()
                 ->title('Spedizione creata correttamente')
