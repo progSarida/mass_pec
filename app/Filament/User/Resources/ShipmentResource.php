@@ -53,8 +53,7 @@ class ShipmentResource extends Resource
                     ->disabled()
                     ->dehydrated()
                     ->columnSpan(8),
-                Section::make('Resoconto')
-                    ->description('Situazione mail della spedizione')
+                Section::make('Resoconto mail')
                     ->visible(fn ($record) => $record)
                     ->collapsed()
                     ->columns(24)
