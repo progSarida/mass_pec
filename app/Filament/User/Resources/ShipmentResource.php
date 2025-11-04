@@ -7,6 +7,7 @@ use App\Filament\User\Resources\ShipmentResource\RelationManagers;
 use App\Models\Shipment;
 use Filament\Forms;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -30,7 +31,7 @@ class ShipmentResource extends Resource
     {
         $time = now()->format('Y-m-d_H-i-s');
         return $form
-            ->columns(12)
+            ->columns(24)
             ->schema([
                 TextInput::make('description')
                     ->label('Descrizione (non visibile ai destinatari)')
@@ -38,10 +39,10 @@ class ShipmentResource extends Resource
                 Select::make('sender_id')
                     ->label('PEC Mittente')
                     ->relationship(name: 'sender', titleAttribute: 'public_name')
-                    ->columnSpan(5),
+                    ->columnSpan(10),
                 TextInput::make('mail_object')
                     ->label('Oggetto')
-                    ->columnSpan(7),
+                    ->columnSpan(14),
                 Textarea::make('mail_body')
                     ->label('Messaggio')
                     ->rows(6)
@@ -51,7 +52,38 @@ class ShipmentResource extends Resource
                     ->default('allegati_' . $time . '.zip')
                     ->disabled()
                     ->dehydrated()
-                    ->columnSpan(4),
+                    ->columnSpan(8),
+                Section::make('Resoconto')
+                    ->description('Situazione mail della spedizione')
+                    ->visible(fn ($record) => $record)
+                    ->collapsed()
+                    ->columns(24)
+                    ->schema([
+                        TextInput::make('total_no_mails ')
+                            ->label('Totali')
+                            ->columnSpan(3),
+                        TextInput::make('no_mails_sended ')
+                            ->label('Inviate')
+                            ->columnSpan(3),
+                        TextInput::make('no_mails_to_send ')
+                            ->label('Da inviare')
+                            ->columnSpan(3),
+                        TextInput::make('no_send_receipt ')
+                            ->label('Ricevute')
+                            ->columnSpan(3),
+                        TextInput::make('no_missed_send_receipt ')
+                            ->label('Non ricevute')
+                            ->columnSpan(3),
+                        TextInput::make('no_delivery_receipt ')
+                            ->label('Consegnate')
+                            ->columnSpan(3),
+                        TextInput::make('no_missed_delivery_receipt')
+                            ->label('Non consegnate')
+                            ->columnSpan(3),
+                        TextInput::make('no_anomaly_receipt ')
+                            ->label('Anomalie')
+                            ->columnSpan(3),
+                    ])
             ]);
     }
 
@@ -72,12 +104,12 @@ class ShipmentResource extends Resource
                     ->label('Inviate'),
                 TextColumn::make('no_mails_to_send')
                     ->label('Da inviare'),
-                TextColumn::make('no_send_receipt')
-                    ->label('Accettazioni'),
                 TextColumn::make('no_delivery_receipt')
                     ->label('Consegne'),
+                TextColumn::make('no_send_receipt')
+                    ->label('Accettazioni'),
                 TextColumn::make('no_anomaly_receipt')
-                    ->label('Anoomalie'),
+                    ->label('Anomalie'),
             ])
             ->filters([
                 //

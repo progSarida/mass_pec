@@ -88,8 +88,38 @@ class EditShipment extends EditRecord
             Actions\Action::make('download')
                 ->label('Scarico ricevute')
                 ->icon('hugeicons-mail-receive-01')
-                ->action(function (array $data) {
-                    dd('SCARICO');
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Scarica ricevute PEC')
+                ->modalDescription('Verranno scaricate tutte le ricevute di accettazione, consegna e anomalie.')
+                ->modalSubmitActionLabel('Scarica')
+                ->action(function () {
+                    $shipmentId = $this->record->id;
+
+                    try {
+                        $this->downloadReceipts($shipmentId);
+
+                        Notification::make()
+                            ->title('Ricevute scaricate')
+                            ->body('Tutte le ricevute sono state elaborate con successo.')
+                            ->success()
+                            ->send();
+
+                        $this->refreshFormData([
+                            'no_send_receipt',
+                            'no_missed_send_receipt',
+                            'no_delivery_receipt',
+                            'no_missed_delivery_receipt',
+                            'no_anomaly_receipt'
+                        ]);
+
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('Errore scarico')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 }),
             Actions\Action::make('extract')
                 ->label('Estrazione')
@@ -181,37 +211,9 @@ class EditShipment extends EditRecord
                 throw new \Exception("Allegato non trovato: " . $attachmentPath);
             }
 
-            // === TEST FINALE CON CREDENZIALI CORRETTE ===
-            // set_time_limit(120);
-            // ini_set('max_execution_time', 120);
-            // $email = new PHPMailer(true);
-            // $email->Timeout = 60;
-            // $email->isSMTP();
-            // $email->Host       = 'smtp.pec.it';                    // SERVER CORRETTO
-            // $email->Port       = 465;
-            // $email->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;      // SSL
-            // $email->SMTPAuth   = true;
-            // $email->Username   = 'corrispondenza@pec.sarida.it';
-            // $email->Password   = '12111965Daniel@';                // PASSWORD CORRETTA
-            // $email->setFrom('corrispondenza@pec.sarida.it', 'Corrispondenza Sarida s.r.l.');
-            // $email->addAddress('fatture@pec.sarida.it');
-            // $email->Subject    = 'TEST INVIO CORRETTO';
-            // $email->Body       = 'Invio PEC funziona al 100%!';
-            // $email->addAttachment($attachmentPath);
-            // $email->SMTPDebug = 2;
-            // $email->Debugoutput = function($str, $level) { Log::debug("FINAL TEST [$level]: $str"); };
-            // try {
-            //     $email->send();
-            //     Log::info("PEC INVIATA CON SUCCESSO!");
-            //     return 'PEC inviata con successo!'; // ferma esecuzione
-            // } catch (Exception $e) {
-            //     Log::error("ERRORE FINALE: " . $e->getMessage());
-            //     return 'Errore: ' . $e->getMessage();
-            // }
-
             foreach ($recipients as $recipient) {
                 if (is_null($recipient->send_date)) {
-                    $subject = $shipment->mail_object . " [" . $recipient->object_ref . "]";
+                    $subject = $shipment->mail_object . " [" . $recipient->ref . "]";
                     $email = new PHPMailer(true);
                     $email->Timeout = 60;
 
@@ -241,32 +243,6 @@ class EditShipment extends EditRecord
                     $email->Subject = $subject;
                     $email->Body = $body;
                     $email->addAttachment($attachmentPath);
-
-                    // $email->SMTPDebug = 2;                                                                                  //
-                    // $email->Debugoutput = function($str, $level) {                                                          // debug SMTP
-                    //     Log::debug("SMTP [$level]: $str");                                                                  //
-                    // };                                                                                                      //
-
-                    // Log::info("=== CONFIGURAZIONE SMTP ===");
-                    // Log::info("Host: " . $host);
-                    // Log::info("Porta: " . $port);
-                    // Log::info("Username: " . $username);
-                    // Log::info("Password: " . $password);
-                    // Log::info("Sicurezza: " . $secure);
-                    // Log::info("SMTP: " . ($smtp ? 'true' : 'false'));
-                    // Log::info("Auth: " . ($auth ? 'true' : 'false'));
-
-                    // Log::info("=== PHPMailer CONFIG ===");
-                    // Log::info("Host: " . $email->Host);
-                    // Log::info("Port: " . $email->Port);
-                    // Log::info("SMTPSecure: " . $email->SMTPSecure);
-                    // Log::info("SMTPAuth: " . ($email->SMTPAuth ? 'true' : 'false'));
-                    // Log::info("Username: " . $email->Username);
-                    // Log::info("Password: " . $email->Password);
-                    // Log::info("From: " . $email->From . " (" . $email->FromName . ")");
-                    // Log::info("Subject: " . $email->Subject);
-                    // Log::info("To: " . $email->getToAddresses()[0][0] ?? 'n/a');
-                    // Log::info("Attachment: " . ($email->getAttachments()[0][0] ?? 'n/a'));
 
                     try {
                         if ($email->send()) {
@@ -318,5 +294,196 @@ class EditShipment extends EditRecord
             ->body($message)
             ->danger()
             ->send();
+    }
+
+    private function connectToMail($sender)
+    {
+        $protocol = strtolower($sender->in_mail_protocol_type->value);
+        $safety   = strtolower($sender->connection_safety_type->value);
+
+        $mailbox = "{" . $sender->in_mail_server . ":" . $sender->in_mail_port . "/{$protocol}";
+
+        if ($safety === 'ssl') {
+            $mailbox .= '/ssl';
+        } elseif ($safety === 'tls') {
+            $mailbox .= '/tls';
+        } else {
+            $mailbox .= '/notls';
+        }
+
+        $mailbox .= "/novalidate-cert}INBOX";
+
+        $imap = imap_open($mailbox, $sender->username, decrypt($sender->password), 0, 1);
+
+        if ($imap === false) {
+            Log::error("IMAP fallita: " . implode(', ', imap_errors()));
+            return false;
+        }
+
+        return $imap;
+    }
+
+    private function ensureReceiptsPath($shipmentId)
+    {
+        $path = storage_path("app/public/archive/shipments/{$shipmentId}/receipts");
+        if (!file_exists($path)) {
+            mkdir($path, 0755, true);
+        }
+        return $path;
+    }
+
+    private function parseSubject($subjectHeader)
+    {
+        $decoded = iconv_mime_decode($subjectHeader ?? '', 0, "UTF-8");
+        $parts = explode(":", $decoded);
+        if (count($parts) < 2) return [null, null];
+
+        $receiptType = strtoupper(trim($parts[0]));
+        $subjectRef = trim(str_replace("]", "", explode("[", $parts[1])[1] ?? ''));
+
+        return [$receiptType, $subjectRef];
+    }
+
+    private function saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body)
+    {
+        $filename = "{$subjectRef}_" . str_replace(" ", "-", $receiptType) . ".eml";
+        file_put_contents($receiptsPath . $filename, $body);
+    }
+
+    private function processReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
+    {
+        $uids = imap_search($imap, 'SUBJECT "' . $subject . '"', SE_UID) ?: [];
+
+        foreach ($uids as $uid) {
+            $msgno = imap_msgno($imap, $uid);
+            $header = imap_headerinfo($imap, $msgno);
+            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
+
+            if (!$receiptType || !$subjectRef) continue;
+
+            $body = imap_fetchbody($imap, $msgno, '');
+            $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
+
+            // Accettazione
+            if (empty($recipient->send_receipt)) {
+                if ($receiptType === "ACCETTAZIONE") {
+                    $recipient->send_receipt = "received";
+                    $count["send"]++;
+                } elseif ($receiptType === "AVVISO DI MANCATA ACCETTAZIONE") {
+                    $recipient->send_receipt = "missed";
+                    $count["missedSend"]++;
+                }
+                imap_delete($imap, $uid, FT_UID);
+            }
+
+            // Consegna (solo PEC)
+            if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
+                if ($receiptType === "CONSEGNA") {
+                    $recipient->delivery_receipt = "received";
+                    $count["delivery"]++;
+                } elseif ($receiptType === "AVVISO DI MANCATA CONSEGNA") {
+                    $recipient->delivery_receipt = "missed";
+                    $count["missedDelivery"]++;
+                }
+                imap_delete($imap, $uid, FT_UID);
+            }
+        }
+    }
+
+    private function processAnomalies($imap, &$recipient, $subject, $receiptsPath, &$count)
+    {
+        if ($recipient->delivery_receipt === "received" || !empty($recipient->anomaly_receipt)) return;
+
+        $uids = imap_search($imap, 'ALL', SE_UID) ?: [];
+        foreach ($uids as $uid) {
+            $body = imap_body($imap, $uid, FT_UID);
+            if (strpos($body, $subject) === false) continue;
+
+            $header = imap_headerinfo($imap, imap_msgno($imap, $uid));
+            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
+
+            if ($receiptType === "ANOMALIA MESSAGGIO") {
+                $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
+                $recipient->anomaly_receipt = "received";
+                $count["anomaly"]++;
+                imap_delete($imap, $uid, FT_UID);
+                break;
+            }
+        }
+    }
+
+    public function downloadReceipts($shipmentId)
+    {
+        set_time_limit(120);
+        ini_set('max_execution_time', 120);
+        try {
+            DB::beginTransaction();
+
+            $shipment = Shipment::findOrFail($shipmentId);
+            $sender = Sender::findOrFail($shipment->sender_id);
+
+            $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
+                ->where('shipment_id', $shipment->id)
+                ->select('receivers.*', 'R.description as r_description')
+                ->get();
+
+            $receiptsPath = $this->ensureReceiptsPath($shipment->id);
+
+            Log::info("------------------------------------------------------------------------");
+            Log::info("Inizio recupero");
+
+            $imap = $this->connectToMail($sender);
+            if (!$imap) {
+                throw new \Exception("Errore IMAP: " . implode(', ', imap_errors()));
+            }
+            else{
+                Log::info("IMAP collegata!");
+            }
+
+            $count = [
+                "send" => 0,
+                "missedSend" => 0,
+                "delivery" => 0,
+                "missedDelivery" => 0,
+                "anomaly" => 0
+            ];
+
+            foreach ($recipients as $recipient) {
+                Log::info("Recupero ricevuta di " . $shipment->mail_object . " [{$recipient->ref}] da " . $recipient->r_description);
+                if (!empty($recipient->send_receipt) && !empty($recipient->delivery_receipt)) {
+                    continue;
+                }
+
+                $subject = $shipment->mail_object . " [{$recipient->ref}]";
+
+                $this->processAnomalies($imap, $recipient, $subject, $receiptsPath, $count);
+                $this->processReceipts($imap, $recipient, $subject, $receiptsPath, $count);
+
+                $recipient->save();
+            }
+
+            Log::info("Inviate: " . $count["send"]);
+            Log::info("Mancato invio: " . $count["missedSend"]);
+            Log::info("Consegnate: " . $count["delivery"]);
+            Log::info("Mancata consegna: " . $count["missedDelivery"]);
+            Log::info("Anomalie: " . $count["anomaly"]);
+
+            imap_expunge($imap);
+            imap_close($imap);
+
+            $shipment->update([
+                'no_send_receipt' => $count["send"],
+                'no_missed_send_receipt' => $count["missedSend"],
+                'no_delivery_receipt' => $count["delivery"],
+                'no_missed_delivery_receipt' => $count["missedDelivery"],
+                'no_anomaly_receipt' => $count["anomaly"]
+            ]);
+
+            DB::commit();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 }
