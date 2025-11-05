@@ -53,13 +53,15 @@ class UserResource extends Resource
                 //     ->columnSpan(2)
                 //     ->onColor('success')
                 //     ->offColor('danger'),
-                Placeholder::make('')->label(''),
+                Placeholder::make('')->label('')
+                    ->columnSpan(4),
                 Forms\Components\Select::make('roles')
                     ->label('Ruolo')
                     ->relationship('roles', 'name')
                     // ->multiple()
                     ->preload()
-                    ->searchable(),
+                    ->searchable()
+                    ->columnSpan(2),
             ]);
     }
 
