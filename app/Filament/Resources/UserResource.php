@@ -75,6 +75,10 @@ class UserResource extends Resource
                 //     ->offIcon('heroicon-s-x-circle')
                 //     ->onColor('success')
                 //     ->offColor('danger'),
+                Tables\Columns\TextColumn::make('roles.name')
+                    ->label('Ruolo')
+                    ->badge()
+                    ->separator(', '),
             ])
             ->filters([
                 //
