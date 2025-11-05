@@ -28,6 +28,7 @@ class Shipment extends Model
         'no_missed_delivery_receipt',
         'no_anomaly_receipt',
         'no_anomaly_receipt',
+        'extraction_date',
         'extraction_zip_file',
     ];
 
