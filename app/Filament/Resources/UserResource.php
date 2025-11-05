@@ -8,6 +8,7 @@ use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\ScopeType;
 use App\Models\User;
 use Filament\Forms;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -48,10 +49,17 @@ class UserResource extends Resource
                     ->password()
                     ->dehydrated(fn($state) => filled($state))
                     ->required(fn($livewire) => $livewire instanceof \App\Filament\Resources\UserResource\Pages\CreateUser),
-                Toggle::make('is_admin')->label('Amministratore')
-                    ->columnSpan(2)
-                    ->onColor('success')
-                    ->offColor('danger'),
+                // Toggle::make('is_admin')->label('Amministratore')
+                //     ->columnSpan(2)
+                //     ->onColor('success')
+                //     ->offColor('danger'),
+                Placeholder::make('')->label(''),
+                Forms\Components\Select::make('roles')
+                    ->label('Ruolo')
+                    ->relationship('roles', 'name')
+                    // ->multiple()
+                    ->preload()
+                    ->searchable(),
             ]);
     }
 
@@ -61,12 +69,12 @@ class UserResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('Nome'),
                 TextColumn::make('email')->label('Email'),
-                ToggleColumn::make('is_admin')
-                    ->label('Amministratore')
-                    ->onIcon('heroicon-s-check-circle')
-                    ->offIcon('heroicon-s-x-circle')
-                    ->onColor('success')
-                    ->offColor('danger'),
+                // ToggleColumn::make('is_admin')
+                //     ->label('Amministratore')
+                //     ->onIcon('heroicon-s-check-circle')
+                //     ->offIcon('heroicon-s-x-circle')
+                //     ->onColor('success')
+                //     ->offColor('danger'),
             ])
             ->filters([
                 //
