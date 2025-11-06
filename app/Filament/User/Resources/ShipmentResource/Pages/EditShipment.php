@@ -356,7 +356,22 @@ class EditShipment extends EditRecord
         return $path;
     }
 
-    private function parseSubject($subjectHeader)
+    private function isOfficialPecReceiptOk($rawHeaders)
+    {
+        // Aruba: X-Ricevuta
+        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia)/mi', $rawHeaders)) {
+            return true;
+        }
+
+        // Poste, LegalMail, Namirial, Register, ecc.: X-TipoRicevuta
+        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia)/mi', $rawHeaders)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function parseSubjectOld($subjectHeader)
     {
         $decoded = iconv_mime_decode($subjectHeader ?? '', 0, "UTF-8");
         $parts = explode(":", $decoded);
@@ -368,13 +383,26 @@ class EditShipment extends EditRecord
         return [$receiptType, $subjectRef];
     }
 
+    private function parseSubject($subjectHeader)
+    {
+        $decoded = iconv_mime_decode($subjectHeader ?? '', 0, "UTF-8");
+
+        if (preg_match('/^(ACCETTAZIONE|CONSEGNA|AVVISO DI MANCATA ACCETTAZIONE|AVVISO DI MANCATA CONSEGNA|ANOMALIA MESSAGGIO):\s*(.+?)\s*\[(.+?)\]$/i', $decoded, $matches)) {
+            $receiptType = strtoupper(trim($matches[1]));
+            $subjectRef = trim($matches[3]);
+            return [$receiptType, $subjectRef];
+        }
+
+        return [null, null];
+    }
+
     private function saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body)
     {
         $filename = "{$subjectRef}_" . str_replace(" ", "-", $receiptType) . ".eml";
         file_put_contents($receiptsPath . $filename, $body);
     }
 
-    private function processReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
+    private function processReceiptsOld($imap, &$recipient, $subject, $receiptsPath, &$count)
     {
         $uids = imap_search($imap, 'SUBJECT "' . $subject . '"', SE_UID) ?: [];
 
@@ -397,7 +425,7 @@ class EditShipment extends EditRecord
                     $recipient->send_receipt = "missed";
                     $count["missedSend"]++;
                 }
-                imap_delete($imap, $uid, FT_UID);
+                // imap_delete($imap, $uid, FT_UID);
             }
 
             // Consegna (solo PEC)
@@ -409,17 +437,73 @@ class EditShipment extends EditRecord
                     $recipient->delivery_receipt = "missed";
                     $count["missedDelivery"]++;
                 }
-                imap_delete($imap, $uid, FT_UID);
+                // imap_delete($imap, $uid, FT_UID);
             }
         }
     }
 
-    private function processAnomalies($imap, &$recipient, $subject, $receiptsPath, &$count)
+    private function processReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
+    {
+        $searchCriteria = 'SUBJECT "' . $subject . '"';
+        $uids = imap_search($imap, $searchCriteria, SE_UID) ?: [];
+
+        foreach ($uids as $uid) {
+            $msgno = imap_msgno($imap, $uid);
+            $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
+            $header = imap_headerinfo($imap, $msgno);
+
+            if (!$this->isOfficialPecReceipt($rawHeaders)) {
+                continue;
+            }
+
+            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
+            if (!$receiptType || !$subjectRef) {
+                continue;
+            }
+
+            // Normalizza tipo per Aruba
+            if (preg_match('/^X-Ricevuta:\s*avvenuta-consegna/mi', $rawHeaders)) {
+                $receiptType = "CONSEGNA";
+            } elseif (preg_match('/^X-Ricevuta:\s*non-accettazione/mi', $rawHeaders)) {
+                $receiptType = "AVVISO DI MANCATA ACCETTAZIONE";
+            }
+
+            $body = imap_fetchbody($imap, $msgno, '');
+            $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
+
+            // --- Accettazione ---
+            if (empty($recipient->send_receipt)) {
+                if ($receiptType === "ACCETTAZIONE") {
+                    $recipient->send_receipt = "received";
+                    $count["send"]++;
+                } elseif ($receiptType === "AVVISO DI MANCATA ACCETTAZIONE") {
+                    $recipient->send_receipt = "missed";
+                    $count["missedSend"]++;
+                }
+                // imap_delete($imap, $uid, FT_UID);
+            }
+
+            // --- Consegna (solo PEC) ---
+            if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
+                if ($receiptType === "CONSEGNA") {
+                    $recipient->delivery_receipt = "received";
+                    $count["delivery"]++;
+                } elseif ($receiptType === "AVVISO DI MANCATA CONSEGNA") {
+                    $recipient->delivery_receipt = "missed";
+                    $count["missedDelivery"]++;
+                }
+                // imap_delete($imap, $uid, FT_UID);
+            }
+        }
+    }
+
+    private function processAnomaliesOld($imap, &$recipient, $subject, $receiptsPath, &$count)
     {
         if ($recipient->delivery_receipt === "received" || !empty($recipient->anomaly_receipt)) return;
 
         $uids = imap_search($imap, 'ALL', SE_UID) ?: [];
         foreach ($uids as $uid) {
+
             $body = imap_body($imap, $uid, FT_UID);
             if (strpos($body, $subject) === false) continue;
 
@@ -430,13 +514,46 @@ class EditShipment extends EditRecord
                 $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
                 $recipient->anomaly_receipt = "received";
                 $count["anomaly"]++;
-                imap_delete($imap, $uid, FT_UID);
+                // imap_delete($imap, $uid, FT_UID);
                 break;
             }
         }
     }
 
-    public function downloadReceipts($shipmentId)
+    private function processAnomalies($imap, &$recipient, $subject, $receiptsPath, &$count)
+    {
+        if ($recipient->delivery_receipt === "received" || !empty($recipient->anomaly_receipt)) {
+            return;
+        }
+
+        $searchCriteria = 'SUBJECT "' . $subject . '"';
+        $uids = imap_search($imap, $searchCriteria, SE_UID) ?: [];
+
+        foreach ($uids as $uid) {
+            $msgno = imap_msgno($imap, $uid);
+            $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
+            $header = imap_headerinfo($imap, $msgno);
+
+            if (!$this->isOfficialPecReceipt($rawHeaders)) {
+                continue;
+            }
+
+            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
+            if ($receiptType !== "ANOMALIA MESSAGGIO") {
+                continue;
+            }
+
+            $body = imap_body($imap, $uid, FT_UID);
+            $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
+
+            $recipient->anomaly_receipt = "received";
+            $count["anomaly"]++;
+            // imap_delete($imap, $uid, FT_UID);
+            break;
+        }
+    }
+
+    public function downloadReceiptsOk($shipmentId)
     {
         set_time_limit(120);
         ini_set('max_execution_time', 120);
@@ -681,5 +798,128 @@ class EditShipment extends EditRecord
             return true;
         }
         return false;
+    }
+
+    private function getReceiptInfo($rawHeaders, $subjectHeader)
+    {
+        // Parse subject (tutti i provider)
+        if (preg_match('/^(ACCETTAZIONE|CONSEGNA|AVVISO DI MANCATA (?:ACCETTAZIONE|CONSEGNA)|ANOMALIA MESSAGGIO):\s*(.+?)\s*\[(.+?)\]$/i',
+                    iconv_mime_decode($subjectHeader ?? '', 0, "UTF-8"), $matches)) {
+            [$type, $ref] = [strtoupper($matches[1]), trim($matches[3])];
+        } else {
+            return [null, null];
+        }
+
+        // Override Aruba da X-Ricevuta (più preciso del subject)
+        if (preg_match_all('/^X-Ricevuta:\s*(.+)/mi', $rawHeaders, $arubaTypes)) {
+            $arubaType = strtolower(trim($arubaTypes[1][0]));
+            $arubaMap = [
+                'avvenuta-consegna' => 'CONSEGNA',
+                'non-accettazione' => 'AVVISO DI MANCATA ACCETTAZIONE'
+            ];
+            $type = $arubaMap[$arubaType] ?? $type;
+        }
+
+        return [$type, $ref];
+    }
+
+    private function isOfficialPecReceipt($rawHeaders)
+    {
+        return preg_match('/^X-(?:Ricevuta|TipoRicevuta):\s*(?:accettazione|(?:avvenuta-)?consegna?|(?:mancata-)?accettazione?|(?:non-)?accettazione|(?:mancata-)?consegna?|anomalia)/mi', $rawHeaders);
+    }
+
+    private function processPecReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
+    {
+        $searchCriteria = 'SUBJECT "' . $subject . '"';
+        foreach (imap_search($imap, $searchCriteria, SE_UID) ?: [] as $uid) {
+            $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
+
+            if (!$this->isOfficialPecReceipt($rawHeaders)) continue;
+
+            [$type, $ref] = $this->getReceiptInfo($rawHeaders, imap_headerinfo($imap, imap_msgno($imap, $uid))->subject ?? '');
+
+            if (!$type || !$ref) continue;
+
+            // Salva file
+            $body = imap_body($imap, $uid, FT_UID);
+            $this->saveReceiptFile($receiptsPath, $ref, $type, $body);
+
+            // Anomalia
+            if ($type === "ANOMALIA MESSAGGIO" && empty($recipient->anomaly_receipt)) {
+                $recipient->anomaly_receipt = "received"; $count["anomaly"]++; imap_delete($imap, $uid, FT_UID); break;
+            }
+
+            // Accettazione
+            if (empty($recipient->send_receipt)) {
+                if ($type === "ACCETTAZIONE") { $recipient->send_receipt = "received"; $count["send"]++; }
+                elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE") { $recipient->send_receipt = "missed"; $count["missedSend"]++; }
+                imap_delete($imap, $uid, FT_UID);
+            }
+
+            // Consegna (solo PEC)
+            if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
+                if ($type === "CONSEGNA") { $recipient->delivery_receipt = "received"; $count["delivery"]++; }
+                elseif ($type === "AVVISO DI MANCATA CONSEGNA") { $recipient->delivery_receipt = "missed"; $count["missedDelivery"]++; }
+                imap_delete($imap, $uid, FT_UID);
+            }
+        }
+    }
+
+    public function downloadReceipts($shipmentId)
+    {
+        set_time_limit(120);
+        ini_set('max_execution_time', 120);
+
+        try {
+            DB::beginTransaction();
+            $shipment = Shipment::findOrFail($shipmentId);
+            $sender = Sender::findOrFail($shipment->sender_id);
+            $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
+                ->where('shipment_id', $shipment->id)
+                ->select('receivers.*', 'R.description as r_description')
+                ->get();
+
+            $receiptsPath = $this->ensureReceiptsPath($shipment->id);
+            Log::info("------------------------------------------------------------------------");
+            Log::info("Inizio recupero ricevute PEC per shipment {$shipment->id}");
+
+            $imap = $this->connectToMail($sender);
+            if (!$imap) {
+                throw new \Exception("Errore IMAP: " . implode(', ', imap_errors()));
+            }
+            Log::info("IMAP collegata con successo.");
+
+            $count = ["send" => 0, "missedSend" => 0, "delivery" => 0, "missedDelivery" => 0, "anomaly" => 0];
+
+            foreach ($recipients as $recipient) {
+                Log::info("Elaborazione: {$shipment->mail_object} [{$recipient->ref}] → {$recipient->r_description}");
+
+                if (!empty($recipient->send_receipt) && !empty($recipient->delivery_receipt)) {
+                    continue;
+                }
+
+                $subject = $shipment->mail_object . " [{$recipient->ref}]";
+                $this->processPecReceipts($imap, $recipient, $subject, $receiptsPath, $count);
+                $recipient->save();
+            }
+
+            Log::info("Ricevute elaborate → Accettazione: {$count['send']}, Mancate: {$count['missedSend']}, Consegna: {$count['delivery']}, Mancata consegna: {$count['missedDelivery']}, Anomalie: {$count['anomaly']}");
+
+            imap_expunge($imap);
+            imap_close($imap);
+
+            $shipment->update([
+                'no_send_receipt' => $count["send"],
+                'no_missed_send_receipt' => $count["missedSend"],
+                'no_delivery_receipt' => $count["delivery"],
+                'no_missed_delivery_receipt' => $count["missedDelivery"],
+                'no_anomaly_receipt' => $count["anomaly"]
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 }
