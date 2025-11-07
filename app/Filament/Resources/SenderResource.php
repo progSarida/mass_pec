@@ -29,6 +29,11 @@ class SenderResource extends Resource
     public static ?string $modelLabel = 'Mittente';
     protected static ?string $navigationIcon = 'fas-user-edit';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -58,11 +63,12 @@ class SenderResource extends Resource
                     ->schema([
                         TextInput::make('in_mail_server')->label('Server')->columnSpan(6)
                             ->required(),
-                        Select::make('in_mail_protocol_type')->label('Protocollo')->columnSpan(3)
+                        Select::make('in_mail_protocol_type')->label('Protocollo')->columnSpan(2)
                             ->required()
                             ->options(MailProtocolType::class),
-                        TextInput::make('in_mail_port')->label('Porta')->columnSpan(3)
+                        TextInput::make('in_mail_port')->label('Porta')->columnSpan(2)
                             ->required(),
+                        TextInput::make('deleta_after_days')->label('Cancellare dopo (giorni)')->columnSpan(2),
                         TextInput::make('username')->label('Username')->columnSpan(6)
                             ->required(),
                         TextInput::make('password')->label('Password')->columnSpan(6)
