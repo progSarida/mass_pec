@@ -11,13 +11,15 @@
         "andreiio/blade-remix-icon": "^3.7",
         "bezhansalleh/filament-shield": "^3.9",
         "codeat3/blade-fluentui-system-icons": "^1.34",
+        "ddeboer/imap": "^1.22",
         "filament/filament": "3.3",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "orangehill/iseed": "^3.1",
         "owenvoke/blade-fontawesome": "^2.9",
         "phpmailer/phpmailer": "^7.0",
-        "phpoffice/phpspreadsheet": "^5.2"
+        "phpoffice/phpspreadsheet": "^5.2",
+        "webklex/php-imap": "^6.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

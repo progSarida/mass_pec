@@ -13,15 +13,17 @@ return new class extends Migration
     {
         Schema::create('in_mails', function (Blueprint $table) {
             $table->id();
-            $table->string('uid')->nullable()->unique();                                                        // identificativo unico della mail
+            $table->string('uid')->nullable();                                                                  // identificativo della mail
+            $table->string('message_id')->nullable()->unique();                                                 // identificativo unico della mail
             $table->text('from');                                                                               // mittente
-            $table->text('subject');                                                                            // oggetto
-            $table->text('body_preview')->nullable();                                                           // anteprima del messaggio
-            $table->string('body_path')->nullable();                                                            // percorso file messaggio intero
+            $table->text('subject');                                                                            // oggetto del messaggio
+            $table->text('body')->nullable();                                                                   // corpo del messaggio
             $table->date('receive_date');                                                                       // data ricezione mail
             $table->string('attachment_path')->nullable();                                                      // percorso allegati
             $table->foreignId('download_user_id')->nullable()->constrained('users')->onUpdate('cascade');       // id utente che ha scaricato la mail
             $table->timestamps();
+
+            $table->unique(['uid', 'receive_date']);
         });
 
         Schema::table('senders', function (Blueprint $table) {

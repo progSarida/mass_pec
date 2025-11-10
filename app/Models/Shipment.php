@@ -50,6 +50,7 @@ class Shipment extends Model
     protected static function booted()
     {
         static::creating(function ($shipment) {
+            $shipment->sender_id = 1;
             $shipment->insert_date = date('Y-m-d');                                                                                 // inserisco la data di oggi come data di inserimento della spedizione
             // $shipment->attachment = 'allegati_2025-11-03_16-27-00.zip';
         });

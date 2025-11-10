@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources;
 
 use App\Filament\User\Resources\ShipmentResource\Pages;
 use App\Filament\User\Resources\ShipmentResource\RelationManagers;
+use App\Models\Sender;
 use App\Models\Shipment;
 use Filament\Forms;
 use Filament\Forms\Components\Placeholder;
@@ -37,9 +38,18 @@ class ShipmentResource extends Resource
                 TextInput::make('description')
                     ->label('Descrizione (non visibile ai destinatari)')
                     ->columnSpan('full'),
-                Select::make('sender_id')
+                TextInput::make('sender_name')
                     ->label('PEC Mittente')
-                    ->relationship(name: 'sender', titleAttribute: 'public_name')
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->afterStateHydrated(function (TextInput $component, $record) {
+                        if ($record?->sender) {
+                            $component->state($record->sender->public_name);
+                            return;
+                        }
+                        $sender = \App\Models\Sender::find(1);
+                        $component->state($sender?->public_name ?? 'Mittente non trovato');
+                    })
                     ->columnSpan(10),
                 TextInput::make('mail_object')
                     ->label('Oggetto')

@@ -10,10 +10,10 @@ class InMail extends Model
 {
     protected $fillable = [
         'uid',
+        'message_id',
         'from',
         'subject',
-        'body_preview',
-        'body_path',
+        'body',
         'receive_date',
         'attachment_path',
         'download_user_id',
@@ -50,8 +50,8 @@ class InMail extends Model
         });
 
         static::deleted(function ($mail) {
-            if ($mail->attachments_path) {
-                Storage::disk('public')->deleteDirectory($mail->attachments_path);
+            if ($mail->attachment_path) {
+                Storage::disk('public')->deleteDirectory($mail->attachment_path);
             }
         });
 

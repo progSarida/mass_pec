@@ -846,21 +846,22 @@ class EditShipment extends EditRecord
 
             // Anomalia
             if ($type === "ANOMALIA MESSAGGIO" && empty($recipient->anomaly_receipt)) {
-                $recipient->anomaly_receipt = "received"; $count["anomaly"]++; imap_delete($imap, $uid, FT_UID); break;
+                $recipient->anomaly_receipt = "received"; $count["anomaly"]++;
+                // imap_delete($imap, $uid, FT_UID); break;
             }
 
             // Accettazione
             if (empty($recipient->send_receipt)) {
                 if ($type === "ACCETTAZIONE") { $recipient->send_receipt = "received"; $count["send"]++; }
                 elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE") { $recipient->send_receipt = "missed"; $count["missedSend"]++; }
-                imap_delete($imap, $uid, FT_UID);
+                // imap_delete($imap, $uid, FT_UID);
             }
 
             // Consegna (solo PEC)
             if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
                 if ($type === "CONSEGNA") { $recipient->delivery_receipt = "received"; $count["delivery"]++; }
                 elseif ($type === "AVVISO DI MANCATA CONSEGNA") { $recipient->delivery_receipt = "missed"; $count["missedDelivery"]++; }
-                imap_delete($imap, $uid, FT_UID);
+                // imap_delete($imap, $uid, FT_UID);
             }
         }
     }
