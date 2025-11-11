@@ -11,8 +11,8 @@ class SenderSettings extends Page
 {
     protected static ?string $navigationIcon = 'fas-user-edit';
     protected static ?string $navigationGroup = 'Gestione';
-    protected static ?string $navigationLabel = 'Mittente';
-    protected static ?string $title = 'Configurazione Mittente';
+    protected static ?string $navigationLabel = 'Mittente Pec Massiva';
+    protected static ?string $title = 'Configurazione Mittente Pec Massiva';
     protected static ?string $slug = 'mittente';
     protected static string $view = 'filament.pages.sender-settings';
 
