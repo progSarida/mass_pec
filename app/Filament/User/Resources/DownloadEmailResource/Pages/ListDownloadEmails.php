@@ -5,6 +5,7 @@ namespace App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource;
 use App\Models\Account;
 use App\Models\DownloadEmail;
+use App\Models\Registry;
 use Ddeboer\Imap\Server;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -105,11 +106,23 @@ class ListDownloadEmails extends ListRecords
 
                     // SKIP GIA' SCARICATA
                     $message_id = $message->getId();
-                    if (
-                        ($message_id && DownloadEmail::where('message_id', $message_id)->exists()) ||
-                        DownloadEmail::where('uid', $uid)->where('receive_date', $date)->exists()
-                    ) {
-                        Log::info("Ignorata mail già scaricata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
+                    $skip = false;
+                    if ($message_id) {
+                        $skip = DownloadEmail::where('message_id', $message_id)->exists() ||
+                                Registry::where('message_id', $message_id)->exists();
+                    }
+
+                    if (!$skip && $uid && $date) {
+                        $skip = DownloadEmail::where('uid', $uid)
+                                    ->where('receive_date', $date)
+                                    ->exists() ||
+                                Registry::where('uid', $uid)
+                                    ->where('receive_date', $date)
+                                    ->exists();
+                    }
+
+                    if ($skip) {
+                        Log::info("Ignorata mail già scaricata/protocollata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
                         continue;
                     }
 

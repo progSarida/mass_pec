@@ -93,10 +93,10 @@ class ListInMails extends ListRecords
             foreach ($messages as $message) {
                 $uid = $message->getNumber();
 
-                if (InMail::where('uid', $uid)->exists()) {
-                    Log::info("Mail già presente: UID {$uid}");
-                    continue;
-                }
+                // if (InMail::where('uid', $uid)->exists()) {
+                //     Log::info("Mail già presente: UID {$uid}");
+                //     continue;
+                // }
 
                 // --- SKIP RICEVUTE PEC ---
                 $rawHeaders = $message->getRawHeaders();
