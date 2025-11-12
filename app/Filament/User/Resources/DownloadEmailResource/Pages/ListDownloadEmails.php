@@ -27,7 +27,7 @@ class ListDownloadEmails extends ListRecords
                 ->icon('fluentui-mail-arrow-down-20-o')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->modalHeading('Scarica ricevute PEC')
+                ->modalHeading('Scarica email')
                 ->modalDescription('Verranno scaricate tutte le mail degli account previsti')
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
@@ -67,9 +67,9 @@ class ListDownloadEmails extends ListRecords
             // CREARE CICLO SU TUTTI GLI ACCOUNT CHE HANNO 'download' == true
 
             foreach($accounts as $account){
-                if (strtolower($account->in_mail_protocol_type->value) !== 'pop3') {
-                    throw new \Exception("Questo sistema supporta solo POP3. Configurare in_mail_protocol_type = 'pop3'.");
-                }
+                // if (strtolower($account->in_mail_protocol_type->value) !== 'pop3') {
+                //     throw new \Exception("Questo sistema supporta solo POP3. Configurare in_mail_protocol_type = 'pop3'.");
+                // }
 
                 // --- CONNESSIONE POP3 DA DB ---
                 $host = $account->in_mail_server;
@@ -78,7 +78,8 @@ class ListDownloadEmails extends ListRecords
                 $password = decrypt($account->password);
                 $encryption = strtolower($account->connection_safety_type->value);
 
-                $flags = '/pop3';
+                // $flags = '/pop3';
+                $flags = '/' . $account->in_mail_protocol_type->value;
                 if ($encryption === 'ssl') $flags .= '/ssl';
                 elseif ($encryption === 'tls') $flags .= '/tls';
                 $flags .= '/novalidate-cert';
@@ -157,10 +158,15 @@ class ListDownloadEmails extends ListRecords
 
                     Log::info("PEC salvata: UID {$uid}, ID {$inMail->id}, corpo: " . strlen($body) . " byte");
 
-                    if ($account->delete_after_days && $date) {
-                        $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
-                        if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
-                            $message->delete();
+                    if ($account->delete && $date) {                                                            // se è prevista la cancellazione dal server
+                        if ($account->delete_after_days && $date){
+                            $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                            if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
+                                // $message->delete();
+                            }
+                        }
+                        else{                                                                                   // se non ho indicato i giorni da aspettare per cancellare
+                            // $message->delete();
                         }
                     }
                 }
@@ -172,7 +178,7 @@ class ListDownloadEmails extends ListRecords
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Errore scarico email: " . $e->getMessage());
+            Log::error("Errore scarico email: " . $e->getMessage() . ' - ' . $e->getLine());
             throw $e;
         }
     }

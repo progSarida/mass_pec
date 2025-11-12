@@ -6,14 +6,17 @@ use App\Models\Sender;
 use App\Filament\Resources\SenderResource;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class SenderSettings extends Page
 {
+    use HasPageShield;
+
     protected static ?string $navigationIcon = 'fas-user-edit';
     protected static ?string $navigationGroup = 'Gestione';
     protected static ?string $navigationLabel = 'Mittente Pec Massiva';
     protected static ?string $title = 'Configurazione Mittente Pec Massiva';
-    protected static ?string $slug = 'mittente';
+    protected static ?string $slug = 'sender';
     protected static string $view = 'filament.pages.sender-settings';
 
     public ?Sender $sender = null;

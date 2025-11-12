@@ -9,4 +9,11 @@ use Filament\Resources\Pages\ViewRecord;
 class ViewDownloadEmail extends ViewRecord
 {
     protected static string $resource = DownloadEmailResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            // Actions\CreateAction::make(),
+        ];
+    }
 }

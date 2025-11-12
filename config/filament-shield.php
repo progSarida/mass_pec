@@ -70,6 +70,7 @@ return [
 
         'pages' => [
             'Dashboard',
+            'sender_settings' => \App\Filament\Pages\SenderSettings::class,
         ],
 
         'widgets' => [

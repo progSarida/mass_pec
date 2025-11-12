@@ -67,9 +67,9 @@ class ListInMails extends ListRecords
                 throw new \Exception("Nessun mittente configurato. Inserire i dati nella pagina Mittente.");
             }
 
-            if (strtolower($sender->in_mail_protocol_type->value) !== 'pop3') {
-                throw new \Exception("Questo sistema supporta solo POP3. Configurare in_mail_protocol_type = 'pop3'.");
-            }
+            // if (strtolower($sender->in_mail_protocol_type->value) !== 'pop3') {
+            //     throw new \Exception("Questo sistema supporta solo POP3. Configurare in_mail_protocol_type = 'pop3'.");
+            // }
 
             // --- CONNESSIONE POP3 DA DB ---
             $host = $sender->in_mail_server;
@@ -78,7 +78,8 @@ class ListInMails extends ListRecords
             $password = decrypt($sender->password);
             $encryption = strtolower($sender->connection_safety_type->value);
 
-            $flags = '/pop3';
+            // $flags = '/pop3';
+            $flags = '/' . $sender->in_mail_protocol_type->value;
             if ($encryption === 'ssl') $flags .= '/ssl';
             elseif ($encryption === 'tls') $flags .= '/tls';
             $flags .= '/novalidate-cert';

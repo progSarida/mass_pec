@@ -142,13 +142,13 @@ class DownloadEmailResource extends Resource
                     ->label('Scaricato da')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('attachments')
-                    ->label('Allegati')
-                    ->formatStateUsing(fn ($state) => $state ? 'Apri cartella' : '—')
-                    ->url(fn ($record) => $record->attachment_path ? asset('storage/' . $record->attachment_path) : null)
-                    ->openUrlInNewTab()
-                    ->icon('heroicon-o-folder-open')
-                    ->color('primary'),
+                // Tables\Columns\TextColumn::make('attachments')
+                //     ->label('Allegati')
+                //     ->formatStateUsing(fn ($state) => $state ? 'Apri cartella' : '—')
+                //     ->url(fn ($record) => $record->attachment_path ? asset('storage/' . $record->attachment_path) : null)
+                //     ->openUrlInNewTab()
+                //     ->icon('heroicon-o-folder-open')
+                //     ->color('primary'),
             ])
             ->filters([
                 //
@@ -156,10 +156,11 @@ class DownloadEmailResource extends Resource
             ->actions([
                 // Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    // Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -177,7 +178,7 @@ class DownloadEmailResource extends Resource
             'index' => Pages\ListDownloadEmails::route('/'),
             'create' => Pages\CreateDownloadEmail::route('/create'),
             'edit' => Pages\EditDownloadEmail::route('/{record}/edit'),
-            'view' => Pages\ViewDownloadEmail::route('{$record}')
+            'view' => Pages\ViewDownloadEmail::route('/{record}'),
         ];
     }
 }

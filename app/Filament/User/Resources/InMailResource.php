@@ -140,13 +140,13 @@ class InMailResource extends Resource
                     ->label('Scaricato da')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('attachments')
-                    ->label('Allegati')
-                    ->formatStateUsing(fn ($state) => $state ? 'Apri cartella' : '—')
-                    ->url(fn ($record) => $record->attachment_path ? asset('storage/' . $record->attachment_path) : null)
-                    ->openUrlInNewTab()
-                    ->icon('heroicon-o-folder-open')
-                    ->color('primary'),
+                // Tables\Columns\TextColumn::make('attachments')
+                //     ->label('Allegati')
+                //     ->formatStateUsing(fn ($state) => $state ? 'Apri cartella' : '—')
+                //     ->url(fn ($record) => $record->attachment_path ? asset('storage/' . $record->attachment_path) : null)
+                //     ->openUrlInNewTab()
+                //     ->icon('heroicon-o-folder-open')
+                //     ->color('primary'),
             ])
             ->filters([
                 //
