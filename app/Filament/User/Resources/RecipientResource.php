@@ -197,6 +197,7 @@ class RecipientResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -219,6 +220,7 @@ class RecipientResource extends Resource
             'index' => Pages\ListRecipients::route('/'),
             'create' => Pages\CreateRecipient::route('/create'),
             'edit' => Pages\EditRecipient::route('/{record}/edit'),
+            'view' => Pages\ViewRecipient::route('/{record}')
         ];
     }
 }

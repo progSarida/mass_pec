@@ -152,6 +152,7 @@ class InMailResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -173,6 +174,7 @@ class InMailResource extends Resource
             'index' => Pages\ListInMails::route('/'),
             'create' => Pages\CreateInMail::route('/create'),
             'edit' => Pages\EditInMail::route('/{record}/edit'),
+            'view' => Pages\ViewInMail::route('/{record}')
         ];
     }
 }

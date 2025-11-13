@@ -106,6 +106,8 @@ class AttachmentResource extends Resource
                     }),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('view')
                     ->label('Apri file')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -136,8 +138,9 @@ class AttachmentResource extends Resource
     {
         return [
             'index' => Pages\ListAttachments::route('/'),
-            // 'create' => Pages\CreateAttachment::route('/create'),
-            // 'edit' => Pages\EditAttachment::route('/{record}/edit'),
+            'create' => Pages\CreateAttachment::route('/create'),
+            'edit' => Pages\EditAttachment::route('/{record}/edit'),
+            'view' => Pages\ViewAttachment::route('/{record}')
         ];
     }
 }

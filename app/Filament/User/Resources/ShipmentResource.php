@@ -125,6 +125,7 @@ class ShipmentResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -147,6 +148,7 @@ class ShipmentResource extends Resource
             'index' => Pages\ListShipments::route('/'),
             'create' => Pages\CreateShipment::route('/create'),
             'edit' => Pages\EditShipment::route('/{record}/edit'),
+            'view' => Pages\ViewShipment::route('/{record}')
         ];
     }
 }

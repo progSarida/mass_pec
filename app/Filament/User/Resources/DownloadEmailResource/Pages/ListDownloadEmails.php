@@ -22,7 +22,7 @@ class ListDownloadEmails extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            // Actions\CreateAction::make(),
+            Actions\CreateAction::make(),
             Actions\Action::make('download')
                 ->label('Scarico email')
                 ->icon('fluentui-mail-arrow-down-20-o')
