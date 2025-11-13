@@ -38,17 +38,30 @@ class ShipmentResource extends Resource
                 TextInput::make('description')
                     ->label('Descrizione (non visibile ai destinatari)')
                     ->columnSpan('full'),
-                TextInput::make('sender_name')
+                // TextInput::make('sender_name')
+                //     ->label('PEC Mittente')
+                //     ->disabled()
+                //     ->default(function () {
+                //         $sender = \App\Models\Sender::find(1);
+                //         return $sender?->public_name ?? 'Mittente non trovato';
+                //     })
+                //     ->afterStateHydrated(function (TextInput $component, $record) {
+                //         if ($record?->sender) {
+                //             $component->state($record->sender->public_name);
+                //             return;
+                //         }
+                //         $sender = \App\Models\Sender::find(1);
+                //         $component->state($sender?->public_name ?? 'Mittente non trovato');
+                //     })
+                //     ->columnSpan(10),
+                Placeholder::make('sender_name')
                     ->label('PEC Mittente')
-                    ->disabled()
-                    ->dehydrated(false)
-                    ->afterStateHydrated(function (TextInput $component, $record) {
-                        if ($record?->sender) {
-                            $component->state($record->sender->public_name);
-                            return;
+                    ->content(function ($record) {
+                        if ($record?->sender?->public_name) {
+                            return $record->sender->public_name;
                         }
                         $sender = \App\Models\Sender::find(1);
-                        $component->state($sender?->public_name ?? 'Mittente non trovato');
+                        return $sender?->public_name ?? 'Mittente non trovato';
                     })
                     ->columnSpan(10),
                 TextInput::make('mail_object')
