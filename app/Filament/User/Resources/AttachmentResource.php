@@ -107,7 +107,7 @@ class AttachmentResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('view')
                     ->label('Apri file')
                     ->icon('heroicon-o-arrow-down-tray')
