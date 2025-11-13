@@ -2,31 +2,33 @@
 
 namespace App\Filament\User\Resources;
 
+use Filament\Forms;
+use Filament\Tables;
+use App\Models\Registry;
+use Filament\Forms\Form;
+use App\Models\ScopeType;
+use Filament\Tables\Table;
+use Illuminate\Support\Str;
+use App\Models\DownloadEmail;
+use Filament\Resources\Resource;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
+use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Builder;
+use Filament\Forms\Components\Placeholder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource\RelationManagers;
-use App\Models\DownloadEmail;
-use App\Models\Registry;
-use App\Models\ScopeType;
-use Filament\Forms;
-use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Notifications\Notification;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\HtmlString;
-use Illuminate\Support\Str;
 
 class DownloadEmailResource extends Resource
 {
@@ -40,7 +42,6 @@ class DownloadEmailResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->disabled()
             ->columns(12)
             ->schema([
                 Section::make('Informazioni Principali')
@@ -172,7 +173,8 @@ class DownloadEmailResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Protocolla email')
                     ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
-                    ->modalSubmitActionLabel('Protocolla')->form([
+                    ->modalSubmitActionLabel('Protocolla')
+                    ->form([
                         Select::make('scope_type_id')
                             ->label('Ambito')
                             ->options(ScopeType::pluck('name', 'id'))
@@ -199,6 +201,55 @@ class DownloadEmailResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('register_selected')
+                        ->label('Protocolla selezionate')
+                        ->icon('fluentui-pen-20-o')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Protocolla email selezionate')
+                        ->modalDescription('Le mail selezionate verranno inserite nel protocollo ed eliminate dall\'elenco.')
+                        ->modalSubmitActionLabel('Protocolla')
+                        ->form([
+                            Select::make('scope_type_id')
+                                ->label('Ambito')
+                                ->options(ScopeType::pluck('name', 'id'))
+                                ->searchable()
+                                ->required()
+                                ->placeholder('Seleziona l\'ambito per tutte le email')
+                        ])
+                        ->action(function (Collection $records, array $data) {
+                            $successCount = 0;
+                            $errorMessages = [];
+
+                            foreach ($records as $record) {
+                                try {
+                                    DownloadEmailResource::registerEmail($record, $data['scope_type_id']);
+                                    $successCount++;
+                                } catch (\Exception $e) {
+                                    $errorMessages[] = "Errore su UID {$record->uid}: " . $e->getMessage();
+                                }
+                            }
+
+                            // Notifica finale
+                            if ($successCount > 0) {
+                                Notification::make()
+                                    ->title("Protocollate {$successCount} email")
+                                    ->body('Operazione completata con successo.')
+                                    ->success()
+                                    ->send();
+                            }
+
+                            if (!empty($errorMessages)) {
+                                $body = "Alcune email non sono state protocollate:\n" . implode("\n", $errorMessages);
+                                Notification::make()
+                                    ->title('Errori parziali')
+                                    ->body($body)
+                                    ->danger()
+                                    ->send();
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
                 ]),
             ]);
     }
@@ -223,11 +274,32 @@ class DownloadEmailResource extends Resource
     private static function registerEmail($record, $scopeTypeId){
         try {
             DB::beginTransaction();
+
             $oldPath = $record->attachment_path;
             $protocolNumber = static::newProtocol();
 
             $newPath = 'registry/' . $protocolNumber;
 
+            Registry::create([
+                'protocol_number' => $protocolNumber,
+                'scope_type_id' => $scopeTypeId,
+                'uid' => $record->uid,
+                'message_id' => $record->message_id,
+                'from' => $record->from,
+                'subject' => $record->subject,
+                'body' => $record->body,
+                'receive_date' => $record->receive_date,
+                'attachment_path' => $newPath,
+                'download_date' => $record->created_at,
+                'download_user_id' => $record->download_user_id,
+                'register_user_id' => Auth::user()->id,
+            ]);
+
+            Model::withoutEvents(function () use ($record) {
+                $record->delete();
+            });
+
+            // copio cartella allegati
             if ($oldPath && Storage::disk('public')->exists($oldPath)) {
                 Storage::disk('public')->makeDirectory($newPath);
 
@@ -245,23 +317,7 @@ class DownloadEmailResource extends Resource
                 }
             }
 
-            Registry::create([
-                'protocol_number' => $protocolNumber,
-                'scope_type_id' => $scopeTypeId,
-                'uid' => $record->uid,
-                'message_id' => $record->message_id,
-                'from' => $record->from,
-                'subject' => $record->subject,
-                'body' => $record->body,
-                'receive_date' => $record->receive_date,
-                'attachment_path' => $newPath,
-                'download_date' => $record->created_at,
-                'download_user_id' => $record->download_user_id,
-                'register_user_id' => Auth::user()->id,
-            ]);
-
-            $record->delete();
-
+            // elimino la vecchia cartella degli allegati
             if ($oldPath && Storage::disk('public')->exists($oldPath)) {
                 Storage::disk('public')->deleteDirectory($oldPath);
             }
