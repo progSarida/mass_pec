@@ -41,16 +41,16 @@ class RecipientResource extends Resource
                     ->relationship(name: 'adminType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
                 Select::make('istat_type_id')->label('Tipo Istat')
                     ->relationship(name: 'istatType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
                 TextInput::make('code_ipa')->label('Codice Ipa')
-                    ->columnSpan(3),
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
                 TextInput::make('acronym')->label('Acronimo')
-                    ->columnSpan(3),
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('city_id')->label('Comune')
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
@@ -72,14 +72,14 @@ class RecipientResource extends Resource
                             $set('city_region', $city->province->region->name);
                         }
                     })
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
                 TextInput::make('address')->label('Indirizzo')
                     ->columnSpan('full'),
-                Placeholder::make('place_1')->label('')->columnSpan(3),
-                TextInput::make('city_code')->label('CC')->disabled()->columnSpan(2),
-                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))->columnSpan(2),
-                TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(2),
-                TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(3),
+                Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
                 Section::make('Responsabile')
                     // ->description('')
                     ->heading(fn ($record) => $record ? "Responsabile: {$record->resp_title} {$record->resp_surname} {$record->resp_name} - CF: {$record->resp_tax_code}" : 'Responsabile')
@@ -87,13 +87,13 @@ class RecipientResource extends Resource
                     ->columns(12)
                     ->schema([
                         TextInput::make('resp_title')->label('Titolo')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('resp_surname')->label('Cognome')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('resp_name')->label('Nome')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('resp_tax_code')->label('Codice FIscale')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ]),
                 Section::make('Email')
                     ->heading(function ($get, $record) {
@@ -117,50 +117,50 @@ class RecipientResource extends Resource
                     ->columns(12)
                     ->schema([
                         TextInput::make('mail_1')->label('Mail 1')
-                            ->columnSpan(6),
-                        Placeholder::make('place_mail_1')->label('')->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_1')->label('Tipo')
                             ->options(MailType::class)
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_2')->label('Mail 2')
-                            ->columnSpan(6),
-                        Placeholder::make('place_mail_2')->label('')->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_2')->label('Tipo')
                             ->options(MailType::class)
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_3')->label('Mail 3')
-                            ->columnSpan(6),
-                        Placeholder::make('place_mail_3')->label('')->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_3')->label('Tipo')
                             ->options(MailType::class)
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_4')->label('Mail 4')
-                            ->columnSpan(6),
-                        Placeholder::make('place_mail_4')->label('')->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_4')->label('Tipo')
                             ->options(MailType::class)
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_5')->label('Mail 5')
-                            ->columnSpan(6),
-                        Placeholder::make('place_mail_5')->label('')->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_5')->label('Tipo')
                             ->options(MailType::class)
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ]),
                 Section::make('Altri recapiti')
                     ->collapsed(fn ($record) => $record)
                     ->columns(12)
                     ->schema([
                         TextInput::make('site')->label('Sito istituzionale')
-                            ->columnSpan(12),
+                            ->columnSpan('full'),
                         TextInput::make('url_facebook')->label('Facebook')
-                            ->columnSpan(6),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_twitter')->label('Twitter')
-                            ->columnSpan(6),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_googleplus')->label('Google')
-                            ->columnSpan(6),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_youtube')->label('Youtube')
-                            ->columnSpan(6),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                     ]),
             ]);
     }

@@ -63,10 +63,10 @@ class ShipmentResource extends Resource
                         $sender = \App\Models\Sender::find(1);
                         return $sender?->public_name ?? 'Mittente non trovato';
                     })
-                    ->columnSpan(10),
+                    ->columnSpan(['sm' => 'full', 'md' => 10]),
                 TextInput::make('mail_object')
                     ->label('Oggetto')
-                    ->columnSpan(14),
+                    ->columnSpan(['sm' => 'full', 'md' => 14]),
                 Textarea::make('mail_body')
                     ->label('Messaggio')
                     ->rows(6)
@@ -76,7 +76,7 @@ class ShipmentResource extends Resource
                     ->default('allegati_' . $time . '.zip')
                     ->disabled()
                     ->dehydrated()
-                    ->columnSpan(8),
+                    ->columnSpan(['sm' => 'full', 'md' => 8]),
                 Section::make('Resoconto mail')
                     ->visible(fn ($record) => $record)
                     ->collapsed()
@@ -84,28 +84,28 @@ class ShipmentResource extends Resource
                     ->schema([
                         TextInput::make('total_no_mails ')
                             ->label('Totali')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_mails_sended ')
                             ->label('Inviate')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_mails_to_send ')
                             ->label('Da inviare')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_send_receipt ')
                             ->label('Ricevute')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_missed_send_receipt ')
                             ->label('Non ricevute')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_delivery_receipt ')
                             ->label('Consegnate')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_missed_delivery_receipt')
                             ->label('Non consegnate')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_anomaly_receipt ')
                             ->label('Anomalie')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ])
             ]);
     }

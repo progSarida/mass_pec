@@ -13,6 +13,10 @@ class ViewShipment extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('back')
+                ->label('Indietro')
+                ->url($this->getResource()::getUrl('index'))
+                ->color('gray'),
             Actions\EditAction::make(),
         ];
     }

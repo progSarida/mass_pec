@@ -49,11 +49,11 @@ class DownloadEmailResource extends Resource
                     ->schema([
                         TextInput::make('from')
                             ->label('Mittente')
-                            ->columnSpan(5),
+                            ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                         TextInput::make('subject')
                             ->label('Oggetto')
-                            ->columnSpan(7),
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Textarea::make('body')
                             ->label('Messaggio')
@@ -64,18 +64,18 @@ class DownloadEmailResource extends Resource
 
                 TextInput::make('receive_date')
                     ->label('Ricevuto il')
-                    ->columnSpan(4)
+                    ->columnSpan(['sm' => 'full', 'md' => 4])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 TextInput::make('created_at')
                     ->label('Scaricato il')
-                    ->columnSpan(4)
+                    ->columnSpan(['sm' => 'full', 'md' => 4])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
                     ->relationship('downloadUser', 'name')
-                    ->columnSpan(4),
+                    ->columnSpan(['sm' => 'full', 'md' => 4]),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)

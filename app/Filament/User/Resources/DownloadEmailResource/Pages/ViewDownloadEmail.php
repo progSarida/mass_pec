@@ -22,6 +22,10 @@ class ViewDownloadEmail extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('back')
+                ->label('Indietro')
+                ->url($this->getResource()::getUrl('index'))
+                ->color('gray'),
             Actions\EditAction::make(),
             Actions\Action::make('register')
                 ->label('Protocolla')
@@ -47,6 +51,8 @@ class ViewDownloadEmail extends ViewRecord
                             ->body('La mail e i suoi allegati sono stati protocollati con successo.')
                             ->success()
                             ->send();
+                        $resource = $this->getResource();
+                        return $this->redirect($resource::getUrl('index'));
                     } catch (\Exception $e) {
                         Notification::make()
                             ->title('Errore registrazione')

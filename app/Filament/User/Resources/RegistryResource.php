@@ -43,20 +43,20 @@ class RegistryResource extends Resource
                     ->schema([
                         TextInput::make('protocol_number')
                             ->label('Protocollo')
-                            ->columnSpan(7),
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Select::make('scope_type_id')
                             ->label('Ambito')
                             ->relationship('scopeType', 'name')
-                            ->columnSpan(8),
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                         TextInput::make('from')
                             ->label('Mittente')
-                            ->columnSpan(6),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('subject')
                             ->label('Oggetto')
-                            ->columnSpan(9),
+                            ->columnSpan(['sm' => 'full', 'md' => 9]),
 
                         Textarea::make('body')
                             ->label('Messaggio')
@@ -67,28 +67,28 @@ class RegistryResource extends Resource
 
                 TextInput::make('receive_date')
                     ->label('Ricevuto il')
-                    ->columnSpan(3)
+                    ->columnSpan(['sm' => 'full', 'md' => 3])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 TextInput::make('download_date')
                     ->label('Scaricato il')
-                    ->columnSpan(3)
+                    ->columnSpan(['sm' => 'full', 'md' => 3])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
                     ->relationship('downloadUser', 'name')
-                    ->columnSpan(3),
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 TextInput::make('created_at')
                     ->label('Registrato il')
-                    ->columnSpan(3)
+                    ->columnSpan(['sm' => 'full', 'md' => 3])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('register_user_id')
                     ->label('Registrato da')
                     ->relationship('registerUser', 'name')
-                    ->columnSpan(3),
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)
