@@ -160,12 +160,14 @@ class RegistryResource extends Resource
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('download_date')
                     ->label('Scaricato il')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -177,6 +179,7 @@ class RegistryResource extends Resource
 
                 TextColumn::make('created_at')
                     ->label('Registrato il')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

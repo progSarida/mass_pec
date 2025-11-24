@@ -67,7 +67,8 @@ class CreateShipment extends CreateRecord
                         ->label('')
                         ->schema([
                             TextInput::make('name')->label('Nome')->disabled()->columnSpan(6),
-                            DatePicker::make('date')->label('Data caricamento')->disabled()->displayFormat('d/m/Y')->columnSpan(3),
+                            DatePicker::make('date')->label('Data caricamento')
+                                ->extraInputAttributes(['class' => 'text-center'])->disabled()->displayFormat('d/m/Y')->columnSpan(3),
                             Placeholder::make('blank')->label('')->columnSpan(1),
                             Checkbox::make('selected')->label('Allega')->columnSpan(2),
                         ])
