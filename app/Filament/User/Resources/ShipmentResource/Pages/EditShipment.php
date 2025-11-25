@@ -183,6 +183,7 @@ class EditShipment extends EditRecord
         return [
             $this->getSaveFormAction()->color('success'),
             $this->getCancelFormAction(),
+            $this->getResetFormAction(),
             $this->getDeleteFormAction()
                 ->extraAttributes([
                     'class' => ' md:ml-auto md:w-auto ',
@@ -210,6 +211,17 @@ class EditShipment extends EditRecord
                     return $this->previousUrl;
                 }
                 return ShipmentResource::getUrl('index');
+            });
+    }
+
+    protected function getResetFormAction(): Actions\Action
+    {
+        return Actions\Action::make('reset')
+            ->label('Annulla')
+            ->color('gray')
+            ->action(function () {
+                $this->data = $this->getRecord()->toArray();
+                $this->fillForm();
             });
     }
 
