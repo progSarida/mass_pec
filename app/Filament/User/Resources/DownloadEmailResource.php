@@ -64,6 +64,7 @@ class DownloadEmailResource extends Resource
 
                 TextInput::make('receive_date')
                     ->label('Ricevuto il')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 4])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
@@ -74,6 +75,7 @@ class DownloadEmailResource extends Resource
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->relationship('downloadUser', 'name')
                     ->columnSpan(['sm' => 'full', 'md' => 4]),
 
@@ -138,13 +140,11 @@ class DownloadEmailResource extends Resource
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
-                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable(),
 
                 TextColumn::make('created_at')
                     ->label('Scaricato il')
-                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable(),
 

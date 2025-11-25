@@ -54,11 +54,13 @@ class InMailResource extends Resource
 
                 TextInput::make('receive_date')
                     ->label('Ricevuto il')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 4])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 TextInput::make('created_at')
                     ->label('Scaricato il')
+                    ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 4])
                     ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
@@ -128,13 +130,11 @@ class InMailResource extends Resource
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
-                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable(),
 
                 TextColumn::make('created_at')
                     ->label('Scaricato il')
-                    ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     ->sortable(),
 
