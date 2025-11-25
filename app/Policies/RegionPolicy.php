@@ -11,17 +11,6 @@ class RegionPolicy
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user is 'super_admin' and if he is bypass controls.
-     */
-    public function before(User $user, string $ability): bool|null
-    {
-        if ($user->hasRole('super_admin')) {
-            return true;
-        }
-        return null;
-    }
-
-    /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool

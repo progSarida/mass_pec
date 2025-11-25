@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\CheckDbSession;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -45,6 +46,7 @@ class UserPanelProvider extends PanelProvider
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
+                CheckDbSession::class,
                 StartSession::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
@@ -58,11 +60,14 @@ class UserPanelProvider extends PanelProvider
             ])
             ->userMenuItems([
                 MenuItem::make()
-                ->label('Amministratore')
+                    ->label('Amministratore')
                 // ->visible(fn (): bool => Auth::user()->is_admin)
-                ->visible(fn (): bool => Auth::user()->hasRole('super_admin'))
-                ->url('/admin')
-                ->icon('fas-user-lock')
+                    ->visible(fn (): bool => Auth::user()->hasRole('super_admin'))
+                    ->url('/admin')
+                    ->icon('fas-user-lock'),
+                'logout' => MenuItem::make()
+                    ->label('Vai al Portale')
+                    ->icon('heroicon-o-arrow-left-start-on-rectangle'),
             ]);
     }
 }
