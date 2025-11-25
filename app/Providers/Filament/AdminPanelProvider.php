@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\CheckDbSession;
 use Filament\Http\Middleware\Authenticate;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -45,6 +46,7 @@ class AdminPanelProvider extends PanelProvider
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
+                CheckDbSession::class,
                 StartSession::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
@@ -64,6 +66,9 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Operatore')
                     ->url('/user')
                     ->icon('fas-user'),
+                'logout'=>MenuItem::make()
+                    ->label('Vai al Portale')
+                    ->icon('heroicon-o-arrow-left-start-on-rectangle'),
                 // ...
             ]);
     }
