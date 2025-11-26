@@ -13,11 +13,12 @@ class SenderSettings extends Page
     use HasPageShield;
 
     protected static ?string $navigationIcon = 'fas-user-edit';
-    protected static ?string $navigationGroup = 'Gestione';
     protected static ?string $navigationLabel = 'Mittente Pec Massiva';
     protected static ?string $title = 'Configurazione Mittente Pec Massiva';
     protected static ?string $slug = 'sender';
     protected static string $view = 'filament.pages.sender-settings';
+    protected static ?string $navigationGroup = 'Parametri';
+    protected static ?int $navigationSort = 1;
 
     public ?Sender $sender = null;
     public ?array $data = [];

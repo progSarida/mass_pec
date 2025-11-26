@@ -28,6 +28,8 @@ class SenderResource extends Resource
     public static ?string $pluralModelLabel = 'Mittenti';
     public static ?string $modelLabel = 'Mittente';
     protected static ?string $navigationIcon = 'fas-user-edit';
+    protected static ?string $navigationGroup = 'Parametri';
+    protected static ?int $navigationSort = 3;
 
     public static function shouldRegisterNavigation(): bool
     {
@@ -144,15 +146,5 @@ class SenderResource extends Resource
             'create' => Pages\CreateSender::route('/create'),
             'edit' => Pages\EditSender::route('/{record}/edit'),
         ];
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Gestione';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 2;
     }
 }

@@ -22,11 +22,12 @@ class InMailResource extends Resource
 {
     protected static ?string $model = InMail::class;
 
-    public static ?string $pluralModelLabel = 'Casella massiva';
+    public static ?string $pluralModelLabel = 'Leggi mail sped. massive';
     public static ?string $modelLabel = 'Mail';
     protected static ?string $navigationIcon = 'fluentui-mail-inbox-20';
-    protected static ?string $navigationLabel = 'Casella massiva';
-    protected static ?int $navigationSort = 4;
+    protected static ?string $navigationLabel = 'Leggi mail sped. massive';
+    protected static ?string $navigationGroup = 'Archivio';
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

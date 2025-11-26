@@ -29,6 +29,8 @@ class UserResource extends Resource
     public static ?string $pluralModelLabel = 'Utenti';
     public static ?string $modelLabel = 'Utente';
     protected static ?string $navigationIcon = 'heroicon-s-users';
+    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
@@ -109,15 +111,5 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Gestione';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 1;
     }
 }

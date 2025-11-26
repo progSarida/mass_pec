@@ -48,15 +48,15 @@ class User extends Authenticatable implements FilamentUser
 
     public function loginRedirect(): ?Response
     {
-        $destinationPanelId = null;
-        if ($this->hasRole('super_admin'))
-            $destinationPanelId = 'admin';
-        else
+        // $destinationPanelId = null;
+        // if ($this->hasRole('super_admin'))
+        //     $destinationPanelId = 'admin';
+        // else
             $destinationPanelId = 'user';
-        
+
         if (!$destinationPanelId)
             return abort(403, 'Accesso non autorizzato a nessun pannello.');
-        
+
         return redirect()->to(Filament::getPanel($destinationPanelId)->getUrl());
     }
 }

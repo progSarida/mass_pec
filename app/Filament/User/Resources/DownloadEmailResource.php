@@ -34,10 +34,11 @@ class DownloadEmailResource extends Resource
 {
     protected static ?string $model = DownloadEmail::class;
 
-    public static ?string $pluralModelLabel = 'Scarico email';
+    public static ?string $pluralModelLabel = 'Scarico posta ricevuta';
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20';
-    protected static ?string $navigationLabel = 'Scarico email';
-    protected static ?int $navigationSort = 5;
+    protected static ?string $navigationLabel = 'Scarico posta ricevuta';
+    protected static ?string $navigationGroup = 'Archivio';
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {

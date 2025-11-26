@@ -24,10 +24,11 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class RecipientResource extends Resource
 {
     protected static ?string $model = Recipient::class;
-    public static ?string $pluralModelLabel = 'Destinatari';
-    public static ?string $modelLabel = 'Destinatario';
+    public static ?string $pluralModelLabel = 'Indirizzi interlocutori';
+    public static ?string $modelLabel = 'Interlocutore';
     protected static ?string $navigationIcon = 'fluentui-person-mail-20';
-    protected static ?string $navigationLabel = 'Destinatari';
+    protected static ?string $navigationLabel = 'Indirizzi interlocutori';
+    protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form

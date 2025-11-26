@@ -22,6 +22,8 @@ class AdminTypeResource extends Resource
     public static ?string $modelLabel = 'Tipo ente';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationLabel = 'Tipi ente';
+    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -72,15 +74,5 @@ class AdminTypeResource extends Resource
             'create' => Pages\CreateAdminType::route('/create'),
             'edit' => Pages\EditAdminType::route('/{record}/edit'),
         ];
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Gestione';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 3;
     }
 }

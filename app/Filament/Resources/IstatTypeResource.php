@@ -22,6 +22,8 @@ class IstatTypeResource extends Resource
     public static ?string $modelLabel = 'Tipo Istat';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationLabel = 'Tipi Istat';
+    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
@@ -72,15 +74,5 @@ class IstatTypeResource extends Resource
             'create' => Pages\CreateIstatType::route('/create'),
             'edit' => Pages\EditIstatType::route('/{record}/edit'),
         ];
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Gestione';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 4;
     }
 }

@@ -21,6 +21,8 @@ class ScopeTypeResource extends Resource
     public static ?string $pluralModelLabel = 'Ambiti';
     public static ?string $modelLabel = 'Ambito';
     protected static ?string $navigationIcon = 'fas-list';
+    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {
@@ -85,15 +87,5 @@ class ScopeTypeResource extends Resource
             'create' => Pages\CreateScopeType::route('/create'),
             'edit' => Pages\EditScopeType::route('/{record}/edit'),
         ];
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Gestione';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 6;
     }
 }

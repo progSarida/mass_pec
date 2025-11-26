@@ -21,6 +21,8 @@ class StateResource extends Resource
     public static ?string $pluralModelLabel = 'Stati';
     public static ?string $modelLabel = 'Stato';
     protected static ?string $navigationIcon = 'fas-globe-europe';
+    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?int $navigationSort = 8;
 
     public static function form(Form $form): Form
     {
@@ -155,15 +157,5 @@ class StateResource extends Resource
             'create' => Pages\CreateState::route('/create'),
             'edit' => Pages\EditState::route('/{record}/edit'),
         ];
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Anagrafiche territoriali';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 1;
     }
 }
