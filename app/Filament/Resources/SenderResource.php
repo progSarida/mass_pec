@@ -70,7 +70,7 @@ class SenderResource extends Resource
                             ->options(MailProtocolType::class),
                         TextInput::make('in_mail_port')->label('Porta')->columnSpan(2)
                             ->required(),
-                        TextInput::make('deleta_after_days')->label('Cancellare dopo (giorni)')->columnSpan(2),
+                        TextInput::make('delete_after_days')->label('Cancellare dopo (giorni)')->columnSpan(2),
                         TextInput::make('username')->label('Username')->columnSpan(6)
                             ->required(),
                         TextInput::make('password')->label('Password')->columnSpan(6)
