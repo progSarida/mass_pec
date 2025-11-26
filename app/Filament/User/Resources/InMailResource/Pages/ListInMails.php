@@ -115,6 +115,12 @@ class ListInMails extends ListRecords
                     InMail::where('uid', $uid)->where('receive_date', $date)->exists()
                 ) {
                     Log::info("Ignorata mail già scaricata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
+                    if ($sender->delete_after_days && $date) {
+                        $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
+                        if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
+                            $message->delete();
+                        }
+                    }
                     continue;
                 }
 
