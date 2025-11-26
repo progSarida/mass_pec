@@ -58,7 +58,7 @@ class SenderResource extends Resource
                     ->required()
                     ->options(ConnectionSafetyType::class),
                 Section::make('Configurazione ricezione')
-                    ->collapsed(fn ($record) => $record)
+                    ->collapsed(fn ($record) => $record && $record->address != '')
                     ->columns(12)
                     ->schema([
                         TextInput::make('in_mail_server')->label('Server')->columnSpan(6)
@@ -80,7 +80,7 @@ class SenderResource extends Resource
                             ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : ''),
                     ]),
                 Section::make('Configurazione invio')
-                    ->collapsed(fn ($record) => $record)
+                    ->collapsed(fn ($record) => $record && $record->address != '')
                     ->columns(12)
                     ->schema([
                         TextInput::make('out_mail_server')->label('Server')->columnSpan(6)

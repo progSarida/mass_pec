@@ -25,7 +25,29 @@ class SenderSettings extends Page
     public function mount(): void
     {
         // carica o crea il record unico
-        $this->sender = Sender::firstOrCreate([]);
+        $this->sender = Sender::firstOrCreate(
+                [], // cerca il primo record esistente
+                [
+                    // Valori di default per la creazione
+                    'cc' => null,
+                    'management_type' => 'iab',
+                    'mail_type' => 'pec',
+                    'address' => '',
+                    'username' => '',
+                    'password' => '',
+                    'public_name' => '',
+                    'connection_safety_type' => 'ssl',
+                    'in_mail_server' => '',
+                    'in_mail_protocol_type' => 'pop3',
+                    'in_mail_port' => '',
+                    'out_mail_server' => '',
+                    'out_mail_protocol_type' => 'pop3',
+                    'out_mail_port' => '',
+                    'out_authentication' => '1',
+                    'out_username' => '',
+                    'out_password' => '',
+                ]
+            );
         $this->form->fill($this->sender->toArray());
     }
 
