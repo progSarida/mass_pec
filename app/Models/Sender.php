@@ -22,6 +22,7 @@ class Sender extends Model
         'in_mail_server',
         'in_mail_protocol_type',
         'in_mail_port',
+        'delete_after_days',
         'out_mail_server',
         'out_mail_protocol_type',
         'out_mail_port',

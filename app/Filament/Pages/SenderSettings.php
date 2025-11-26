@@ -7,6 +7,7 @@ use App\Filament\Resources\SenderResource;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Notifications\Notification;
 
 class SenderSettings extends Page
 {
@@ -67,6 +68,11 @@ class SenderSettings extends Page
         // aggiorna i campi del record
         $this->sender->update($validated);
 
-        $this->notify('success', 'Dati del mittente salvati con successo!');
+        // $this->notify('success', 'Dati del mittente salvati con successo!');
+
+        Notification::make()
+            ->title("Dati del mittente salvati con successo!")
+            ->success()
+            ->send();
     }
 }
