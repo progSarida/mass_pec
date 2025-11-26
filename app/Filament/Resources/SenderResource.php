@@ -41,9 +41,9 @@ class SenderResource extends Resource
         return $form
             ->columns(12)
             ->schema([
-                TextInput::make('public_name')->label('Nome')->columnSpan(6)
+                TextInput::make('public_name')->label('Denominazione casella')->columnSpan(6)
                     ->required(),
-                TextInput::make('address')->label('Indirizzo')->columnSpan(6)
+                TextInput::make('address')->label('Indirizzo@email')->columnSpan(6)
                     ->required()
                     ->live()
                     ->afterStateUpdated(function ($state, callable $set) {
