@@ -113,11 +113,7 @@ class AttachmentResource extends Resource
                     ->label('Apri file')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
-                    // ->url(fn ($record) => asset('storage/' . $record->path))
-                    ->url(fn ($record) => \Storage::disk('public')->temporaryUrl(
-                        $record->path,
-                        now()->addMinutes(5)
-                    ))
+                    ->url(fn ($record) => asset('storage/' . $record->path))
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make()
                     ->label('Elimina file'),
@@ -126,10 +122,7 @@ class AttachmentResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->before(function ($records) {
-                            collect($records)->each(fn ($record) =>
-                                // File::delete(storage_path('app/public/' . $record->path))
-                                \Storage::disk('public')->delete($record->path)
-                            );
+                            collect($records)->each(fn ($record) => File::delete(storage_path('app/public/' . $record->path)));
                         }),
                 ]),
             ]);
