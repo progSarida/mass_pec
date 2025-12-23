@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class Attachment extends Model
 {
@@ -53,9 +55,20 @@ class Attachment extends Model
         });
 
         static::deleted(function ($attachment) {
-            $filePath = storage_path('app/public/' . $attachment->path);
-            if ($attachment->path && File::exists($filePath)) {
-                File::delete($filePath);
+            // $filePath = storage_path('app/public/' . $attachment->path);
+            // if ($attachment->path && File::exists($filePath)) {
+            //     File::delete($filePath);
+            // }
+            if ($attachment->path) {
+                try {
+                    Storage::delete($attachment->path);
+                } catch (\Exception $e) {
+                    // Logga l'errore se vuoi, ma non bloccare la cancellazione del record
+                    Log::warning('Impossibile eliminare il file allegato', [
+                        'path' => $attachment->path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         });
 

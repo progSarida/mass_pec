@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class AttachmentResource extends Resource
 {
@@ -42,9 +43,9 @@ class AttachmentResource extends Resource
                     ->columnSpan('full'),
                 FileUpload::make('path')
                     ->label('')
-                    ->disk('public')
+                    // ->disk('public')
                     ->directory('attachments')
-                    ->visibility('public')
+                    // ->visibility('public')
                     ->columnSpan('full')
                     ->getUploadedFileNameForStorageUsing(function (UploadedFile $file, callable $get) {
                         if ($get('name') && trim($get('name')) !== '') {
@@ -113,16 +114,21 @@ class AttachmentResource extends Resource
                     ->label('Apri file')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
-                    ->url(fn ($record) => asset('storage/' . $record->path))
+                    // ->url(fn ($record) => asset('storage/' . $record->path))
+                    ->url(fn($record): ?string => $record && $record->path ? Storage::temporaryUrl($record->path,now()->addMinutes(1)) : null)
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make()
                     ->label('Elimina file'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    // Tables\Actions\DeleteBulkAction::make()
+                    //     ->before(function ($records) {
+                    //         collect($records)->each(fn ($record) => File::delete(storage_path('app/public/' . $record->path)));
+                    //     }),
                     Tables\Actions\DeleteBulkAction::make()
                         ->before(function ($records) {
-                            collect($records)->each(fn ($record) => File::delete(storage_path('app/public/' . $record->path)));
+                            collect($records)->each(fn ($record) => Storage::delete($record->path));
                         }),
                 ]),
             ]);

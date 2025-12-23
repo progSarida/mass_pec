@@ -13,6 +13,7 @@ use Filament\Support\Enums\MaxWidth;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Webklex\PHPIMAP\Message as ImapMessage;
 
 class ListInMails extends ListRecords
@@ -152,15 +153,20 @@ class ListInMails extends ListRecords
                 ]);
 
                 // --- SALVA ALLEGATI ---
-                $folderPath = storage_path("app/public/in_mail/{$inMail->id}");
-                if (!is_dir($folderPath)) {
-                    mkdir($folderPath, 0755, true);
-                }
+                // $folderPath = storage_path("app/public/in_mail/{$inMail->id}");
+                $folderPath = "in_mail/{$inMail->id}";
+
+                // if (!is_dir($folderPath)) { mkdir($folderPath, 0755, true); }
+                Storage::makeDirectory($folderPath);
 
                 foreach ($message->getAttachments() as $attachment) {
-                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $attachment->getFilename());
-                    $filePath = $folderPath . '/' . $safeName;
-                    file_put_contents($filePath, $attachment->getContent());
+                    // $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $attachment->getFilename());
+                    // $filePath = $folderPath . '/' . $safeName;
+                    $originalName = $attachment->getFilename();
+                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+                    // file_put_contents($filePath, $attachment->getContent());
+                    $content = $attachment->getDecodedContent();
+                        Storage::put( "{$folderPath}/{$safeName}",$content );
                 }
 
                 $inMail->update([

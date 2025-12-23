@@ -53,6 +53,7 @@ class Shipment extends Model
             $shipment->sender_id = 1;
             $shipment->insert_date = date('Y-m-d');                                                                                 // inserisco la data di oggi come data di inserimento della spedizione
             // $shipment->attachment = 'allegati_2025-11-03_16-27-00.zip';
+            $shipment->attachment = 'allegati_' . now()->format('Y-m-d_H-i-s') . '.zip';
         });
 
         static::created(function ($shipment) {
@@ -72,16 +73,14 @@ class Shipment extends Model
         });
 
         static::deleted(function ($shipment) {
-            $directory = "public/archive/shipments/{$shipment->id}";
-
-            if (Storage::exists($directory)) {
-                Storage::deleteDirectory($directory);
+            if (Storage::exists($shipment->shipment_path)) {
+                Storage::deleteDirectory($shipment->shipment_path);
             }
         });
 
     }
 
-    public function createShipmentFolder(): void
+    public function createShipmentFolderOld(): void
     {
         $this->shipment_path = "/archive/shipments/{$this->id}/";
         $this->save();
@@ -92,7 +91,17 @@ class Shipment extends Model
         }
     }
 
-    public function createZip(): void
+    public function createShipmentFolder(): void
+    {
+        $this->shipment_path = "archive/shipments/{$this->id}";
+        $this->save();
+
+        if (!Storage::exists($this->shipment_path)) {
+            Storage::makeDirectory($this->shipment_path);
+        }
+    }
+
+    public function createZipOld(): void
     {
         if (empty($this->attachmentList)) return;
 
@@ -123,9 +132,55 @@ class Shipment extends Model
             ->send();
     }
 
-    public function createReceivers(): void
+    public function createZip($attachmentList): void
     {
-        foreach ($this->receiverList as $recipientId => $emails) {
+        if (empty($attachmentList)) return;
+
+        $attachments = Attachment::whereIn('id', $attachmentList)->get();
+        if ($attachments->isEmpty()) return;
+
+        $zipFileName = $this->attachment;
+        $tempZipPath = storage_path('app/temp/' . uniqid() . '.zip');
+
+        // Assicurati che la directory temp esista
+        if (!is_dir(dirname($tempZipPath))) {
+            mkdir(dirname($tempZipPath), 0755, true);
+        }
+
+        $zip = new ZipArchive();
+
+        if ($zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            Notification::make()->title('Errore creazione ZIP')->danger()->send();
+            return;
+        }
+
+        foreach ($attachments as $attachment) {
+            if (Storage::exists($attachment->path)) {
+                $zip->addFromString(
+                    basename($attachment->path),
+                    Storage::get($attachment->path)
+                );
+            }
+        }
+
+        $zip->close();
+
+        // Sposta lo ZIP nella posizione finale usando Storage
+        $zipPath = "archive/shipments/{$this->id}/{$zipFileName}";
+        Storage::put($zipPath, file_get_contents($tempZipPath));
+
+        // Pulisci il file temporaneo
+        @unlink($tempZipPath);
+
+        Notification::make()
+            ->title("ZIP creato correttamente ({$zipFileName})")
+            ->success()
+            ->send();
+    }
+
+    public function createReceivers($receiverList): void
+    {
+        foreach ($receiverList as $recipientId => $emails) {
             foreach ($emails as $mailField => $el) {
                 $recipient = Recipient::find($recipientId);
                 if (!$recipient) continue;

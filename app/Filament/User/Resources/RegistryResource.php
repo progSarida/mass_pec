@@ -103,7 +103,10 @@ class RegistryResource extends Resource
                                 if (!$record || !$record->attachment_path) {
                                     return 'Nessun allegato.';
                                 }
-                                $files = Storage::disk('public')->files($record->attachment_path);
+
+                                // $files = Storage::disk('public')->files($record->attachment_path);
+                                $files = Storage::files($record->attachment_path);
+
                                 if (empty($files)) {
                                     return 'Nessuna cartella allegati trovata.';
                                 }
@@ -111,7 +114,8 @@ class RegistryResource extends Resource
                                 return new HtmlString(
                                     collect($files)->map(function ($file) {
                                         $name = basename($file);
-                                        $url = Storage::url($file);
+                                        // $url = Storage::url($file);
+                                        $url = Storage::temporaryUrl($file, now()->addMinutes(5));
                                         return <<<HTML
                                         <div class="flex items-center gap-2">
                                             📎 <a href="{$url}" target="_blank" class="text-blue-600 hover:underline">{$name}</a>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class Registry extends Model
@@ -61,8 +62,19 @@ class Registry extends Model
         });
 
         static::deleted(function ($mail) {
+            // if ($mail->attachment_path) {
+            //     Storage::disk('public')->deleteDirectory($mail->attachment_path);
+            // }
             if ($mail->attachment_path) {
-                Storage::disk('public')->deleteDirectory($mail->attachment_path);
+                try {
+                    Storage::deleteDirectory($mail->attachment_path);
+                } catch (\Exception $e) {
+                    // Logga l'errore se vuoi, ma non bloccare la cancellazione del record
+                    Log::warning('Impossibile eliminare il file allegato', [
+                        'path' => $mail->attachment_path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         });
 

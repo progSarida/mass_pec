@@ -64,7 +64,7 @@ class ViewDownloadEmail extends ViewRecord
         ];
     }
 
-    private function registerEmail($record, $scopeTypeId){
+    private function registerEmailOld($record, $scopeTypeId){
         try {
             DB::beginTransaction();
 
@@ -119,6 +119,51 @@ class ViewDownloadEmail extends ViewRecord
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error("Errore scarico email: " . $e->getMessage() . ' - ' . $e->getLine());
+            throw $e;
+        }
+    }
+
+    private function registerEmail($record, $scopeTypeId)
+    {
+        try {
+            DB::beginTransaction();
+
+            $oldPath = $record->attachment_path;
+            $protocolNumber = static::newProtocol();
+            $newPath = 'registry/' . $protocolNumber;
+
+            $registry = Registry::create([
+                'protocol_number' => $protocolNumber,
+                'scope_type_id' => $scopeTypeId,
+                'uid' => $record->uid,
+                'message_id' => $record->message_id,
+                'from' => $record->from,
+                'subject' => $record->subject,
+                'body' => $record->body,
+                'receive_date' => $record->receive_date,
+                'attachment_path' => $newPath,
+                'download_date' => $record->created_at,
+                'download_user_id' => $record->download_user_id,
+                'register_user_id' => Auth::id(),
+            ]);
+
+            // Sposta l'intera cartella degli allegati
+            if ($oldPath && Storage::exists($oldPath)) {
+                Storage::move($oldPath, $newPath);
+            }
+
+            // Elimina il record originale
+            Model::withoutEvents(function () use ($record) {
+                $record->delete();
+            });
+
+            DB::commit();
+
+            return $registry;
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Errore protocollazione email: " . $e->getMessage() . ' - Linea: ' . $e->getLine());
             throw $e;
         }
     }
