@@ -36,7 +36,8 @@ class UserPanelProvider extends PanelProvider
             // ->topNavigation()
             ->discoverResources(in: app_path('Filament/User/Resources'), for: 'App\\Filament\\User\\Resources')
             ->navigationGroups([
-                NavigationGroup::make('Archivio'),
+                NavigationGroup::make('Protocolo'),
+                NavigationGroup::make('Pec Massiva'),
                 NavigationGroup::make('Tabelle'),
             ])
             ->discoverPages(in: app_path('Filament/User/Pages'), for: 'App\\Filament\\User\\Pages')

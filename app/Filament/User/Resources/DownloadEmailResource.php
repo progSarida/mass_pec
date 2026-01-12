@@ -37,8 +37,8 @@ class DownloadEmailResource extends Resource
     public static ?string $pluralModelLabel = 'Scarico posta ricevuta';
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20';
     protected static ?string $navigationLabel = 'Scarico posta ricevuta';
-    protected static ?string $navigationGroup = 'Archivio';
-    protected static ?int $navigationSort = 4;
+    protected static ?string $navigationGroup = 'Protocollo';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {

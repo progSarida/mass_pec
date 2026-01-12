@@ -14,10 +14,17 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use App\Filament\User\Resources\DownloadEmailResource;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Contracts\Support\Htmlable;
 
 class ViewDownloadEmail extends ViewRecord
 {
     protected static string $resource = DownloadEmailResource::class;
+
+    public function getTitle(): string | Htmlable
+    {
+        return $this->record->subject;
+    }
+
 
     protected function getHeaderActions(): array
     {

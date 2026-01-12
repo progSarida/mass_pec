@@ -16,6 +16,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +28,11 @@ use ZipArchive;
 class EditShipment extends EditRecord
 {
     protected static string $resource = ShipmentResource::class;
+
+    public function getTitle(): string | Htmlable
+    {
+        return $this->record->description;
+    }
 
     protected function mutateFormDataBeforeFill(array $data): array
     {

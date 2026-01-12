@@ -6,7 +6,9 @@ use App\Enums\MailType;
 use App\Filament\User\Resources\RecipientResource\Pages;
 use App\Filament\User\Resources\RecipientResource\RelationManagers;
 use App\Models\City;
+use App\Models\Province;
 use App\Models\Recipient;
+use App\Models\Region;
 use Filament\Forms;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
@@ -17,6 +19,7 @@ use Filament\Resources\Resource;
 use Filament\Support\Enums\Platform;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -190,7 +193,7 @@ class RecipientResource extends Resource
                 TextColumn::make('city.province.code')
                     ->label('Provincia'),
                 TextColumn::make('city.province.region.name')
-                    ->label('Descrizione'),
+                    ->label('Regione'),
                 TextColumn::make('resp_title')
                     ->label('Titolo Resp.'),
                 TextColumn::make('resp_surname')
@@ -201,12 +204,36 @@ class RecipientResource extends Resource
                     ->searchable(),
             ])
             ->filters([
-                //
+                SelectFilter::make('region_id')
+                    ->label('Regione')
+                    ->options(fn () => Region::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->whereHas('city.province.region', fn (Builder $q) =>
+                                $q->where('id', $value)
+                            );
+                        }
+                    })
+                    ->searchable(),
+
+                SelectFilter::make('province_id')
+                    ->label('Provincia')
+                    ->options(fn () => Province::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->whereHas('city.province', fn (Builder $q) =>
+                                $q->where('id', $value)
+                            );
+                        }
+                    })
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

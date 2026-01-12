@@ -30,7 +30,7 @@ class RegistryResource extends Resource
     public static ?string $pluralModelLabel = 'Protocollo';
     protected static ?string $navigationIcon = 'fluentui-book-20';
     protected static ?string $navigationLabel = 'Protocollo';
-    protected static ?string $navigationGroup = 'Archivio';
+    protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form

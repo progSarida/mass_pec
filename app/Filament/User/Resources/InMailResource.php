@@ -26,8 +26,8 @@ class InMailResource extends Resource
     public static ?string $modelLabel = 'Mail';
     protected static ?string $navigationIcon = 'fluentui-mail-inbox-20';
     protected static ?string $navigationLabel = 'Leggi mail sped. massive';
-    protected static ?string $navigationGroup = 'Archivio';
-    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationGroup = 'Pec Massiva';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {

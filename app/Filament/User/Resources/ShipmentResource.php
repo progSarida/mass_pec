@@ -27,8 +27,8 @@ class ShipmentResource extends Resource
     public static ?string $modelLabel = 'Spedizione';
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-forward-20';
     protected static ?string $navigationLabel = 'Spedizioni';
-    protected static ?string $navigationGroup = 'Archivio';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = 'Pec Massiva';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {

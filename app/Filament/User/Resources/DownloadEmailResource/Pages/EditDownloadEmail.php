@@ -5,10 +5,16 @@ namespace App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Contracts\Support\Htmlable;
 
 class EditDownloadEmail extends EditRecord
 {
     protected static string $resource = DownloadEmailResource::class;
+
+    public function getTitle(): string | Htmlable
+    {
+        return $this->record->subject;
+    }
 
     protected function getHeaderActions(): array
     {
