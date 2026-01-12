@@ -34,8 +34,8 @@ class EditRecipient extends EditRecord
     {
         return Actions\DeleteAction::make('delete')
                 ->requiresConfirmation()
-                ->modalHeading('Conferma eliminazione contatto')
-                ->modalDescription('Sei sicuro di voler eliminare questo contatto? Questa azione non può essere annullata.')
+                ->modalHeading('Conferma eliminazione interlocutore')
+                ->modalDescription('Sei sicuro di voler eliminare questo interlocutore? Questa azione non può essere annullata.')
                 ->modalSubmitActionLabel('Elimina')
                 ->modalCancelActionLabel('Annulla');
     }

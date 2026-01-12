@@ -18,6 +18,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use PHPMailer\PHPMailer\PHPMailer;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -55,7 +56,7 @@ class EditShipment extends EditRecord
         return $data;
     }
 
-    protected $listeners = [                                                                                                // ascolto eventi action
+    protected $listeners = [
         'start-shipment-send' => 'sendShipmentBackground',
         'shipment-sent-success' => 'onShipmentSuccess',
         'shipment-sent-error' => 'onShipmentError',
@@ -64,10 +65,13 @@ class EditShipment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('back')
+                ->label('Indietro')
+                ->url($this->getResource()::getUrl('index'))
+                ->color('gray'),
             Actions\Action::make('send')
                 ->label('Invio PEC')
                 ->icon('hugeicons-mail-send-01')
-                // ->color('success')
                 ->requiresConfirmation()
                 ->modalHeading('Conferma invio PEC')
                 ->modalDescription('L\'invio partirà immediatamente. Continuare?')
@@ -139,9 +143,10 @@ class EditShipment extends EditRecord
 
                     $shipment = $this->record->fresh();
                     if ($shipment->extraction_zip_file) {
-                        $path = storage_path("app/public{$shipment->shipment_path}/{$shipment->extraction_zip_file}");
-                        if (file_exists($path)) {
-                            return response()->download($path, $shipment->extraction_zip_file);
+                        $relativePath = ltrim($shipment->shipment_path, '/') . '/' . $shipment->extraction_zip_file;
+
+                        if (Storage::exists($relativePath)) {
+                            return Storage::download($relativePath, $shipment->extraction_zip_file);
                         }
                     }
 
@@ -151,7 +156,7 @@ class EditShipment extends EditRecord
                         ->send();
                 }),
             Actions\Action::make('receivers')
-                ->label('Pec  destinatari')
+                ->label('Pec destinatari')
                 ->modalHeading('Pec destinatari')
                 ->modalWidth('5xl')
                 ->form([
@@ -174,7 +179,6 @@ class EditShipment extends EditRecord
                             return new \Illuminate\Support\HtmlString($html);
                         })
                 ]),
-            // Actions\DeleteAction::make(),
         ];
     }
 
@@ -195,8 +199,8 @@ class EditShipment extends EditRecord
     {
         return Actions\DeleteAction::make('delete')
                 ->requiresConfirmation()
-                ->modalHeading('Conferma eliminazione contatto')
-                ->modalDescription('Sei sicuro di voler eliminare questo contatto? Questa azione non può essere annullata.')
+                ->modalHeading('Conferma eliminazione spedizione')
+                ->modalDescription('Sei sicuro di voler eliminare questa spedizione? Questa azione non può essere annullata.')
                 ->modalSubmitActionLabel('Elimina')
                 ->modalCancelActionLabel('Annulla');
     }
@@ -236,11 +240,10 @@ class EditShipment extends EditRecord
             ->toArray();
     }
 
-    public function sendShipmentBackground($shipmentId)                                                                     // avvia invio in background
+    public function sendShipmentBackground($shipmentId)
     {
         try {
             $this->sendShipment($shipmentId);
-
             $this->dispatch('shipment-sent-success');
         } catch (\Exception $e) {
             $this->dispatch('shipment-sent-error', message: $e->getMessage());
@@ -251,6 +254,9 @@ class EditShipment extends EditRecord
     {
         set_time_limit(120);
         ini_set('max_execution_time', 120);
+
+        $tempAttachment = null;
+
         try {
             DB::beginTransaction();
 
@@ -276,11 +282,17 @@ class EditShipment extends EditRecord
             $from = $sender->out_username;
             $name = $sender->public_name;
             $body = $shipment->mail_body;
-            $attachmentPath = storage_path('app/public') . $shipment->shipment_path . $shipment->attachment;
 
-            if (!file_exists($attachmentPath)) {
-                throw new \Exception("Allegato non trovato: " . $attachmentPath);
+            // Gestione allegato compatibile con Storage
+            $attachmentRelativePath = ltrim($shipment->shipment_path . '/' . $shipment->attachment, '/');
+
+            if (!Storage::exists($attachmentRelativePath)) {
+                throw new \Exception("Allegato non trovato: " . $attachmentRelativePath);
             }
+
+            // Scarica allegato in file temporaneo per PHPMailer
+            $tempAttachment = tempnam(sys_get_temp_dir(), 'attachment_');
+            file_put_contents($tempAttachment, Storage::get($attachmentRelativePath));
 
             foreach ($recipients as $recipient) {
                 if (is_null($recipient->send_date)) {
@@ -300,20 +312,20 @@ class EditShipment extends EditRecord
 
                     switch (strtolower($secure)) {
                         case 'ssl':
-                            $email->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;                                               // porta 465
+                            $email->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
                             break;
                         case 'tls':
-                            $email->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;                                            // porta 587
+                            $email->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                             break;
                         default:
-                            $email->SMTPSecure = '';                                                                        // nessuna crittografia
+                            $email->SMTPSecure = '';
                     }
 
                     $email->setFrom($from, $name);
                     $email->addAddress($recipient->address, $recipient->r_description);
                     $email->Subject = $subject;
                     $email->Body = $body;
-                    $email->addAttachment($attachmentPath);
+                    $email->addAttachment($tempAttachment, $shipment->attachment);
 
                     try {
                         if ($email->send()) {
@@ -331,6 +343,11 @@ class EditShipment extends EditRecord
                 }
             }
 
+            // Elimina file temporaneo
+            if ($tempAttachment && file_exists($tempAttachment)) {
+                @unlink($tempAttachment);
+            }
+
             $shipment->update([
                 'no_mails_sended' => $sent,
                 'no_mails_to_send' => $not_sent
@@ -338,17 +355,21 @@ class EditShipment extends EditRecord
 
             DB::commit();
 
-            // Notifica finale
             $this->dispatch('shipment-sent-success', sent: $sent, failed: $not_sent);
 
         } catch (\Exception $ex) {
             DB::rollBack();
+
+            if ($tempAttachment && file_exists($tempAttachment)) {
+                @unlink($tempAttachment);
+            }
+
             Log::error("Errore invio spedizione {$id}: " . $ex->getMessage());
             $this->dispatch('shipment-sent-error', message: $ex->getMessage());
         }
     }
 
-    public function onShipmentSuccess()                                                                                         // notifica successo
+    public function onShipmentSuccess()
     {
         Notification::make()
             ->title('Invio completato')
@@ -358,7 +379,7 @@ class EditShipment extends EditRecord
         $this->refreshFormData(['no_mails_sended', 'no_mails_to_send']);
     }
 
-    public function onShipmentError($message)                                                                                   // notifica errore
+    public function onShipmentError($message)
     {
         Notification::make()
             ->title('Errore invio')
@@ -396,14 +417,14 @@ class EditShipment extends EditRecord
 
     private function ensureReceiptsPath($shipmentId)
     {
-        $path = storage_path("app/public/archive/shipments/{$shipmentId}/receipts");
-        if (!file_exists($path)) {
-            mkdir($path, 0755, true);
+        $path = "archive/shipments/{$shipmentId}/receipts";
+        if (!Storage::exists($path)) {
+            Storage::makeDirectory($path);
         }
         return $path;
     }
 
-    private function isOfficialPecReceiptOk($rawHeaders)
+    private function isOfficialPecReceipt($rawHeaders)
     {
         // Aruba: X-Ricevuta
         if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia)/mi', $rawHeaders)) {
@@ -416,18 +437,6 @@ class EditShipment extends EditRecord
         }
 
         return false;
-    }
-
-    private function parseSubjectOld($subjectHeader)
-    {
-        $decoded = iconv_mime_decode($subjectHeader ?? '', 0, "UTF-8");
-        $parts = explode(":", $decoded);
-        if (count($parts) < 2) return [null, null];
-
-        $receiptType = strtoupper(trim($parts[0]));
-        $subjectRef = trim(str_replace("]", "", explode("[", $parts[1])[1] ?? ''));
-
-        return [$receiptType, $subjectRef];
     }
 
     private function parseSubject($subjectHeader)
@@ -446,405 +455,7 @@ class EditShipment extends EditRecord
     private function saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body)
     {
         $filename = "{$subjectRef}_" . str_replace(" ", "-", $receiptType) . ".eml";
-        file_put_contents($receiptsPath . $filename, $body);
-    }
-
-    private function processReceiptsOld($imap, &$recipient, $subject, $receiptsPath, &$count)
-    {
-        $uids = imap_search($imap, 'SUBJECT "' . $subject . '"', SE_UID) ?: [];
-
-        foreach ($uids as $uid) {
-            $msgno = imap_msgno($imap, $uid);
-            $header = imap_headerinfo($imap, $msgno);
-            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
-
-            if (!$receiptType || !$subjectRef) continue;
-
-            $body = imap_fetchbody($imap, $msgno, '');
-            $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
-
-            // Accettazione
-            if (empty($recipient->send_receipt)) {
-                if ($receiptType === "ACCETTAZIONE") {
-                    $recipient->send_receipt = "received";
-                    $count["send"]++;
-                } elseif ($receiptType === "AVVISO DI MANCATA ACCETTAZIONE") {
-                    $recipient->send_receipt = "missed";
-                    $count["missedSend"]++;
-                }
-                // imap_delete($imap, $uid, FT_UID);
-            }
-
-            // Consegna (solo PEC)
-            if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
-                if ($receiptType === "CONSEGNA") {
-                    $recipient->delivery_receipt = "received";
-                    $count["delivery"]++;
-                } elseif ($receiptType === "AVVISO DI MANCATA CONSEGNA") {
-                    $recipient->delivery_receipt = "missed";
-                    $count["missedDelivery"]++;
-                }
-                // imap_delete($imap, $uid, FT_UID);
-            }
-        }
-    }
-
-    private function processReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
-    {
-        $searchCriteria = 'SUBJECT "' . $subject . '"';
-        $uids = imap_search($imap, $searchCriteria, SE_UID) ?: [];
-
-        foreach ($uids as $uid) {
-            $msgno = imap_msgno($imap, $uid);
-            $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
-            $header = imap_headerinfo($imap, $msgno);
-
-            if (!$this->isOfficialPecReceipt($rawHeaders)) {
-                continue;
-            }
-
-            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
-            if (!$receiptType || !$subjectRef) {
-                continue;
-            }
-
-            // Normalizza tipo per Aruba
-            if (preg_match('/^X-Ricevuta:\s*avvenuta-consegna/mi', $rawHeaders)) {
-                $receiptType = "CONSEGNA";
-            } elseif (preg_match('/^X-Ricevuta:\s*non-accettazione/mi', $rawHeaders)) {
-                $receiptType = "AVVISO DI MANCATA ACCETTAZIONE";
-            }
-
-            $body = imap_fetchbody($imap, $msgno, '');
-            $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
-
-            // --- Accettazione ---
-            if (empty($recipient->send_receipt)) {
-                if ($receiptType === "ACCETTAZIONE") {
-                    $recipient->send_receipt = "received";
-                    $count["send"]++;
-                } elseif ($receiptType === "AVVISO DI MANCATA ACCETTAZIONE") {
-                    $recipient->send_receipt = "missed";
-                    $count["missedSend"]++;
-                }
-                // imap_delete($imap, $uid, FT_UID);
-            }
-
-            // --- Consegna (solo PEC) ---
-            if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
-                if ($receiptType === "CONSEGNA") {
-                    $recipient->delivery_receipt = "received";
-                    $count["delivery"]++;
-                } elseif ($receiptType === "AVVISO DI MANCATA CONSEGNA") {
-                    $recipient->delivery_receipt = "missed";
-                    $count["missedDelivery"]++;
-                }
-                // imap_delete($imap, $uid, FT_UID);
-            }
-        }
-    }
-
-    private function processAnomaliesOld($imap, &$recipient, $subject, $receiptsPath, &$count)
-    {
-        if ($recipient->delivery_receipt === "received" || !empty($recipient->anomaly_receipt)) return;
-
-        $uids = imap_search($imap, 'ALL', SE_UID) ?: [];
-        foreach ($uids as $uid) {
-
-            $body = imap_body($imap, $uid, FT_UID);
-            if (strpos($body, $subject) === false) continue;
-
-            $header = imap_headerinfo($imap, imap_msgno($imap, $uid));
-            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
-
-            if ($receiptType === "ANOMALIA MESSAGGIO") {
-                $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
-                $recipient->anomaly_receipt = "received";
-                $count["anomaly"]++;
-                // imap_delete($imap, $uid, FT_UID);
-                break;
-            }
-        }
-    }
-
-    private function processAnomalies($imap, &$recipient, $subject, $receiptsPath, &$count)
-    {
-        if ($recipient->delivery_receipt === "received" || !empty($recipient->anomaly_receipt)) {
-            return;
-        }
-
-        $searchCriteria = 'SUBJECT "' . $subject . '"';
-        $uids = imap_search($imap, $searchCriteria, SE_UID) ?: [];
-
-        foreach ($uids as $uid) {
-            $msgno = imap_msgno($imap, $uid);
-            $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
-            $header = imap_headerinfo($imap, $msgno);
-
-            if (!$this->isOfficialPecReceipt($rawHeaders)) {
-                continue;
-            }
-
-            [$receiptType, $subjectRef] = $this->parseSubject($header->subject ?? '');
-            if ($receiptType !== "ANOMALIA MESSAGGIO") {
-                continue;
-            }
-
-            $body = imap_body($imap, $uid, FT_UID);
-            $this->saveReceiptFile($receiptsPath, $subjectRef, $receiptType, $body);
-
-            $recipient->anomaly_receipt = "received";
-            $count["anomaly"]++;
-            // imap_delete($imap, $uid, FT_UID);
-            break;
-        }
-    }
-
-    public function downloadReceiptsOk($shipmentId)
-    {
-        set_time_limit(120);
-        ini_set('max_execution_time', 120);
-        try {
-            DB::beginTransaction();
-
-            $shipment = Shipment::findOrFail($shipmentId);
-            $sender = Sender::findOrFail($shipment->sender_id);
-
-            $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
-                ->where('shipment_id', $shipment->id)
-                ->select('receivers.*', 'R.description as r_description')
-                ->get();
-
-            $receiptsPath = $this->ensureReceiptsPath($shipment->id);
-
-            Log::info("------------------------------------------------------------------------");
-            Log::info("Inizio recupero");
-
-            $imap = $this->connectToMail($sender);
-            if (!$imap) {
-                throw new \Exception("Errore IMAP: " . implode(', ', imap_errors()));
-            }
-            else{
-                Log::info("IMAP collegata!");
-            }
-
-            $count = [
-                "send" => 0,
-                "missedSend" => 0,
-                "delivery" => 0,
-                "missedDelivery" => 0,
-                "anomaly" => 0
-            ];
-
-            foreach ($recipients as $recipient) {
-                Log::info("Recupero ricevuta di " . $shipment->mail_object . " [{$recipient->ref}] da " . $recipient->r_description);
-                if (!empty($recipient->send_receipt) && !empty($recipient->delivery_receipt)) {
-                    continue;
-                }
-
-                $subject = $shipment->mail_object . " [{$recipient->ref}]";
-
-                $this->processAnomalies($imap, $recipient, $subject, $receiptsPath, $count);
-                $this->processReceipts($imap, $recipient, $subject, $receiptsPath, $count);
-
-                $recipient->save();
-            }
-
-            Log::info("Inviate: " . $count["send"]);
-            Log::info("Mancato invio: " . $count["missedSend"]);
-            Log::info("Consegnate: " . $count["delivery"]);
-            Log::info("Mancata consegna: " . $count["missedDelivery"]);
-            Log::info("Anomalie: " . $count["anomaly"]);
-
-            imap_expunge($imap);
-            imap_close($imap);
-
-            $shipment->update([
-                'no_send_receipt' => $count["send"],
-                'no_missed_send_receipt' => $count["missedSend"],
-                'no_delivery_receipt' => $count["delivery"],
-                'no_missed_delivery_receipt' => $count["missedDelivery"],
-                'no_anomaly_receipt' => $count["anomaly"]
-            ]);
-
-            DB::commit();
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    private function extractShipment($id)
-    {
-        try {
-            DB::beginTransaction();
-
-            $shipment = \App\Models\Shipment::findOrFail($id);
-            $sender = \App\Models\Sender::findOrFail($shipment->sender_id);
-
-            $recipients = \App\Models\Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
-                ->where('shipment_id', $id)
-                ->select('R.description', 'R.city_id', 'receivers.ref as object_ref', 'receivers.address', 'receivers.mail_type')
-                ->get();
-
-            $folder = storage_path("app/public" . $shipment->shipment_path);
-            if (!is_dir($folder)) {
-                mkdir($folder, 0755, true);
-            }
-
-            $filename = 'ricevute-pec_' . $id . '_' . now()->format('Y-m-d_h-i-s');
-            $zipFilename = $filename . '.zip';
-            $xlsFilename = $filename . '.xlsx';
-            $zipFile = $folder . $zipFilename;
-
-            // Rimuovi vecchia estrazione
-            if ($shipment->extraction_zip_file && file_exists($folder . $shipment->extraction_zip_file)) {
-                $oldZip = $folder . $shipment->extraction_zip_file;
-                if ($this->extractZip($oldZip, $folder)) {
-                    @unlink($oldZip);
-                    @unlink($folder . str_replace('.zip', '.xlsx', $shipment->extraction_zip_file));
-                }
-            }
-
-            // Leggi file nella cartella (ricevute scaricate)
-            $receipts = array_diff(scandir($folder), ['.', '..']);
-
-            $header = ["Descrizione", "Comune", "Indirizzo Mail", "Tipo", "Accettazione", "File Acc.", "Consegna", "File Cons.", "Anomalia", "File An."];
-            $dataExcel = [];
-            $toZip = [];
-
-            foreach ($recipients as $row) {
-                $input = $row->object_ref;
-                $result = preg_grep("/{$input}/i", $receipts);
-
-                $recSend = $recSendFile = $recDeliver = $recDeliverFile = $recAnomaly = $recAnomalyFile = '';
-
-                foreach ($result as $line) {
-                    $fullPath = $folder . $line;
-                    if (!is_file($fullPath)) continue;
-
-                    $name = pathinfo($line, PATHINFO_FILENAME);
-                    $refs = explode('_', $name);
-                    if (count($refs) < 4) continue;
-
-                    $recType = str_replace('-', ' ', $refs[3]);
-                    $toZip[] = $fullPath;
-
-                    match (strtoupper($recType)) {
-                        'ACCETTAZIONE', 'AVVISO DI MANCATA ACCETTAZIONE' => [$recSend, $recSendFile] = [$recType, $line],
-                        'CONSEGNA', 'AVVISO DI MANCATA CONSEGNA' => [$recDeliver, $recDeliverFile] = [$recType, $line],
-                        'ANOMALIA MESSAGGIO' => [$recAnomaly, $recAnomalyFile] = [$recType, $line],
-                        default => null,
-                    };
-                }
-
-                $dataExcel[] = [
-                    $row->description,
-                    City::find($row->city_id)->name ?? '',
-                    $row->address,
-                    MailType::from($row->mail_type)->getLabel(),
-                    $recSend,
-                    $recSendFile,
-                    $recDeliver,
-                    $recDeliverFile,
-                    $recAnomaly,
-                    $recAnomalyFile,
-                ];
-            }
-
-            // Crea Excel
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-            $sheet->fromArray($header, null, 'A1');
-            $sheet->fromArray($dataExcel, null, 'A2');
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $writer->save($folder . $xlsFilename);
-            $toZip[] = $folder . $xlsFilename;
-
-            // Aggiungi allegato originale
-            $attachmentPath = storage_path("app/public/archive/shipments/{$id}/{$shipment->attachment}");
-            if (file_exists($attachmentPath)) {
-                $toZip[] = $attachmentPath;
-            }
-
-            // Crea ZIP
-            $zip = new ZipArchive();
-            if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                throw new \Exception("Impossibile creare ZIP");
-            }
-            foreach ($toZip as $file) {
-                if (file_exists($file)) {
-                    $zip->addFile($file, basename($file));
-                }
-            }
-            $zip->close();
-
-            // Aggiorna DB
-            $shipment->update([
-                'extraction_date' => now()->format('Y-m-d'),
-                'extraction_zip_file' => $zipFilename
-            ]);
-
-            // Pulizia (tranne ZIP finale)
-            foreach ($toZip as $file) {
-                if (basename($file) !== $zipFilename && file_exists($file)) {
-                    @unlink($file);
-                }
-            }
-
-            DB::commit();
-
-            Notification::make()
-                ->success()
-                ->title('Estrazione completata')
-                ->body("File: {$zipFilename}")
-                ->send();
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("Estrazione fallita [ID: {$id}]: " . $e->getMessage());
-
-            Notification::make()
-                ->danger()
-                ->title('Errore estrazione')
-                ->body($e->getMessage())
-                ->send();
-        }
-    }
-
-    private function readZip($id, $filename)
-    {
-        try {
-            $zipPath = storage_path("app/public/archive/shipments/{$id}/{$filename}");
-            if (!file_exists($zipPath)) {
-                return [];
-            }
-            $zip = new \ZipArchive();
-            if ($zip->open($zipPath) !== true) {
-                return [];
-            }
-            $fileNames = [];
-            for ($i = 0; $i < $zip->numFiles; $i++) {
-                $stat = $zip->statIndex($i);
-                $fileNames[] = basename($stat['name']);
-            }
-            $zip->close();
-            return $fileNames;
-        } catch (\Exception $e) {
-            Log::error("Errore lettura ZIP: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    private function extractZip($file, $path)
-    {
-        $zip = new ZipArchive();
-        if ($zip->open($file) && $zip->extractTo($path)) {
-            $zip->close();
-            return true;
-        }
-        return false;
+        Storage::put($receiptsPath . '/' . $filename, $body);
     }
 
     private function getReceiptInfo($rawHeaders, $subjectHeader)
@@ -870,11 +481,6 @@ class EditShipment extends EditRecord
         return [$type, $ref];
     }
 
-    private function isOfficialPecReceipt($rawHeaders)
-    {
-        return preg_match('/^X-(?:Ricevuta|TipoRicevuta):\s*(?:accettazione|(?:avvenuta-)?consegna?|(?:mancata-)?accettazione?|(?:non-)?accettazione|(?:mancata-)?consegna?|anomalia)/mi', $rawHeaders);
-    }
-
     private function processPecReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
     {
         $searchCriteria = 'SUBJECT "' . $subject . '"';
@@ -887,28 +493,38 @@ class EditShipment extends EditRecord
 
             if (!$type || !$ref) continue;
 
-            // Salva file
+            // Salva file usando Storage
             $body = imap_body($imap, $uid, FT_UID);
             $this->saveReceiptFile($receiptsPath, $ref, $type, $body);
 
             // Anomalia
             if ($type === "ANOMALIA MESSAGGIO" && empty($recipient->anomaly_receipt)) {
-                $recipient->anomaly_receipt = "received"; $count["anomaly"]++;
-                // imap_delete($imap, $uid, FT_UID); break;
+                $recipient->anomaly_receipt = "received";
+                $count["anomaly"]++;
             }
 
             // Accettazione
             if (empty($recipient->send_receipt)) {
-                if ($type === "ACCETTAZIONE") { $recipient->send_receipt = "received"; $count["send"]++; }
-                elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE") { $recipient->send_receipt = "missed"; $count["missedSend"]++; }
-                // imap_delete($imap, $uid, FT_UID);
+                if ($type === "ACCETTAZIONE") {
+                    $recipient->send_receipt = "received";
+                    $count["send"]++;
+                }
+                elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE") {
+                    $recipient->send_receipt = "missed";
+                    $count["missedSend"]++;
+                }
             }
 
             // Consegna (solo PEC)
             if (empty($recipient->delivery_receipt) && $recipient->mail_type === "pec") {
-                if ($type === "CONSEGNA") { $recipient->delivery_receipt = "received"; $count["delivery"]++; }
-                elseif ($type === "AVVISO DI MANCATA CONSEGNA") { $recipient->delivery_receipt = "missed"; $count["missedDelivery"]++; }
-                // imap_delete($imap, $uid, FT_UID);
+                if ($type === "CONSEGNA") {
+                    $recipient->delivery_receipt = "received";
+                    $count["delivery"]++;
+                }
+                elseif ($type === "AVVISO DI MANCATA CONSEGNA") {
+                    $recipient->delivery_receipt = "missed";
+                    $count["missedDelivery"]++;
+                }
             }
         }
     }
@@ -920,6 +536,7 @@ class EditShipment extends EditRecord
 
         try {
             DB::beginTransaction();
+
             $shipment = Shipment::findOrFail($shipmentId);
             $sender = Sender::findOrFail($shipment->sender_id);
             $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
@@ -928,6 +545,7 @@ class EditShipment extends EditRecord
                 ->get();
 
             $receiptsPath = $this->ensureReceiptsPath($shipment->id);
+
             Log::info("------------------------------------------------------------------------");
             Log::info("Inizio recupero ricevute PEC per shipment {$shipment->id}");
 
@@ -965,9 +583,263 @@ class EditShipment extends EditRecord
             ]);
 
             DB::commit();
+
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        }
+    }
+
+    private function extractShipment($id)
+    {
+        $tempDir = null;
+
+        try {
+            DB::beginTransaction();
+
+            $shipment = Shipment::findOrFail($id);
+            $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
+                ->where('shipment_id', $id)
+                ->select('R.description', 'R.city_id', 'receivers.ref as object_ref', 'receivers.address', 'receivers.mail_type')
+                ->get();
+
+            // Crea cartella temporanea locale
+            $tempDir = sys_get_temp_dir() . '/extraction_' . $id . '_' . time();
+            mkdir($tempDir, 0755, true);
+
+            $filename = 'ricevute-pec_' . $id . '_' . now()->format('Y-m-d_H-i-s');
+            $zipFilename = $filename . '.zip';
+            $xlsFilename = $filename . '.xlsx';
+            $zipPath = $tempDir . '/' . $zipFilename;
+
+            // Elimina vecchia estrazione da Storage
+            if ($shipment->extraction_zip_file) {
+                $oldZipPath = ltrim($shipment->shipment_path, '/') . '/' . $shipment->extraction_zip_file;
+                $oldXlsPath = ltrim($shipment->shipment_path, '/') . '/' . str_replace('.zip', '.xlsx', $shipment->extraction_zip_file);
+
+                Storage::delete($oldZipPath);
+                Storage::delete($oldXlsPath);
+
+                // Elimina anche le ricevute precedenti
+                $oldReceiptsPath = ltrim($shipment->shipment_path, '/');
+                $oldReceipts = Storage::files($oldReceiptsPath);
+                foreach ($oldReceipts as $oldReceipt) {
+                    if (pathinfo($oldReceipt, PATHINFO_EXTENSION) === 'eml') {
+                        Storage::delete($oldReceipt);
+                    }
+                }
+            }
+
+            // Leggi ricevute da Storage
+            $folderPath = ltrim($shipment->shipment_path, '/');
+            // $allFiles = Storage::files($folderPath);
+            $allFiles = Storage::allFiles($folderPath);
+            $receipts = array_filter($allFiles, function($file) {
+                return pathinfo($file, PATHINFO_EXTENSION) === 'eml';
+            });
+            $receipts = array_map('basename', $receipts);
+
+            $header = ["Descrizione", "Comune", "Indirizzo Mail", "Tipo", "Accettazione", "File Acc.", "Consegna", "File Cons.", "Anomalia", "File An."];
+            $dataExcel = [];
+            $toZip = [];
+
+            foreach ($recipients as $row) {
+                $input = $row->object_ref;
+                $result = preg_grep("/{$input}/i", $receipts);
+
+                $recSend = $recSendFile = $recDeliver = $recDeliverFile = $recAnomaly = $recAnomalyFile = '';
+
+                foreach ($result as $line) {
+                    $name = pathinfo($line, PATHINFO_FILENAME);
+                    $refs = explode('_', $name);
+                    if (count($refs) < 4) continue;
+
+                    $recType = str_replace('-', ' ', $refs[3]);
+
+                    // Scarica file da Storage a temp
+                    $s3FilePath = $folderPath . '/' . $line;
+                    $localFilePath = $tempDir . '/' . $line;
+                    file_put_contents($localFilePath, Storage::get($s3FilePath));
+                    $toZip[] = $localFilePath;
+
+                    match (strtoupper($recType)) {
+                        'ACCETTAZIONE', 'AVVISO DI MANCATA ACCETTAZIONE' => [$recSend, $recSendFile] = [$recType, $line],
+                        'CONSEGNA', 'AVVISO DI MANCATA CONSEGNA' => [$recDeliver, $recDeliverFile] = [$recType, $line],
+                        'ANOMALIA MESSAGGIO' => [$recAnomaly, $recAnomalyFile] = [$recType, $line],
+                        default => null,
+                    };
+                }
+
+                $dataExcel[] = [
+                    $row->description,
+                    City::find($row->city_id)->name ?? '',
+                    $row->address,
+                    MailType::from($row->mail_type)->getLabel(),
+                    $recSend, $recSendFile,
+                    $recDeliver, $recDeliverFile,
+                    $recAnomaly, $recAnomalyFile,
+                ];
+            }
+
+            // Crea Excel locale
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray($header, null, 'A1');
+            $sheet->fromArray($dataExcel, null, 'A2');
+            $writer = new Xlsx($spreadsheet);
+            $xlsPath = $tempDir . '/' . $xlsFilename;
+            $writer->save($xlsPath);
+            $toZip[] = $xlsPath;
+
+            // Aggiungi allegato originale da Storage
+            $attachmentS3Path = ltrim($shipment->shipment_path, '/') . '/' . $shipment->attachment;
+            if (Storage::exists($attachmentS3Path)) {
+                $attachmentLocalPath = $tempDir . '/' . $shipment->attachment;
+                file_put_contents($attachmentLocalPath, Storage::get($attachmentS3Path));
+                $toZip[] = $attachmentLocalPath;
+            }
+
+            // Crea ZIP locale
+            $zip = new ZipArchive();
+            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new \Exception("Impossibile creare ZIP");
+            }
+            foreach ($toZip as $file) {
+                if (file_exists($file)) {
+                    $zip->addFile($file, basename($file));
+                }
+            }
+            $zip->close();
+
+            // Carica ZIP su Storage
+            $s3ZipPath = ltrim($shipment->shipment_path, '/') . '/' . $zipFilename;
+            Storage::put($s3ZipPath, file_get_contents($zipPath));
+
+            // Aggiorna DB
+            $shipment->update([
+                'extraction_date' => now()->format('Y-m-d'),
+                'extraction_zip_file' => $zipFilename
+            ]);
+
+            // Pulisci cartella temporanea
+            $this->cleanupTempDir($tempDir);
+
+            DB::commit();
+
+            Notification::make()
+                ->success()
+                ->title('Estrazione completata')
+                ->body("File: {$zipFilename}")
+                ->send();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            if ($tempDir && is_dir($tempDir)) {
+                $this->cleanupTempDir($tempDir);
+            }
+
+            Log::error("Estrazione fallita [ID: {$id}]: " . $e->getMessage());
+
+            Notification::make()
+                ->danger()
+                ->title('Errore estrazione')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    private function cleanupTempDir($tempDir)
+    {
+        if (!is_dir($tempDir)) return;
+
+        $files = glob($tempDir . '/*');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                @unlink($file);
+            }
+        }
+        @rmdir($tempDir);
+    }
+
+    private function readZip($id, $filename)
+    {
+        try {
+            $zipRelativePath = ltrim("archive/shipments/{$id}/{$filename}", '/');
+
+            if (!Storage::exists($zipRelativePath)) {
+                return [];
+            }
+
+            // Scarica ZIP in temp per leggerlo
+            $tempZip = tempnam(sys_get_temp_dir(), 'zip_');
+            file_put_contents($tempZip, Storage::get($zipRelativePath));
+
+            $zip = new ZipArchive();
+            if ($zip->open($tempZip) !== true) {
+                @unlink($tempZip);
+                return [];
+            }
+
+            $fileNames = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $stat = $zip->statIndex($i);
+                $fileNames[] = basename($stat['name']);
+            }
+
+            $zip->close();
+            @unlink($tempZip);
+
+            return $fileNames;
+        } catch (\Exception $e) {
+            Log::error("Errore lettura ZIP: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function extractZip($zipRelativePath, $destinationPath)
+    {
+        try {
+            if (!Storage::exists($zipRelativePath)) {
+                return false;
+            }
+
+            // Scarica ZIP in temp
+            $tempZip = tempnam(sys_get_temp_dir(), 'zip_');
+            file_put_contents($tempZip, Storage::get($zipRelativePath));
+
+            // Crea temp dir per estrazione
+            $tempExtractDir = sys_get_temp_dir() . '/extract_' . time();
+            mkdir($tempExtractDir, 0755, true);
+
+            $zip = new ZipArchive();
+            if ($zip->open($tempZip) !== true) {
+                @unlink($tempZip);
+                @rmdir($tempExtractDir);
+                return false;
+            }
+
+            $zip->extractTo($tempExtractDir);
+            $zip->close();
+            @unlink($tempZip);
+
+            // Carica tutti i file estratti su Storage
+            $files = glob($tempExtractDir . '/*');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    $filename = basename($file);
+                    $targetPath = ltrim($destinationPath, '/') . '/' . $filename;
+                    Storage::put($targetPath, file_get_contents($file));
+                    @unlink($file);
+                }
+            }
+
+            @rmdir($tempExtractDir);
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error("Errore estrazione ZIP: " . $e->getMessage());
+            return false;
         }
     }
 }

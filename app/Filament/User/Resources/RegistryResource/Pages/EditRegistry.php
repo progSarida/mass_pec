@@ -34,8 +34,8 @@ class EditRegistry extends EditRecord
     {
         return Actions\DeleteAction::make('delete')
                 ->requiresConfirmation()
-                ->modalHeading('Conferma eliminazione contatto')
-                ->modalDescription('Sei sicuro di voler eliminare questo contatto? Questa azione non può essere annullata.')
+                ->modalHeading('Conferma eliminazione voce protocollo')
+                ->modalDescription('Sei sicuro di voler eliminare questa voce del protocollo? Questa azione non può essere annullata.')
                 ->modalSubmitActionLabel('Elimina')
                 ->modalCancelActionLabel('Annulla');
     }

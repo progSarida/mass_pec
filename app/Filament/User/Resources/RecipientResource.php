@@ -49,6 +49,7 @@ class RecipientResource extends Resource
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
                 TextInput::make('code_ipa')->label('Codice Ipa')
+                    ->required()
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -75,6 +76,7 @@ class RecipientResource extends Resource
                     })
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
                 TextInput::make('address')->label('Indirizzo')
+                    ->required()
                     ->columnSpan('full'),
                 Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
@@ -88,12 +90,16 @@ class RecipientResource extends Resource
                     ->columns(12)
                     ->schema([
                         TextInput::make('resp_title')->label('Titolo')
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('resp_surname')->label('Cognome')
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('resp_name')->label('Nome')
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('resp_tax_code')->label('Codice FIscale')
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ]),
                 Section::make('Email')
