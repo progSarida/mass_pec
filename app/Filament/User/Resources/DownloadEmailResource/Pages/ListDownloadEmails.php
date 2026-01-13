@@ -96,11 +96,11 @@ class ListDownloadEmails extends ListRecords
                     $uid = $message->getNumber();
 
                     // --- SKIP RICEVUTE PEC ---
-                    // $rawHeaders = $message->getRawHeaders();
-                    // if ($this->isOfficialPecReceipt($rawHeaders)) {
-                    //     Log::info("Ignorata ricevuta PEC: UID {$uid}");
-                    //     continue;
-                    // }
+                    $rawHeaders = $message->getRawHeaders();
+                    if ($this->isOfficialPecReceipt($rawHeaders)) {
+                        Log::info("Ignorata ricevuta PEC: UID {$uid}");
+                        continue;
+                    }
 
                     // --- DATA ---
                     $date = $message->getDate()?->format('Y-m-d H:i:s');
@@ -220,5 +220,20 @@ class ListDownloadEmails extends ListRecords
         if (is_null($string)) return null;
         $string = mb_convert_encoding($string, 'UTF-8', 'UTF-8');
         return iconv('UTF-8', 'UTF-8//IGNORE', $string);
+    }
+
+    private function isOfficialPecReceipt($rawHeaders)
+    {
+        // Aruba: X-Ricevuta
+        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia)/mi', $rawHeaders)) {
+            return true;
+        }
+
+        // Poste, LegalMail, Namirial, Register, ecc.: X-TipoRicevuta
+        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia)/mi', $rawHeaders)) {
+            return true;
+        }
+
+        return false;
     }
 }

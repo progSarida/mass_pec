@@ -155,7 +155,8 @@ class DownloadEmailResource extends Resource
 
                 TextColumn::make('downloadUser.name')
                     ->label('Scaricato da')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 // Tables\Columns\TextColumn::make('attachments')
                 //     ->label('Allegati')
