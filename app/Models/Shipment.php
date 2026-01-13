@@ -181,7 +181,10 @@ class Shipment extends Model
     public function createReceivers($receiverList): void
     {
         foreach ($receiverList as $recipientId => $emails) {
-            foreach ($emails as $mailField => $el) {
+            foreach ($emails as $mailField => $isSelected) {
+                // Salto se non è selezionato
+                if (!$isSelected) continue;
+
                 $recipient = Recipient::find($recipientId);
                 if (!$recipient) continue;
 

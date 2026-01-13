@@ -2,6 +2,7 @@
 
 namespace App\Filament\User\Resources\ShipmentResource\Pages;
 
+use App\Enums\MailType;
 use App\Filament\User\Resources\ShipmentResource;
 use App\Models\Attachment;
 use App\Models\Recipient;
@@ -139,6 +140,18 @@ class CreateShipment extends CreateRecord
                     'province_id' => $this->receiverFilters['province_id'],
                 ])
                 ->action(function () {
+                    // Rimuovo le email deselezionate (false o null)
+                    foreach ($this->receiverList as $recipientId => $emails) {
+                        $this->receiverList[$recipientId] = array_filter(
+                            $emails,
+                            fn($value) => $value === true
+                        );
+
+                        // Rimuovo il recipient se non ha più email selezionate
+                        if (empty($this->receiverList[$recipientId])) {
+                            unset($this->receiverList[$recipientId]);
+                        }
+                    }
                     $count = $this->countSelectedEmails();
                     $this->selectedReceiversCount = $count;
                     $this->notifySelection($count, 'destinatario', 'destinatario(i) selezionato(i)');
@@ -261,6 +274,95 @@ class CreateShipment extends CreateRecord
     //     return new HtmlString($html);
     // }
 
+    // private function renderRecipientsList($regionId, $provinceId): HtmlString
+    // {
+    //     if (!$regionId && !$provinceId) {
+    //         return new HtmlString('<em class="text-gray-500">Seleziona almeno regione o provincia per vedere i destinatari.</em>');
+    //     }
+
+    //     $recipients = Recipient::with('city.province.region')
+    //         ->when($provinceId, function ($q) use ($provinceId, $regionId) {
+    //             $validProvince = $regionId
+    //                 ? Province::where('id', $provinceId)->where('region_id', $regionId)->exists()
+    //                 : false;
+
+    //             if ($validProvince) {
+    //                 return $q->whereHas('city.province', fn($p) => $p->where('id', $provinceId));
+    //             }
+
+    //             return $q;
+    //         })
+    //         ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
+    //         ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
+    //         ->get();
+
+    //     if ($recipients->isEmpty()) {
+    //         return new HtmlString('<em class="text-gray-500">Nessun destinatario trovato per i filtri selezionati.</em>');
+    //     }
+
+    //     // Inizializza receiverList come array associativo con TUTTE le email spuntate
+    //     foreach ($recipients as $recipient) {
+    //         for ($i = 1; $i <= 5; $i++) {
+    //             $mail = $recipient->{"mail_$i"};
+    //             $type = $recipient->{"mail_type_$i"};
+    //             if (!empty($mail && $type === MailType::PEC)) {
+    //                 $fieldKey = "receiverList.{$recipient->id}.mail_{$i}";
+
+    //                 // Se non esiste già un valore, impostalo a true (spuntato)
+    //                 if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
+    //                     $this->receiverList[$recipient->id]["mail_{$i}"] = true;
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
+
+    //     foreach ($recipients as $recipient) {
+    //         $emails = [];
+    //         for ($i = 1; $i <= 5; $i++) {
+    //             $mail = $recipient->{"mail_$i"};
+    //             $type = $recipient->{"mail_type_$i"};
+    //             if (!empty($mail) && $type === MailType::PEC) {
+    //                 $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
+    //             }
+    //         }
+    //         if (empty($emails)) continue;
+
+    //         $cityName = $recipient->city?->name ?? 'N/D';
+    //         $provinceCode = $recipient->city?->province?->code ?? 'N/D';
+
+    //         $html .= '<div class="border rounded-lg p-4 bg-gray-50">';
+    //         $html .= '<p class="font-medium text-sm mb-2">' . e($recipient->description) . ' - ' . e($cityName) . ' (' . e($provinceCode) . ')' . '</p>';
+    //         $html .= '<div class="space-y-1 text-sm">';
+
+    //         foreach ($emails as $email) {
+    //             $field = "receiverList.{$recipient->id}.{$email['field']}";
+    //             $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
+
+    //             $html .= '
+    //             <div class="flex items-center gap-3">
+    //                 <input
+    //                     type="checkbox"
+    //                     wire:model.live="' . $field . '"
+    //                     id="' . $checkboxId . '"
+    //                     value="true"
+    //                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 flex-shrink-0"
+    //                 >
+    //                 <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
+    //                     <span class="font-medium">' . e($email['email']) . '</span>
+    //                     <span class="text-gray-500 text-xs ml-1">(' . $email['type']->getLabel() . ')</span>
+    //                 </label>
+    //             </div>';
+    //         }
+
+    //         $html .= '</div></div>';
+    //     }
+
+    //     $html .= '</div>';
+    //     return new HtmlString($html);
+    // }
+
     private function renderRecipientsList($regionId, $provinceId): HtmlString
     {
         if (!$regionId && !$provinceId) {
@@ -287,15 +389,20 @@ class CreateShipment extends CreateRecord
             return new HtmlString('<em class="text-gray-500">Nessun destinatario trovato per i filtri selezionati.</em>');
         }
 
-        // Inizializza receiverList come array associativo con TUTTE le email spuntate
+        // NUOVO: Inizializza receiverList solo per nuovi destinatari
         foreach ($recipients as $recipient) {
             for ($i = 1; $i <= 5; $i++) {
                 $mail = $recipient->{"mail_$i"};
-                if (!empty($mail)) {
-                    $fieldKey = "receiverList.{$recipient->id}.mail_{$i}";
+                $type = $recipient->{"mail_type_$i"};
 
-                    // Se non esiste già un valore, impostalo a true (spuntato)
-                    if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
+                if (!empty($mail) && $type === MailType::PEC) {
+                    // Inizializza solo se il destinatario non ha ancora selezioni
+                    if (!isset($this->receiverList[$recipient->id])) {
+                        $this->receiverList[$recipient->id] = [];
+                    }
+
+                    // Spunta di default solo se non è mai stato selezionato prima
+                    if (!array_key_exists("mail_{$i}", $this->receiverList[$recipient->id])) {
                         $this->receiverList[$recipient->id]["mail_{$i}"] = true;
                     }
                 }
@@ -309,7 +416,7 @@ class CreateShipment extends CreateRecord
             for ($i = 1; $i <= 5; $i++) {
                 $mail = $recipient->{"mail_$i"};
                 $type = $recipient->{"mail_type_$i"};
-                if (!empty($mail)) {
+                if (!empty($mail) && $type === MailType::PEC) {
                     $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
                 }
             }
@@ -326,14 +433,17 @@ class CreateShipment extends CreateRecord
                 $field = "receiverList.{$recipient->id}.{$email['field']}";
                 $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
 
+                // Verifica se è spuntato
+                $checked = !empty($this->receiverList[$recipient->id][$email['field']]);
+
                 $html .= '
                 <div class="flex items-center gap-3">
                     <input
                         type="checkbox"
                         wire:model.live="' . $field . '"
                         id="' . $checkboxId . '"
-                        value="true"
                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 flex-shrink-0"
+                        ' . ($checked ? 'checked' : '') . '
                     >
                     <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
                         <span class="font-medium">' . e($email['email']) . '</span>
