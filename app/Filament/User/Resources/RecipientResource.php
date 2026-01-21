@@ -229,6 +229,17 @@ class RecipientResource extends Resource
                         }
                     })
                     ->searchable(),
+
+                SelectFilter::make('city_id')
+                    ->label('Comune')
+                    ->options(fn () => City::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->where('city_id', $value);
+                        }
+                    })
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

@@ -63,4 +63,9 @@ class ViewShipment extends ViewRecord
             ->map(fn($receiver) => ['address' => $receiver->address])
             ->toArray();
     }
+
+    public function hasCombinedRelationManagerTabsWithContent(): bool
+    {
+        return true;
+    }
 }

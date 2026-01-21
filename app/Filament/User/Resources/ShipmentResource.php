@@ -4,6 +4,9 @@ namespace App\Filament\User\Resources;
 
 use App\Filament\User\Resources\ShipmentResource\Pages;
 use App\Filament\User\Resources\ShipmentResource\RelationManagers;
+use App\Filament\User\Resources\ShipmentResource\RelationManagers\ShipmentErrorsRelationManager;
+use App\Models\Province;
+use App\Models\Region;
 use App\Models\Sender;
 use App\Models\Shipment;
 use Filament\Forms;
@@ -16,6 +19,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -37,6 +41,7 @@ class ShipmentResource extends Resource
             ->columns(24)
             ->schema([
                 TextInput::make('description')
+                    ->required()
                     ->label('Descrizione (non visibile ai destinatari)')
                     ->columnSpan('full'),
                 // TextInput::make('sender_name')
@@ -67,9 +72,11 @@ class ShipmentResource extends Resource
                     ->columnSpan(['sm' => 'full', 'md' => 10]),
                 TextInput::make('mail_object')
                     ->label('Oggetto')
+                    ->required()
                     ->columnSpan(['sm' => 'full', 'md' => 14]),
                 Textarea::make('mail_body')
                     ->label('Messaggio')
+                    ->required()
                     ->rows(6)
                     ->columnSpan('full'),
                 TextInput::make('attachment')
@@ -136,7 +143,31 @@ class ShipmentResource extends Resource
                     ->label('Anomalie'),
             ])
             ->filters([
-                //
+                SelectFilter::make('region_id')
+                    ->label('Regione')
+                    ->options(fn () => Region::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->whereHas('city.province.region', fn (Builder $q) =>
+                                $q->where('id', $value)
+                            );
+                        }
+                    })
+                    ->searchable(),
+
+                SelectFilter::make('province_id')
+                    ->label('Provincia')
+                    ->options(fn () => Province::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->whereHas('city.province', fn (Builder $q) =>
+                                $q->where('id', $value)
+                            );
+                        }
+                    })
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -153,7 +184,7 @@ class ShipmentResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ShipmentErrorsRelationManager::class,
         ];
     }
 

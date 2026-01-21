@@ -3,11 +3,13 @@
 namespace App\Filament\User\Resources\ShipmentResource\Pages;
 
 use App\Enums\MailType;
+use App\Enums\ShipmentErrorType;
 use App\Filament\User\Resources\ShipmentResource;
 use App\Models\City;
 use App\Models\Receiver;
 use App\Models\Sender;
 use App\Models\Shipment;
+use App\Models\ShipmentError;
 use Carbon\Carbon;
 use Exception;
 use Filament\Actions;
@@ -432,13 +434,14 @@ class EditShipment extends EditRecord
 
     private function isOfficialPecReceipt($rawHeaders)
     {
+        // Log::info("Header: {$rawHeaders}");
         // Aruba: X-Ricevuta
-        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia)/mi', $rawHeaders)) {
+        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia|errore-consegna)/mi', $rawHeaders)) {
             return true;
         }
 
         // Poste, LegalMail, Namirial, Register, ecc.: X-TipoRicevuta
-        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia)/mi', $rawHeaders)) {
+        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia|errore-consegna)/mi', $rawHeaders)) {
             return true;
         }
 
@@ -489,7 +492,9 @@ class EditShipment extends EditRecord
 
     private function processPecReceipts($imap, &$recipient, $subject, $receiptsPath, &$count)
     {
+        // dd($recipient->send_date, 'STOP');
         $searchCriteria = 'SUBJECT "' . $subject . '"';
+        $refs = $recipient->recipientRefs();
         foreach (imap_search($imap, $searchCriteria, SE_UID) ?: [] as $uid) {
             $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
 
@@ -502,11 +507,17 @@ class EditShipment extends EditRecord
             // Salva file usando Storage
             $body = imap_body($imap, $uid, FT_UID);
             $this->saveReceiptFile($receiptsPath, $ref, $type, $body);
-
             // Anomalia
             if ($type === "ANOMALIA MESSAGGIO" && empty($recipient->anomaly_receipt)) {
                 $recipient->anomaly_receipt = "received";
                 $count["anomaly"]++;
+                ShipmentError::create([
+                    'shipment_id' => $refs['shipment']->id,
+                    'recipient_id' => $refs['recipient']->id,
+                    'address' => $refs['address'],
+                    'send_date' => $recipient->send_date,
+                    'shipment_error_type' => ShipmentErrorType::ANOMALY,
+                ]);
             }
 
             // Accettazione
@@ -515,9 +526,16 @@ class EditShipment extends EditRecord
                     $recipient->send_receipt = "received";
                     $count["send"]++;
                 }
-                elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE") {
+                else if ($type === "AVVISO DI MANCATA ACCETTAZIONE") {
                     $recipient->send_receipt = "missed";
                     $count["missedSend"]++;
+                    ShipmentError::create([
+                        'shipment_id' => $refs['shipment']->id,
+                        'recipient_id' => $refs['recipient']->id,
+                        'address' => $refs['address'],
+                        'send_date' => $recipient->send_date,
+                        'shipment_error_type' => ShipmentErrorType::NOT_ACCEPTED,
+                    ]);
                 }
             }
 
@@ -527,9 +545,16 @@ class EditShipment extends EditRecord
                     $recipient->delivery_receipt = "received";
                     $count["delivery"]++;
                 }
-                elseif ($type === "AVVISO DI MANCATA CONSEGNA") {
+                else if ($type === "AVVISO DI MANCATA CONSEGNA") {
                     $recipient->delivery_receipt = "missed";
                     $count["missedDelivery"]++;
+                    ShipmentError::create([
+                        'shipment_id' => $refs['shipment']->id,
+                        'recipient_id' => $refs['recipient']->id,
+                        'address' => $refs['address'],
+                        'send_date' => $recipient->send_date,
+                        'shipment_error_type' => ShipmentErrorType::NOT_DELIVERED,
+                    ]);
                 }
             }
         }
@@ -847,5 +872,10 @@ class EditShipment extends EditRecord
             Log::error("Errore estrazione ZIP: " . $e->getMessage());
             return false;
         }
+    }
+
+    public function hasCombinedRelationManagerTabsWithContent(): bool
+    {
+        return true;
     }
 }

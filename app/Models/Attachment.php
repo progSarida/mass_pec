@@ -12,6 +12,7 @@ class Attachment extends Model
 {
     protected $fillable = [
         'id',
+        'description',
         'name',
         'path',
         'extension',

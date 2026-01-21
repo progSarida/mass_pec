@@ -465,29 +465,30 @@ class CreateShipment extends CreateRecord
 
         try {
 // dd($data);
-            $shipment = parent::handleRecordCreation($data);                                                            // creo la spedizione base
+            $shipment = parent::handleRecordCreation($data);                                                    // creo la spedizione base
 // dd($this->attachmentList);
-            // $shipment->receiverList = $this->receiverList;                                                              // aggiungo l'array con la lista dei destinatari
-            // $shipment->attachmentList = $this->attachmentList;                                                          // aggiungo l'array con la lista degli allegati
+            // $shipment->receiverList = $this->receiverList;                                                   // aggiungo l'array con la lista dei destinatari
+            // $shipment->attachmentList = $this->attachmentList;                                               // aggiungo l'array con la lista degli allegati
 // dd($shipment);
+// dd(count($this->receiverList));
             $shipment->update([
-                'total_no_mails' => count($shipment->receiverList, true),                                               // inserisco il numero di email totali della spedizione
-                'no_mails_to_send' => count($shipment->receiverList, true)                                              // inserisco il numero di email da inviare
+                'total_no_mails' => count($this->receiverList),                                                 // inserisco il numero di email totali della spedizione
+                'no_mails_to_send' => count($this->receiverList)                                                // inserisco il numero di email da inviare
             ]);
 
-            $shipment->createShipmentFolder();                                                                          // creo la cartella della spedizione
+            $shipment->createShipmentFolder();                                                                  // creo la cartella della spedizione
 
             if (!empty($this->receiverList)) {
-                $shipment->createReceivers($this->receiverList);                                                                           // creo i destinatari
+                $shipment->createReceivers($this->receiverList);                                                // creo i destinatari
             }
 
             if (!empty($this->attachmentList)) {
-                $shipment->createZip($this->attachmentList);                                                                                 // creo lo ZIP
+                $shipment->createZip($this->attachmentList);                                                    // creo lo ZIP
             }
 
 // dd($shipment);
 
-            DB::commit();                                                                                               // confermo il salvataggio dei dati
+            DB::commit();                                                                                       // confermo il salvataggio dei dati
 
             Notification::make()
                 ->title('Spedizione creata correttamente')

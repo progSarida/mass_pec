@@ -29,4 +29,13 @@ class Receiver extends Model
     public function recipient(){
         return $this->belongsTo(Recipient::class);
     }
+
+    public function recipientRefs(){
+        $refs = explode('_', $this->ref);
+        return [
+            'shipment' => Shipment::find($refs[0]),
+            'recipient' => Recipient::find(explode('-', $refs[2])[0]),
+            'address' => Receiver::find($refs[1])->address,
+        ];
+    }
 }

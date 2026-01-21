@@ -38,6 +38,10 @@ class AttachmentResource extends Resource
     {
         return $form
             ->schema([
+                TextInput::make('description')
+                    ->label('Descrizione allegato')
+                    ->required()
+                    ->columnSpan('full'),
                 TextInput::make('name')
                     ->label('Nome file')
                     ->columnSpan('full'),
@@ -61,6 +65,9 @@ class AttachmentResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('description')
+                    ->label('Descrizione')
+                    ->searchable(),
                 TextColumn::make('name')
                     ->label('Nome File')
                     ->searchable(),

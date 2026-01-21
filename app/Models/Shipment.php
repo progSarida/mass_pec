@@ -47,6 +47,10 @@ class Shipment extends Model
         return $this->hasMany(Receiver::class);
     }
 
+    public function shipmentErrors(){
+        return $this->hasMany(ShipmentError::class);
+    }
+
     protected static function booted()
     {
         static::creating(function ($shipment) {
