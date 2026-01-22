@@ -43,7 +43,7 @@ class AttachmentResource extends Resource
                     ->required()
                     ->columnSpan('full'),
                 TextInput::make('name')
-                    ->label('Nome file')
+                    ->label('Rinomina file')
                     ->columnSpan('full'),
                 FileUpload::make('path')
                     ->label('')
