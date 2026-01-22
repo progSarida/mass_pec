@@ -46,9 +46,10 @@ class CreateShipment extends CreateRecord
                                                                                                                         // [1, 3, 7]
     public array $receiverList = [];                                                                                    // id e campi dei destinatari selezionati
                                                                                                                         // [12 => ['mail_1', 'mail_3'], 15 => ['mail_2']]
-    public array $receiverFilters = [ // filtri ricerca destinatari
+    public array $receiverFilters = [                                                                                   // filtri ricerca destinatari
         'region_id' => null,
         'province_id' => null,
+        'mail_type' => null,
     ];
 
     public function mount(): void
@@ -67,7 +68,8 @@ class CreateShipment extends CreateRecord
                     Repeater::make('attachments')
                         ->label('')
                         ->schema([
-                            TextInput::make('name')->label('Nome')->disabled()->columnSpan(6),
+                            // TextInput::make('name')->label('Nome')->disabled()->columnSpan(6),
+                            TextInput::make('description')->label('Descrizione')->disabled()->columnSpan(6),
                             DatePicker::make('date')->label('Data caricamento')
                                 ->extraInputAttributes(['class' => 'text-center'])->disabled()->displayFormat('d/m/Y')->columnSpan(3),
                             Placeholder::make('blank')->label('')->columnSpan(1),
@@ -103,7 +105,13 @@ class CreateShipment extends CreateRecord
                 ->modalWidth('5xl')
                 ->form([
                     // Filtri persistenti
-                    Grid::make(2)->schema([
+                    Grid::make(9)->schema([
+                        Select::make('mail_type')
+                            ->label('Tipo email')
+                            ->options(MailType::class)
+                            ->reactive()
+                            ->afterStateUpdated(fn ($state) => $this->receiverFilters['mail_type'] = $state)
+                            ->columnSpan(2),
                         Select::make('region_id')
                             ->label('Regione')
                             ->options(Region::pluck('name', 'id'))
@@ -112,7 +120,8 @@ class CreateShipment extends CreateRecord
                             ->afterStateUpdated(function ($state, callable $set) {
                                 $set('province_id', null);
                                 $this->receiverFilters['region_id'] = $state;
-                            }),
+                            })
+                            ->columnSpan(2),
                         Select::make('province_id')
                             ->label('Provincia')
                             ->options(fn (callable $get) => $get('region_id')
@@ -121,15 +130,20 @@ class CreateShipment extends CreateRecord
                             )
                             ->default($this->receiverFilters['province_id'])
                             ->reactive()
-                            ->afterStateUpdated(fn ($state) => $this->receiverFilters['province_id'] = $state),
+                            ->afterStateUpdated(fn ($state) => $this->receiverFilters['province_id'] = $state)
+                            ->columnSpan(5),
                     ]),
 
                     Placeholder::make('recipients_list')                                                                // elenco dinamico con checkbox persistenti
                         ->label('Destinatari')
                         ->content(fn (callable $get) => $this->renderRecipientsList(
                             $get('region_id') ?? $this->receiverFilters['region_id'],
-                            $get('province_id') ?? $this->receiverFilters['province_id']
+                            $get('province_id') ?? $this->receiverFilters['province_id'],
+                            $get('mail_type') ?? $this->receiverFilters['mail_type']
                         ))
+                        ->extraAttributes([
+                            'style' => 'min-height: 60vh; max-height: 67vh; overflow-y: auto;'
+                        ])
                         ->visible(fn (callable $get) =>
                             !empty($get('region_id') ?? $this->receiverFilters['region_id']) ||
                             !empty($get('province_id') ?? $this->receiverFilters['province_id'])
@@ -138,6 +152,7 @@ class CreateShipment extends CreateRecord
                 ->fillForm(fn () => [
                     'region_id' => $this->receiverFilters['region_id'],
                     'province_id' => $this->receiverFilters['province_id'],
+                    'mail_type' => $this->receiverFilters['mail_type']?? MailType::PEC,
                 ])
                 ->action(function () {
                     // Rimuovo le email deselezionate (false o null)
@@ -184,6 +199,7 @@ class CreateShipment extends CreateRecord
             return [
                 'id' => $attachment->id,
                 'name' => $attachment->name,
+                'description' => $attachment->description,
                 'date' => Carbon::parse($attachment->upload_date)->format('Y-m-d'),
                 'selected' => in_array($attachment->id, $this->attachmentList),
             ];
@@ -363,7 +379,7 @@ class CreateShipment extends CreateRecord
     //     return new HtmlString($html);
     // }
 
-    private function renderRecipientsList($regionId, $provinceId): HtmlString
+    private function renderRecipientsList($regionId, $provinceId, $mailType): HtmlString
     {
         if (!$regionId && !$provinceId) {
             return new HtmlString('<em class="text-gray-500">Seleziona almeno regione o provincia per vedere i destinatari.</em>');
@@ -395,7 +411,8 @@ class CreateShipment extends CreateRecord
                 $mail = $recipient->{"mail_$i"};
                 $type = $recipient->{"mail_type_$i"};
 
-                if (!empty($mail) && $type === MailType::PEC) {
+                // if (!empty($mail) && $type === MailType::PEC) {
+                if (!empty($mail) && $type === $mailType) {
                     // Inizializza solo se il destinatario non ha ancora selezioni
                     if (!isset($this->receiverList[$recipient->id])) {
                         $this->receiverList[$recipient->id] = [];
@@ -409,14 +426,15 @@ class CreateShipment extends CreateRecord
             }
         }
 
-        $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
+        // $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
+        $html = '<div class="space-y-4 p-1">';
 
         foreach ($recipients as $recipient) {
             $emails = [];
             for ($i = 1; $i <= 5; $i++) {
                 $mail = $recipient->{"mail_$i"};
                 $type = $recipient->{"mail_type_$i"};
-                if (!empty($mail) && $type === MailType::PEC) {
+                if (!empty($mail) && $type === $mailType) {
                     $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
                 }
             }
