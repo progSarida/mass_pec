@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('attachments', function (Blueprint $table) {
-            $table->string('description')->after('id')->nullable();                                             // descrizione allegato
+        Schema::table('shipments', function (Blueprint $table) {
+            $table->text('mail_body')->nullable()->change();                                                    // cambio il tipo della colonna in text
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('shipments', function (Blueprint $table) {
-            // $table->dropColumn(['description']);                                                                // rimuovo le colonne
+            // $table->string('mail_body')->nullable()->change();                                                  // riporto il tipo della colonna a varchar(255)
         });
     }
 };

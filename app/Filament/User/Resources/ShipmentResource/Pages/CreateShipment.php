@@ -29,6 +29,22 @@ class CreateShipment extends CreateRecord
     protected static string $resource = ShipmentResource::class;
     public $selectedReceiversCount = 0;
 
+    public function getTitle(): string
+    {
+        return "Nuova spedizione";
+    }
+
+    public function mount(): void
+    {
+        parent::mount();                                                                                                // IMPORTANTE: chiamo prima il parent
+
+        $this->selectedReceiversCount = $this->countSelectedEmails();
+
+        if (!isset($this->data['mail_body'])) {                                                                         // Inizializzo esplicitamente mail_body
+            $this->data['mail_body'] = '';                                                                              // (necessario per far funzionare RichEditor)
+        }
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         if (!empty($data['out_password'])) {
@@ -52,10 +68,10 @@ class CreateShipment extends CreateRecord
         'mail_type' => null,
     ];
 
-    public function mount(): void
-    {
-        $this->selectedReceiversCount = $this->countSelectedEmails();
-    }
+    // public function mount(): void
+    // {
+    //     $this->selectedReceiversCount = $this->countSelectedEmails();
+    // }
 
     protected function getHeaderActions(): array
     {
@@ -64,28 +80,47 @@ class CreateShipment extends CreateRecord
             Actions\Action::make('attachments')
                 ->label(fn () => 'Allegati' . (!empty($this->attachmentList) ? ' (' . count($this->attachmentList) . ')' : ''))
                 ->modalHeading('Selezione allegati')
-                ->form([
-                    Repeater::make('attachments')
-                        ->label('')
-                        ->schema([
-                            // TextInput::make('name')->label('Nome')->disabled()->columnSpan(6),
-                            TextInput::make('description')->label('Descrizione')->disabled()->columnSpan(6),
-                            DatePicker::make('date')->label('Data caricamento')
-                                ->extraInputAttributes(['class' => 'text-center'])->disabled()->displayFormat('d/m/Y')->columnSpan(3),
-                            Placeholder::make('blank')->label('')->columnSpan(1),
-                            Checkbox::make('selected')->label('Allega')->columnSpan(2),
-                        ])
-                        ->columns(12)
-                        ->defaultItems(0)
-                        ->addable(false)
-                        ->deletable(false)
-                        ->reorderable(false)
-                        ->statePath('attachments')
-                ])
+                ->form(function () {
+                    $attachments = $this->getAttachmentsForForm();
+
+                    if (empty($attachments)) {
+                        return [
+                            Placeholder::make('no_attachments')
+                                ->label('')
+                                ->content(new HtmlString('
+                                    <div class="text-center py-8">
+                                        <p class="text-gray-500 dark:text-gray-400">
+                                            Non ci sono allegati disponibili
+                                        </p>
+                                    </div>
+                                '))
+                        ];
+                    }
+
+                    return [
+                        Repeater::make('attachments')
+                            ->label('')
+                            ->schema([
+                                TextInput::make('description')->label('Descrizione')->disabled()->columnSpan(6),
+                                DatePicker::make('date')->label('Data caricamento')
+                                    ->extraInputAttributes(['class' => 'text-center'])
+                                    ->disabled()
+                                    ->displayFormat('d/m/Y')
+                                    ->columnSpan(3),
+                                Placeholder::make('blank')->label('')->columnSpan(1),
+                                Checkbox::make('selected')->label('Allega')->columnSpan(2),
+                            ])
+                            ->columns(12)
+                            ->defaultItems(0)
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                            ->statePath('attachments')
+                    ];
+                })
                 ->fillForm(fn () => ['attachments' => $this->getAttachmentsForForm()])
                 ->action(function (array $data) {
-                    // dd($data['attachments']);
-                    $this->attachmentList = collect($data['attachments'])
+                    $this->attachmentList = collect($data['attachments'] ?? [])
                         ->filter(fn($item) => !empty($item['selected']))
                         ->pluck('id')
                         ->toArray();
@@ -108,12 +143,22 @@ class CreateShipment extends CreateRecord
                     Grid::make(9)->schema([
                         Select::make('mail_type')
                             ->label('Tipo email')
-                            ->options(MailType::class)
+                            ->required()
+                            // ->options(MailType::class)
+                            ->options(
+                                collect(MailType::cases())
+                                    ->filter(fn (MailType $type) => $type->show())
+                                    ->mapWithKeys(fn (MailType $type) => [
+                                        $type->value => $type->getLabel() // Forza il recupero della stringa
+                                    ])
+                                    ->toArray()
+                            )
                             ->reactive()
                             ->afterStateUpdated(fn ($state) => $this->receiverFilters['mail_type'] = $state)
                             ->columnSpan(2),
                         Select::make('region_id')
                             ->label('Regione')
+                            ->required()
                             ->options(Region::pluck('name', 'id'))
                             ->default($this->receiverFilters['region_id'])
                             ->reactive()
@@ -124,6 +169,7 @@ class CreateShipment extends CreateRecord
                             ->columnSpan(2),
                         Select::make('province_id')
                             ->label('Provincia')
+                            ->required()
                             ->options(fn (callable $get) => $get('region_id')
                                 ? Province::where('region_id', $get('region_id'))->pluck('name', 'id')
                                 : []
@@ -152,7 +198,7 @@ class CreateShipment extends CreateRecord
                 ->fillForm(fn () => [
                     'region_id' => $this->receiverFilters['region_id'],
                     'province_id' => $this->receiverFilters['province_id'],
-                    'mail_type' => $this->receiverFilters['mail_type']?? MailType::PEC,
+                    'mail_type' => $this->receiverFilters['mail_type'] ?? MailType::PEC,
                 ])
                 ->action(function () {
                     // Rimuovo le email deselezionate (false o null)
@@ -479,6 +525,33 @@ class CreateShipment extends CreateRecord
 
     protected function handleRecordCreation(array $data): \Illuminate\Database\Eloquent\Model
     {
+        $emptyAttachment = false;
+        $emptyReceivers = false;
+
+        if (empty($this->attachmentList)) {
+            $emptyAttachment = true;
+            Notification::make('emptyAttachment')
+                ->title('Nessun allegato selezionato')
+                ->body('Devi selezionare almeno un allegato per creare la spedizione.')
+                ->warning()
+                ->duration(3000)
+                ->send();
+        }
+
+        if (empty($this->receiverList)) {
+            $emptyReceivers = true;
+            Notification::make('emptyReceivers')
+                ->title('Nessun destinatario selezionato')
+                ->body('Devi selezionare almeno un destinatario per creare la spedizione.')
+                ->warning()
+                ->duration(5000)
+                ->send();
+        }
+
+        if($emptyAttachment || $emptyReceivers){
+            $this->halt();
+        }
+
         DB::beginTransaction();
 
         try {
@@ -490,6 +563,9 @@ class CreateShipment extends CreateRecord
 // dd($shipment);
 // dd(count($this->receiverList));
             $shipment->update([
+                'mail_type' => $this->receiverFilters['mail_type'],                                             // tipo email destinatari
+                'region_id' => $this->receiverFilters['region_id'] ?? null,                                     // id regione destinatari
+                'province_id' => $this->receiverFilters['province_id'] ?? null,                                 // id provincia destinatari
                 'total_no_mails' => count($this->receiverList),                                                 // inserisco il numero di email totali della spedizione
                 'no_mails_to_send' => count($this->receiverList)                                                // inserisco il numero di email da inviare
             ]);
@@ -503,9 +579,8 @@ class CreateShipment extends CreateRecord
             if (!empty($this->attachmentList)) {
                 $shipment->createZip($this->attachmentList);                                                    // creo lo ZIP
             }
-
 // dd($shipment);
-
+// dd('STOP');
             DB::commit();                                                                                       // confermo il salvataggio dei dati
 
             Notification::make()

@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources\ShipmentResource\RelationManagers;
 
 use App\Enums\ShipmentErrorType;
+use App\Filament\User\Resources\RecipientResource;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
@@ -10,6 +11,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ShipmentErrorsRelationManager extends RelationManager
@@ -49,17 +51,27 @@ class ShipmentErrorsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('address')
+            ->recordUrl(function (Model $record): string {
+                return RecipientResource::getUrl('view', ['record' => $record->recipient_id]);
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('shipment.description')
-                    ->label('Spedizione'),
+                    ->label('Spedizione')
+                    ->limit(35)
+                    ->tooltip(fn ($record) => $record->shipment->description),
                 Tables\Columns\TextColumn::make('recipient.description')
-                    ->label('Interlocutore'),
+                    ->label('Interlocutore')
+                    ->limit(30)
+                    ->tooltip(fn ($record) => $record->recipient->description),
                 Tables\Columns\TextColumn::make('address')
-                    ->label('Indirizzo'),
+                    ->label('Indirizzo')
+                    ->limit(25)
+                    ->tooltip(fn ($record) => $record->address),
                 Tables\Columns\TextColumn::make('send_date')
                     ->label('Data invio'),
-                Tables\Columns\TextColumn::make('shipment_error_type')
-                    ->label('Tipo'),
+                Tables\Columns\IconColumn::make('shipment_error_type')
+                    ->label('Tipo')
+                    ->tooltip(fn (ShipmentErrorType $state): string => $state->getLabel()),
             ])
             ->filters([
                 //

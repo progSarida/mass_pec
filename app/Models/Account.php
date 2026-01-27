@@ -7,6 +7,7 @@ use App\Enums\MailProtocolType;
 use App\Enums\MailType;
 use App\Enums\ManagementType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Account extends Model
 {
@@ -41,6 +42,11 @@ class Account extends Model
         'delete' => 'boolean',
         'out_authentication' => 'boolean',
     ];
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class);
+    }
 
     protected static function booted()
     {

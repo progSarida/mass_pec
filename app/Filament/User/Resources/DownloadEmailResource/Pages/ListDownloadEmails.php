@@ -26,7 +26,7 @@ class ListDownloadEmails extends ListRecords
             Actions\CreateAction::make(),
             Actions\Action::make('download')
                 ->label('Scarico email')
-                ->icon('fluentui-mail-arrow-down-20-o')
+                ->icon('fluentui-mail-arrow-down-20')
                 ->color('warning')
                 ->requiresConfirmation()
                 ->modalHeading('Scarica email')
@@ -64,7 +64,8 @@ class ListDownloadEmails extends ListRecords
         try {
             DB::beginTransaction();
 
-            $accounts = Account::where('download', true)->get();
+            // $accounts = Account::where('download', true)->get();                                            // tutte le caselle di posta
+            $accounts = Auth::user()->accounts->where('download', true);                                    // le caselle scaricabili per cui l'utente' ha i permessi
 
             // CREARE CICLO SU TUTTI GLI ACCOUNT CHE HANNO 'download' == true
 
@@ -124,7 +125,7 @@ class ListDownloadEmails extends ListRecords
 
                     if ($skip) {
                         Log::info("Ignorata mail già scaricata/protocollata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
-                        if ($account->delete && $date) {                                                            // se è prevista la cancellazione dal server
+                        if ($account->delete && $date) {                                                        // se è prevista la cancellazione dal server
                         if ($account->delete_after_days && $date){
                             $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
                             if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare

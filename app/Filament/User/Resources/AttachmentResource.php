@@ -31,7 +31,7 @@ class AttachmentResource extends Resource
     public static ?string $modelLabel = 'Allegato';
     protected static ?string $navigationIcon = 'fluentui-mail-attach-20';
     protected static ?string $navigationLabel = 'Allegati';
-    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?string $navigationGroup = 'Tabelle Pec Massiva';
     protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form

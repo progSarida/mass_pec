@@ -19,6 +19,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -77,116 +78,128 @@ class EditShipment extends EditRecord
                 ->label('Indietro')
                 ->url($this->getResource()::getUrl('index'))
                 ->color('gray'),
-            Actions\Action::make('send')
-                ->label('Invio PEC')
-                ->icon('hugeicons-mail-send-01')
-                ->requiresConfirmation()
-                ->modalHeading('Conferma invio PEC')
-                ->modalDescription('L\'invio partirà immediatamente. Continuare?')
-                ->modalSubmitActionLabel('Sì, invia')
-                ->action(function () {
-                    $shipmentId = $this->record->id;
-                    try {
-                        $this->dispatch('start-shipment-send', shipmentId: $shipmentId);
+            Actions\ActionGroup::make([
+                Actions\Action::make('send')
+                    ->label('Invio PEC')
+                    ->icon('hugeicons-mail-send-01')
+                    ->requiresConfirmation()
+                    ->modalHeading('Conferma invio PEC')
+                    ->modalDescription('L\'invio partirà immediatamente. Continuare?')
+                    ->modalSubmitActionLabel('Sì, invia')
+                    ->action(function () {
+                        $shipmentId = $this->record->id;
+                        try {
+                            $this->dispatch('start-shipment-send', shipmentId: $shipmentId);
 
-                        Notification::make()
-                            ->title('Invio PEC avviato')
-                            ->body('L\'invio è in corso in background...')
-                            ->success()
-                            ->send();
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore')
-                            ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
-            Actions\Action::make('download')
-                ->label('Scarico ricevute')
-                ->icon('hugeicons-mail-receive-01')
-                ->color('warning')
-                ->requiresConfirmation()
-                ->modalHeading('Scarica ricevute PEC')
-                ->modalDescription('Verranno scaricate tutte le ricevute di accettazione, consegna e anomalie.')
-                ->modalSubmitActionLabel('Scarica')
-                ->action(function () {
-                    $shipmentId = $this->record->id;
-
-                    try {
-                        $this->downloadReceipts($shipmentId);
-
-                        Notification::make()
-                            ->title('Ricevute scaricate')
-                            ->body('Tutte le ricevute sono state elaborate con successo.')
-                            ->success()
-                            ->send();
-
-                        $this->refreshFormData([
-                            'no_send_receipt',
-                            'no_missed_send_receipt',
-                            'no_delivery_receipt',
-                            'no_missed_delivery_receipt',
-                            'no_anomaly_receipt'
-                        ]);
-
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore scarico')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
-            Actions\Action::make('extract')
-                ->label('Estrazione')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('Confermi estrazione?')
-                ->modalDescription('Verrà generato un file ZIP con Excel e ricevute.')
-                ->modalSubmitActionLabel('Sì, estrai')
-                ->action(function () {
-                    $this->extractShipment($this->record->id);
-
-                    $shipment = $this->record->fresh();
-                    if ($shipment->extraction_zip_file) {
-                        $relativePath = ltrim($shipment->shipment_path, '/') . '/' . $shipment->extraction_zip_file;
-
-                        if (Storage::exists($relativePath)) {
-                            return Storage::download($relativePath, $shipment->extraction_zip_file);
+                            Notification::make()
+                                ->title('Invio PEC avviato')
+                                ->body('L\'invio è in corso in background...')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore')
+                                ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
                         }
-                    }
+                    }),
+                Actions\Action::make('download')
+                    ->label('Scarico ricevute')
+                    ->icon('hugeicons-mail-receive-01')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Scarica ricevute PEC')
+                    ->modalDescription('Verranno scaricate tutte le ricevute di accettazione, consegna e anomalie.')
+                    ->modalSubmitActionLabel('Scarica')
+                    ->action(function () {
+                        $shipmentId = $this->record->id;
 
-                    Notification::make()
-                        ->warning()
-                        ->title('File non trovato')
-                        ->send();
-                }),
-            Actions\Action::make('receivers')
-                ->label('Pec destinatari')
-                ->modalHeading('Pec destinatari')
-                ->modalWidth('5xl')
-                ->form([
-                    Placeholder::make('receivers_list')
-                        ->label('')
-                        ->content(function () {
-                            $receivers = $this->getReceiversForForm();
-                            if (empty($receivers)) {
-                                return 'Nessun destinatario';
+                        try {
+                            $this->downloadReceipts($shipmentId);
+
+                            Notification::make()
+                                ->title('Ricevute scaricate')
+                                ->body('Tutte le ricevute sono state elaborate con successo.')
+                                ->success()
+                                ->send();
+
+                            $this->refreshFormData([
+                                'no_send_receipt',
+                                'no_missed_send_receipt',
+                                'no_delivery_receipt',
+                                'no_missed_delivery_receipt',
+                                'no_anomaly_receipt'
+                            ]);
+
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore scarico')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+                Actions\Action::make('extract')
+                    ->label('Estrazione')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Confermi estrazione?')
+                    ->modalDescription('Verrà generato un file ZIP con Excel e ricevute.')
+                    ->modalSubmitActionLabel('Sì, estrai')
+                    ->action(function () {
+                        $this->extractShipment($this->record->id);
+
+                        $shipment = $this->record->fresh();
+                        if ($shipment->extraction_zip_file) {
+                            $relativePath = ltrim($shipment->shipment_path, '/') . '/' . $shipment->extraction_zip_file;
+
+                            if (Storage::exists($relativePath)) {
+                                return Storage::download($relativePath, $shipment->extraction_zip_file);
                             }
+                        }
 
-                            $html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
-                            foreach ($receivers as $receiver) {
-                                $html .= '<div class="p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-900">';
-                                $html .= e($receiver['address']);
+                        Notification::make()
+                            ->warning()
+                            ->title('File non trovato')
+                            ->send();
+                    }),
+                Actions\Action::make('receivers')
+                    ->label('Pec destinatari')
+                    ->icon('fluentui-people-team-toolbox-20-o')
+                    ->modalHeading('Pec destinatari')
+                    ->modalWidth('5xl')
+                    ->form([
+                        Placeholder::make('receivers_list')
+                            ->label('')
+                            ->content(function () {
+                                $receivers = $this->getReceiversForForm();
+                                if (empty($receivers)) {
+                                    return 'Nessun destinatario';
+                                }
+
+                                $html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
+                                foreach ($receivers as $receiver) {
+                                    $html .= '<div class="p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-900">';
+                                    $html .= e($receiver['address']);
+                                    $html .= '</div>';
+                                }
                                 $html .= '</div>';
-                            }
-                            $html .= '</div>';
 
-                            return new \Illuminate\Support\HtmlString($html);
-                        })
-                ]),
+                                return new \Illuminate\Support\HtmlString($html);
+                            })
+                            ->extraAttributes([
+                                'style' => 'min-height: 10vh; max-height: 67vh; overflow-y: auto;'
+                            ])
+                    ])
+                    ->modalSubmitAction(false)
+                    ->modalCancelAction(false),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
 
@@ -345,6 +358,7 @@ class EditShipment extends EditRecord
                     } catch (Exception $e) {
                         $not_sent++;
                         Log::error("Errore invio PEC a {$recipient->address}: " . $e->getMessage());
+                        throw new \Exception("Errore invio PEC a {$recipient->address}: " . $e->getMessage());
                     }
                 } else {
                     $sent++;
@@ -357,10 +371,12 @@ class EditShipment extends EditRecord
             }
 
             $shipment->update([
+                'send_date' => now()->format('Y-m-d'),
+                'send_user_id' => Auth::user()->id,
                 'no_mails_sended' => $sent,
                 'no_mails_to_send' => $not_sent
             ]);
-
+// dd($shipment);
             DB::commit();
 
             $this->dispatch('shipment-sent-success', sent: $sent, failed: $not_sent);
@@ -425,7 +441,7 @@ class EditShipment extends EditRecord
 
     private function ensureReceiptsPath($shipmentId)
     {
-        $path = "archive/shipments/{$shipmentId}/receipts";
+        $path = "shipments/{$shipmentId}/receipts";
         if (!Storage::exists($path)) {
             Storage::makeDirectory($path);
         }
@@ -638,7 +654,7 @@ class EditShipment extends EditRecord
             $tempDir = sys_get_temp_dir() . '/extraction_' . $id . '_' . time();
             mkdir($tempDir, 0755, true);
 
-            $filename = 'ricevute-pec_' . $id . '_' . now()->format('Y-m-d_H-i-s');
+            $filename = 'estrazione_' . $id . '_' . now()->format('Y-m-d_H-i-s');
             $zipFilename = $filename . '.zip';
             $xlsFilename = $filename . '.xlsx';
             $zipPath = $tempDir . '/' . $zipFilename;
@@ -796,7 +812,7 @@ class EditShipment extends EditRecord
     private function readZip($id, $filename)
     {
         try {
-            $zipRelativePath = ltrim("archive/shipments/{$id}/{$filename}", '/');
+            $zipRelativePath = ltrim("shipments/{$id}/{$filename}", '/');
 
             if (!Storage::exists($zipRelativePath)) {
                 return [];

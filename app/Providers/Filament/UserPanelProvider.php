@@ -38,7 +38,7 @@ class UserPanelProvider extends PanelProvider
             ->navigationGroups([
                 NavigationGroup::make('Protocolo'),
                 NavigationGroup::make('Pec Massiva'),
-                NavigationGroup::make('Tabelle'),
+                NavigationGroup::make('Tabelle Pec Massiva'),
             ])
             ->discoverPages(in: app_path('Filament/User/Pages'), for: 'App\\Filament\\User\\Pages')
             ->pages([

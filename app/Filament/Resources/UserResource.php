@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\Permission;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
+use App\Filament\Resources\UserResource\RelationManagers\AccountsRelationManager;
 use App\Models\ScopeType;
 use App\Models\User;
 use Filament\Forms;
@@ -100,7 +101,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            AccountsRelationManager::class,
         ];
     }
 

@@ -25,7 +25,7 @@ class ListInMails extends ListRecords
         return [
             Actions\Action::make('download')
                 ->label('Scarico casella')
-                ->icon('hugeicons-mail-receive-01')
+                ->icon('fluentui-mail-arrow-down-20')
                 ->color('warning')
                 ->requiresConfirmation()
                 ->modalHeading('Scarica ricevute PEC')

@@ -25,31 +25,43 @@ class ViewShipment extends ViewRecord
                 ->label('Indietro')
                 ->url($this->getResource()::getUrl('index'))
                 ->color('gray'),
-            Actions\Action::make('receivers')
-                ->label('Pec  destinatari')
-                ->modalHeading('Pec destinatari')
-                ->modalWidth('5xl')
-                ->form([
-                    Placeholder::make('receivers_list')
-                        ->label('')
-                        ->content(function () {
-                            $receivers = $this->getReceiversForForm();
-                            if (empty($receivers)) {
-                                return 'Nessun destinatario';
-                            }
+            Actions\ActionGroup::make([
+                Actions\Action::make('receivers')
+                    ->label('Pec  destinatari')
+                    ->icon('fluentui-people-team-toolbox-20-o')
+                    ->modalHeading('Pec destinatari')
+                    ->modalWidth('5xl')
+                    ->form([
+                        Placeholder::make('receivers_list')
+                            ->label('')
+                            ->content(function () {
+                                $receivers = $this->getReceiversForForm();
+                                if (empty($receivers)) {
+                                    return 'Nessun destinatario';
+                                }
 
-                            $html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
-                            foreach ($receivers as $receiver) {
-                                $html .= '<div class="p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-900">';
-                                $html .= e($receiver['address']);
+                                $html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
+                                foreach ($receivers as $receiver) {
+                                    $html .= '<div class="p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-900">';
+                                    $html .= e($receiver['address']);
+                                    $html .= '</div>';
+                                }
                                 $html .= '</div>';
-                            }
-                            $html .= '</div>';
 
-                            return new \Illuminate\Support\HtmlString($html);
-                        })
-                ]),
-            Actions\EditAction::make(),
+                                return new \Illuminate\Support\HtmlString($html);
+                            })
+                            ->extraAttributes([
+                                'style' => 'min-height: 10vh; max-height: 67vh; overflow-y: auto;'
+                            ])
+                    ])
+                    ->modalSubmitAction(false)
+                    ->modalCancelAction(false),
+                Actions\EditAction::make(),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
 

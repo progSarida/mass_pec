@@ -26,4 +26,17 @@ enum MailType: string implements HasLabel
             self::CECPAC => 'Cecpac',
         };
     }
+
+    public function show(): string
+    {
+        return match($this) {
+            self::MAIL => true,
+            self::PEC => true,
+            self::REM => false,
+            self::CORPORATE => false,
+            self::ENCRYPTED => false,
+            self::OTHER => false,
+            self::CECPAC => false,
+        };
+    }
 }

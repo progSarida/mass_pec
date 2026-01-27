@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\FlowType;
+use App\Enums\RegistryOriginType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -10,6 +13,9 @@ class Registry extends Model
 {
     protected $fillable = [
         'protocol_number',
+        'flow_type',
+        'registry_origin_type',
+        'is_email',
         'scope_type_id',
         'uid',
         'message_id',
@@ -17,6 +23,9 @@ class Registry extends Model
         'subject',
         'body',
         'receive_date',
+        'send_date',
+        'send_user_id',
+        'shipment_id',
         'attachment_path',
         'download_date',
         'download_user_id',
@@ -24,7 +33,8 @@ class Registry extends Model
     ];
 
     protected $casts = [
-        //
+        'flow_type' => FlowType::class,
+        'registry_origin_type' => RegistryOriginType::class,
     ];
 
     public function downloadUser(){
@@ -39,39 +49,60 @@ class Registry extends Model
         return $this->belongsTo(ScopeType::class,'scope_type_id');
     }
 
+    public function sendUser(){
+        return $this->belongsTo(User::class,'send_user_id');
+    }
+
+    public function shipment(){
+        return $this->belongsTo(Shipment::class);
+    }
+
     protected static function booted()
     {
-        static::creating(function ($mail) {
+        static::creating(function ($registry) {
+            $registry->attachment_path = 'registry/' . $registry->protocol_number;
+            if(!$registry->registry_origin_type){
+                $registry->registry_origin_type = 'manual';
+            }
+            if(!$registry->uid){
+                $registry->uid = $registry->protocol_number;
+            }
+            if(!$registry->message_id){
+                $registry->message_id = $registry->protocol_number;
+            }
+            $registry->register_user_id = Auth::user()->id;
+        });
+
+        static::created(function ($registry) {
+            $disk = config('filesystems.default');
+            if ($registry->attachment_path && !Storage::disk($disk)->exists($registry->attachment_path)) {
+                Storage::disk($disk)->makeDirectory($registry->attachment_path);
+            }
+        });
+
+        static::updating(function ($registry) {
             //
         });
 
-        static::created(function ($mail) {
+        static::saved(function ($registry) {
             //
         });
 
-        static::updating(function ($mail) {
+        static::deleting(function ($registry) {
             //
         });
 
-        static::saved(function ($mail) {
-            //
-        });
-
-        static::deleting(function ($mail) {
-            //
-        });
-
-        static::deleted(function ($mail) {
+        static::deleted(function ($registry) {
             // if ($mail->attachment_path) {
             //     Storage::disk('public')->deleteDirectory($mail->attachment_path);
             // }
-            if ($mail->attachment_path) {
+            if ($registry->attachment_path) {
                 try {
-                    Storage::deleteDirectory($mail->attachment_path);
+                    Storage::deleteDirectory($registry->attachment_path);
                 } catch (\Exception $e) {
                     // Logga l'errore se vuoi, ma non bloccare la cancellazione del record
                     Log::warning('Impossibile eliminare il file allegato', [
-                        'path' => $mail->attachment_path,
+                        'path' => $registry->attachment_path,
                         'error' => $e->getMessage(),
                     ]);
                 }

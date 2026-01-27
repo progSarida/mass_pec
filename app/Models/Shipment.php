@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MailType;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
@@ -19,6 +20,11 @@ class Shipment extends Model
         'send_type',
         'insert_date',
         'shipment_path',
+        'mail_type',
+        'region_id',
+        'province_id',
+        'send_date',
+        'send_user_id',
         'total_no_mails',
         'no_mails_sended',
         'no_mails_to_send',
@@ -33,7 +39,7 @@ class Shipment extends Model
     ];
 
     protected $casts = [
-        //
+        'mail_type' => MailType::class,
     ];
 
     public array $receiverList = [];
@@ -47,16 +53,32 @@ class Shipment extends Model
         return $this->hasMany(Receiver::class);
     }
 
+    public function region(){
+        return $this->belongsTo(Region::class);
+    }
+
+    public function province(){
+        return $this->belongsTo(Province::class);
+    }
+
     public function shipmentErrors(){
         return $this->hasMany(ShipmentError::class);
+    }
+
+    public function sendUser(){
+        return $this->belongsTo(User::class,'send_user_id');
+    }
+
+    public function registry()
+    {
+        return $this->hasOne(Registry::class, 'shipment_id');                                           // collega Shipment a Registry tramite la colonna shipment_id in Registry
     }
 
     protected static function booted()
     {
         static::creating(function ($shipment) {
             $shipment->sender_id = 1;
-            $shipment->insert_date = date('Y-m-d');                                                                                 // inserisco la data di oggi come data di inserimento della spedizione
-            // $shipment->attachment = 'allegati_2025-11-03_16-27-00.zip';
+            $shipment->insert_date = date('Y-m-d');                                                     // inserisco la data di oggi come data di inserimento della spedizione
             $shipment->attachment = 'allegati_' . now()->format('Y-m-d_H-i-s') . '.zip';
         });
 
@@ -86,7 +108,7 @@ class Shipment extends Model
 
     public function createShipmentFolderOld(): void
     {
-        $this->shipment_path = "/archive/shipments/{$this->id}/";
+        $this->shipment_path = "/shipments/{$this->id}/";
         $this->save();
 
         $fullPath = storage_path("app/public" . $this->shipment_path);
@@ -97,7 +119,7 @@ class Shipment extends Model
 
     public function createShipmentFolder(): void
     {
-        $this->shipment_path = "archive/shipments/{$this->id}";
+        $this->shipment_path = "shipments/{$this->id}";
         $this->save();
 
         if (!Storage::exists($this->shipment_path)) {
@@ -170,7 +192,7 @@ class Shipment extends Model
         $zip->close();
 
         // Sposta lo ZIP nella posizione finale usando Storage
-        $zipPath = "archive/shipments/{$this->id}/{$zipFileName}";
+        $zipPath = "shipments/{$this->id}/{$zipFileName}";
         Storage::put($zipPath, file_get_contents($tempZipPath));
 
         // Pulisci il file temporaneo

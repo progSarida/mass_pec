@@ -2,20 +2,28 @@
 
 namespace App\Filament\User\Resources;
 
+use App\Enums\FlowType;
+use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
 use App\Models\Registry;
+use App\Models\User;
 use Filament\Forms;
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -36,7 +44,7 @@ class RegistryResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->disabled()
+            // ->disabled()
             ->columns(15)
             ->schema([
                 Section::make('Informazioni Principali')
@@ -44,19 +52,38 @@ class RegistryResource extends Resource
                     ->schema([
                         TextInput::make('protocol_number')
                             ->label('Protocollo')
-                            ->columnSpan(['sm' => 'full', 'md' => 7]),
+                            ->required()
+                            ->disabled()
+                            ->dehydrated()
+                            ->columnSpan(['sm' => 'full', 'md' => 3])
+                            ->default(static::newProtocol()),
+
+                        Select::make('flow_type')
+                            ->label('Flusso')
+                            ->required()
+                            ->options(FlowType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                         Select::make('scope_type_id')
                             ->label('Ambito')
+                            ->required()
                             ->relationship('scopeType', 'name')
-                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+
+                        Checkbox::make('is_email')
+                            ->label('Posta elettronica')
+                            ->live()
+                            // ->disabled()
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                         TextInput::make('from')
                             ->label('Mittente')
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('subject')
                             ->label('Oggetto')
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 9]),
 
                         Textarea::make('body')
@@ -66,36 +93,49 @@ class RegistryResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
                     ]),
 
-                TextInput::make('receive_date')
+                DatePicker::make('receive_date')
                     ->label('Ricevuto il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->columnSpan(['sm' => 'full', 'md' => 3])
-                    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
+                    ->date('d/m/Y')
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
-                TextInput::make('download_date')
+                DatePicker::make('download_date')
                     ->label('Scaricato il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->columnSpan(['sm' => 'full', 'md' => 3])
-                    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
+                    ->date('d/m/Y')
+                    ->visible(fn(Get $get) => $get('is_email'))
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
                     ->relationship('downloadUser', 'name')
+                    ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
-                TextInput::make('created_at')
+                Placeholder::make('not_email')
+                    ->label('')
+                    ->visible(fn(Get $get) => !$get('is_email'))
+                    ->columnSpan(['sm' => '0', 'md' => 6]),
+
+                DatePicker::make('created_at')
                     ->label('Registrato il')
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 3])
-                    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
+                    ->date('d/m/Y')
+                    ->visible(fn($record) => $record),
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('register_user_id')
                     ->label('Registrato da')
                     ->relationship('registerUser', 'name')
+                    ->visible(fn($record) => $record)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)
+                    ->visible(fn($record) => $record)
                     ->schema([
                         Placeholder::make('attachments')
                             ->label('')
@@ -133,8 +173,16 @@ class RegistryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('receive_date', 'desc')
+            ->defaultSort('created_at', 'desc')
             ->columns([
+                TextColumn::make('flow_type')
+                    ->label('Flusso')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('registry_origin_type')
+                    ->label('Origine')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('protocol_number')
                     ->label('Protocollo')
                     ->searchable()
@@ -147,6 +195,8 @@ class RegistryResource extends Resource
                 TextColumn::make('from')
                     ->label('Mittente')
                     ->searchable()
+                    ->limit(250)
+                    ->tooltip(fn ($record) => $record->from)
                     ->sortable(),
 
                 TextColumn::make('subject')
@@ -164,11 +214,23 @@ class RegistryResource extends Resource
                         if (!$record->body_preview) return 'Nessun contenuto';
                         $preview = strip_tags($record->body_preview);
                         return Str::limit($preview, 500);
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
                     ->date('d/m/Y')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('send_date')
+                    ->label('Data invio')
+                    ->date('d/m/Y')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('sendUser.name')
+                    ->label('Inviata da')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -187,12 +249,12 @@ class RegistryResource extends Resource
                     ->label('Registrato il')
                     ->date('d/m/Y')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('registerUser.name')
                     ->label('Registrato da')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 // Tables\Columns\TextColumn::make('attachments')
                 //     ->label('Allegati')
@@ -202,8 +264,82 @@ class RegistryResource extends Resource
                 //     ->icon('heroicon-o-folder-open')
                 //     ->color('primary'),
             ])
+            ->filtersFormWidth('lg')
+            ->filtersFormColumns(2)
             ->filters([
-                //
+                SelectFilter::make('flow_type')
+                    ->label('Tipo')
+                    ->options(FlowType::class)
+                    ->searchable(),
+                SelectFilter::make('is_email')
+                    ->label('Posta elettronica')
+                    ->options([
+                        'si' => 'Si',
+                        'no' => 'No',
+                    ])
+                    ->placeholder('Entrambi')
+                    ->query(function (Builder $query, array $data): Builder {
+                        // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
+                        $value = $data['value'] ?? null;
+
+                        // Se non è selezionato nulla, non applichiamo filtri alla query
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        if ($value === 'si') {
+                            // Mostra Registry relativo ad una comunicazione tramite posta elettronica
+                            return $query->where('is_email', true);
+                        }
+
+                        if ($value === 'no') {
+                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
+                            return $query->where('is_email', false);
+                        }
+
+                        return $query;
+                    }),
+                Filter::make('registration_date_range')
+                    ->columns(2)
+                    ->form([
+                        DatePicker::make('registration_from_date')
+                            ->label('Registrazione dal')
+                            ->columnSpan(1),
+                        DatePicker::make('registration_to_date')
+                            ->label('Registrazione al')
+                            ->columnSpan(1),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        if (! empty($data['registration_from_date'])) {
+                            $query->whereDate('created_at', '>=', $data['registration_from_date']);
+                        }
+                        if (! empty($data['registration_to_date'])) {
+                            $query->whereDate('created_at', '<=', $data['registration_to_date']);
+                        }
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if ($data['registration_from_date'] && $data['registration_to_date']) {
+                            return "Registrazione dal {$data['registration_from_date']} al {$data['registration_to_date']}";
+                        }
+                        if ($data['registration_from_date']) {
+                            return "Registrazione dal {$data['registration_from_date']}";
+                        }
+                        if ($data['registration_to_date']) {
+                            return "Registrazione al {$data['registration_to_date']}";
+                        }
+                        return null;
+                    })
+                    ->columnSpan(2),
+                SelectFilter::make('registry_origin_type')
+                    ->label('Origine')
+                    ->options(RegistryOriginType::class)
+                    ->searchable()
+                    ->columnSpan(1),
+                SelectFilter::make('register_user_id')
+                    ->label('Registrato da')
+                    ->options(fn () => User::pluck('name', 'id')->toArray())
+                    ->searchable()
+                    ->columnSpan(1),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -232,5 +368,30 @@ class RegistryResource extends Resource
             'edit' => Pages\EditRegistry::route('/{record}/edit'),
             'view' => Pages\ViewRegistry::route('/{record}'),
         ];
+    }
+
+    private static function newProtocol(): string
+    {
+        $lastRegistry = Registry::orderBy('created_at', 'desc')->first();
+
+        if ($lastRegistry) {
+            $parts = explode('-', $lastRegistry->protocol_number);
+
+            if (count($parts) !== 3 || $parts[0] !== 'P') {
+                return 'P-' . today()->year . '-00001';
+            }
+
+            $lastYear = (int) $parts[1];
+            $lastNumber = (int) $parts[2];
+            $currentYear = today()->year;
+
+            if ($lastYear === $currentYear) {
+                $newNumber = $lastNumber + 1;
+                return 'P-' . $currentYear . '-' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
+            } else {
+                return 'P-' . $currentYear . '-00001';
+            }
+        }
+        return 'P-' . today()->year . '-00001';
     }
 }

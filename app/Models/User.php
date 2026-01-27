@@ -59,4 +59,9 @@ class User extends Authenticatable implements FilamentUser
 
         return redirect()->to(Filament::getPanel($destinationPanelId)->getUrl());
     }
+
+    public function accounts(): BelongsToMany
+    {
+        return $this->belongsToMany(Account::class);
+    }
 }

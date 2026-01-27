@@ -34,101 +34,101 @@ class ViewDownloadEmail extends ViewRecord
                 ->url($this->getResource()::getUrl('index'))
                 ->color('gray'),
             Actions\EditAction::make(),
-            Actions\Action::make('register')
-                ->label('Protocolla')
-                ->icon('fluentui-pen-20-o')
-                ->color('warning')
-                ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
-                ->requiresConfirmation()
-                ->modalHeading('Protocolla email')
-                ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
-                ->modalSubmitActionLabel('Protocolla')
-                ->form([
-                    Select::make('scope_type_id')
-                        ->label('Ambito')
-                        ->options(ScopeType::pluck('name', 'id'))
-                        ->searchable()
-                        ->placeholder('Seleziona l\'ambito della registrazione')
-                ])
-                ->action(function ($record, $data) {
-                    try {
-                        $this->registerEmail($record, $data['scope_type_id']);
-                        Notification::make()
-                            ->title('Mail protocollata')
-                            ->body('La mail e i suoi allegati sono stati protocollati con successo.')
-                            ->success()
-                            ->send();
-                        $resource = $this->getResource();
-                        return $this->redirect($resource::getUrl('index'));
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore registrazione')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
+            // Actions\Action::make('register')
+            //     ->label('Protocolla')
+            //     ->icon('fluentui-pen-20-o')
+            //     ->color('warning')
+            //     ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+            //     ->requiresConfirmation()
+            //     ->modalHeading('Protocolla email')
+            //     ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
+            //     ->modalSubmitActionLabel('Protocolla')
+            //     ->form([
+            //         Select::make('scope_type_id')
+            //             ->label('Ambito')
+            //             ->options(ScopeType::pluck('name', 'id'))
+            //             ->searchable()
+            //             ->placeholder('Seleziona l\'ambito della registrazione')
+            //     ])
+            //     ->action(function ($record, $data) {
+            //         try {
+            //             $this->registerEmail($record, $data['scope_type_id']);
+            //             Notification::make()
+            //                 ->title('Mail protocollata')
+            //                 ->body('La mail e i suoi allegati sono stati protocollati con successo.')
+            //                 ->success()
+            //                 ->send();
+            //             $resource = $this->getResource();
+            //             return $this->redirect($resource::getUrl('index'));
+            //         } catch (\Exception $e) {
+            //             Notification::make()
+            //                 ->title('Errore registrazione')
+            //                 ->body($e->getMessage())
+            //                 ->danger()
+            //                 ->send();
+            //         }
+            //     }),
         ];
     }
 
-    private function registerEmailOld($record, $scopeTypeId){
-        try {
-            DB::beginTransaction();
+    // private function registerEmailOld($record, $scopeTypeId){
+    //     try {
+    //         DB::beginTransaction();
 
-            $oldPath = $record->attachment_path;
-            $protocolNumber = static::newProtocol();
+    //         $oldPath = $record->attachment_path;
+    //         $protocolNumber = static::newProtocol();
 
-            $newPath = 'registry/' . $protocolNumber;
+    //         $newPath = 'registry/' . $protocolNumber;
 
-            $registry = Registry::create([
-                'protocol_number' => $protocolNumber,
-                'scope_type_id' => $scopeTypeId,
-                'uid' => $record->uid,
-                'message_id' => $record->message_id,
-                'from' => $record->from,
-                'subject' => $record->subject,
-                'body' => $record->body,
-                'receive_date' => $record->receive_date,
-                'attachment_path' => $newPath,
-                'download_date' => $record->created_at,
-                'download_user_id' => $record->download_user_id,
-                'register_user_id' => Auth::user()->id,
-            ]);
+    //         $registry = Registry::create([
+    //             'protocol_number' => $protocolNumber,
+    //             'scope_type_id' => $scopeTypeId,
+    //             'uid' => $record->uid,
+    //             'message_id' => $record->message_id,
+    //             'from' => $record->from,
+    //             'subject' => $record->subject,
+    //             'body' => $record->body,
+    //             'receive_date' => $record->receive_date,
+    //             'attachment_path' => $newPath,
+    //             'download_date' => $record->created_at,
+    //             'download_user_id' => $record->download_user_id,
+    //             'register_user_id' => Auth::user()->id,
+    //         ]);
 
-            Model::withoutEvents(function () use ($record) {
-                $record->delete();
-            });
+    //         Model::withoutEvents(function () use ($record) {
+    //             $record->delete();
+    //         });
 
-            // copio cartella allegati
-            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
-                Storage::disk('public')->makeDirectory($newPath);
+    //         // copio cartella allegati
+    //         if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+    //             Storage::disk('public')->makeDirectory($newPath);
 
-                $files = Storage::disk('public')->allFiles($oldPath);
-                foreach ($files as $file) {
-                    $relativePath = str_replace($oldPath . '/', '', $file);
-                    $newFilePath = $newPath . '/' . $relativePath;
+    //             $files = Storage::disk('public')->allFiles($oldPath);
+    //             foreach ($files as $file) {
+    //                 $relativePath = str_replace($oldPath . '/', '', $file);
+    //                 $newFilePath = $newPath . '/' . $relativePath;
 
-                    $directory = dirname($newFilePath);
-                    if (!Storage::disk('public')->exists($directory)) {
-                        Storage::disk('public')->makeDirectory($directory);
-                    }
+    //                 $directory = dirname($newFilePath);
+    //                 if (!Storage::disk('public')->exists($directory)) {
+    //                     Storage::disk('public')->makeDirectory($directory);
+    //                 }
 
-                    Storage::disk('public')->put($newFilePath, Storage::disk('public')->get($file));
-                }
-            }
+    //                 Storage::disk('public')->put($newFilePath, Storage::disk('public')->get($file));
+    //             }
+    //         }
 
-            // elimino la vecchia cartella degli allegati
-            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
-                Storage::disk('public')->deleteDirectory($oldPath);
-            }
+    //         // elimino la vecchia cartella degli allegati
+    //         if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+    //             Storage::disk('public')->deleteDirectory($oldPath);
+    //         }
 
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error("Errore scarico email: " . $e->getMessage() . ' - ' . $e->getLine());
-            throw $e;
-        }
-    }
+    //         DB::commit();
+    //     } catch (\Throwable $e) {
+    //         DB::rollBack();
+    //         Log::error("Errore scarico email: " . $e->getMessage() . ' - ' . $e->getLine());
+    //         throw $e;
+    //     }
+    // }
 
     private function registerEmail($record, $scopeTypeId)
     {
@@ -141,6 +141,8 @@ class ViewDownloadEmail extends ViewRecord
 
             $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
+                'flow_type' => 'received',
+                'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,
                 'message_id' => $record->message_id,

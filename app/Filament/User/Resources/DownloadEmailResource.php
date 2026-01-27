@@ -29,13 +29,14 @@ use Filament\Forms\Components\Placeholder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource\RelationManagers;
+use Filament\Forms\Components\DatePicker;
 
 class DownloadEmailResource extends Resource
 {
     protected static ?string $model = DownloadEmail::class;
 
     public static ?string $pluralModelLabel = 'Scarico posta ricevuta';
-    protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20';
+    protected static ?string $navigationIcon = 'fluentui-mail-arrow-double-back-20';
     protected static ?string $navigationLabel = 'Scarico posta ricevuta';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 2;
@@ -63,16 +64,19 @@ class DownloadEmailResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
                     ]),
 
-                TextInput::make('receive_date')
+                DatePicker::make('receive_date')
                     ->label('Ricevuto il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->columnSpan(['sm' => 'full', 'md' => 4])
-                    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
+                    ->date('d/m/Y')
+                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
-                TextInput::make('created_at')
+                DatePicker::make('created_at')
                     ->label('Scaricato il')
-                    ->columnSpan(['sm' => 'full', 'md' => 4])
-                    ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
+                    ->extraInputAttributes(['class' => 'text-center'])
+                    ->date('d/m/Y')
+                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
@@ -124,17 +128,18 @@ class DownloadEmailResource extends Resource
                 TextColumn::make('from')
                     ->label('Mittente')
                     ->searchable()
-                    ->sortable(),
+                    ->limit(25)
+                    ->tooltip(fn ($record) => $record->from),
 
                 TextColumn::make('subject')
                     ->label('Oggetto')
                     ->searchable()
-                    ->limit(50)
+                    ->limit(30)
                     ->tooltip(fn ($record) => $record->subject),
 
                 TextColumn::make('body')
                     ->label('Messaggio')
-                    ->limit(100)
+                    ->limit(80)
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? Str::limit(strip_tags($state), 50) : '—')
                     ->tooltip(function ($record) {
@@ -231,10 +236,10 @@ class DownloadEmailResource extends Resource
 
                             foreach ($records as $record) {
                                 try {
-                                    DownloadEmailResource::registerEmail($record, $data['scope_type_id']);
+                                    static::registerEmail($record, $data['scope_type_id']);
                                     $successCount++;
                                 } catch (\Exception $e) {
-                                    $errorMessages[] = "Errore su UID {$record->uid}: " . $e->getMessage();
+                                    $errorMessages[] = "Errore su ID {$record->id}: " . $e->getMessage();
                                 }
                             }
 
@@ -279,10 +284,11 @@ class DownloadEmailResource extends Resource
         ];
     }
 
-    private static function registerEmail($record, $scopeTypeId){
+    private static function registerEmail($record, $scopeTypeId)
+    {
         try {
             DB::beginTransaction();
-
+// dd($record);
             $oldPath = $record->attachment_path;
             $protocolNumber = static::newProtocol();
 
@@ -290,6 +296,9 @@ class DownloadEmailResource extends Resource
 
             Registry::create([
                 'protocol_number' => $protocolNumber,
+                'flow_type' => 'received',
+                'registry_origin_type' => 'download_email',
+                'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,
                 'message_id' => $record->message_id,
@@ -297,37 +306,43 @@ class DownloadEmailResource extends Resource
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
+                'send_date' => null,
+                'send_user_id' => null,
+                'shipment_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
                 'register_user_id' => Auth::user()->id,
             ]);
 
+            // Elimino la mail
             Model::withoutEvents(function () use ($record) {
                 $record->delete();
             });
 
-            // copio cartella allegati
-            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
-                Storage::disk('public')->makeDirectory($newPath);
+            $disk = config('filesystems.default');
 
-                $files = Storage::disk('public')->allFiles($oldPath);
+            // Copio cartella allegati
+            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
+                Storage::disk($disk)->makeDirectory($newPath);
+
+                $files = Storage::disk($disk)->allFiles($oldPath);
                 foreach ($files as $file) {
                     $relativePath = str_replace($oldPath . '/', '', $file);
                     $newFilePath = $newPath . '/' . $relativePath;
 
                     $directory = dirname($newFilePath);
-                    if (!Storage::disk('public')->exists($directory)) {
-                        Storage::disk('public')->makeDirectory($directory);
+                    if (!Storage::disk($disk)->exists($directory)) {
+                        Storage::disk($disk)->makeDirectory($directory);
                     }
 
-                    Storage::disk('public')->put($newFilePath, Storage::disk('public')->get($file));
+                    Storage::disk($disk)->put($newFilePath, Storage::disk($disk)->get($file));
                 }
             }
 
-            // elimino la vecchia cartella degli allegati
-            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
-                Storage::disk('public')->deleteDirectory($oldPath);
+            // Elimino la vecchia cartella degli allegati
+            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
+                Storage::disk($disk)->deleteDirectory($oldPath);
             }
 
             DB::commit();

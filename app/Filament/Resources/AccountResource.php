@@ -21,6 +21,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class AccountResource extends Resource
 {
@@ -141,5 +142,19 @@ class AccountResource extends Resource
             'create' => Pages\CreateAccount::route('/create'),
             'edit' => Pages\EditAccount::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        // Se l'utente non è super_admin, filtra gli account
+        if (!Auth::user()->hasRole('super_admin')) {
+            $query->whereHas('users', function (Builder $q) {
+                $q->where('users.id', Auth::user()->id);
+            });
+        }
+
+        return $query;
     }
 }

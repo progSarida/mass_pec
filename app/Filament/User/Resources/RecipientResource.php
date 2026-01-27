@@ -31,7 +31,7 @@ class RecipientResource extends Resource
     public static ?string $modelLabel = 'Interlocutore';
     protected static ?string $navigationIcon = 'fluentui-person-mail-20';
     protected static ?string $navigationLabel = 'Indirizzi interlocutori';
-    protected static ?string $navigationGroup = 'Tabelle';
+    protected static ?string $navigationGroup = 'Tabelle Pec Massiva';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form

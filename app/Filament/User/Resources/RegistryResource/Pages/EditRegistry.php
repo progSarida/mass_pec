@@ -4,6 +4,9 @@ namespace App\Filament\User\Resources\RegistryResource\Pages;
 
 use App\Filament\User\Resources\RegistryResource;
 use Filament\Actions;
+use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -20,6 +23,28 @@ class EditRegistry extends EditRecord
     {
         return [
             // Actions\DeleteAction::make(),
+            Action::make('uploadFile')
+                ->label('Carica File')
+                ->icon('heroicon-o-document-arrow-up')
+                ->color('info')
+                // ->visible(fn($record) => !$record->is_email)
+                ->form([
+                    FileUpload::make('attachments')
+                        ->label('Seleziona File')
+                        ->multiple()
+                        ->directory(fn ($record) => $record->attachment_path)
+                        ->preserveFilenames()
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    // I file vengono caricati automaticamente nella cartella
+                    // configurata nel metodo ->directory() sopra.
+
+                    Notification::make()
+                        ->title('Caricamento completato')
+                        ->success()
+                        ->send();
+                }),
         ];
     }
 
