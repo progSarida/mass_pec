@@ -30,7 +30,7 @@ class AccountResource extends Resource
     public static ?string $modelLabel = 'Account';
     protected static ?string $navigationIcon = 'heroicon-s-inbox-stack';
     protected static ?string $navigationGroup = 'Parametri';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {

@@ -19,7 +19,7 @@ class SenderSettings extends Page
     protected static ?string $slug = 'sender';
     protected static string $view = 'filament.pages.sender-settings';
     protected static ?string $navigationGroup = 'Parametri';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public ?Sender $sender = null;
     public ?array $data = [];
