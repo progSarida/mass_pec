@@ -21,14 +21,19 @@ class Recipient extends Model
         'resp_tax_code',
         'mail_1',
         'mail_type_1',
+        'office_type_id_1',
         'mail_2',
         'mail_type_2',
+        'office_type_id_2',
         'mail_3',
         'mail_type_3',
+        'office_type_id_3',
         'mail_4',
         'mail_type_4',
+        'office_type_id_4',
         'mail_5',
         'mail_type_5',
+        'office_type_id_5',
         'site',
         'url_facebook',
         'url_twitter',
@@ -54,6 +59,26 @@ class Recipient extends Model
 
     public function city(){
         return $this->belongsTo(City::class);
+    }
+
+    public function officeType1(){
+        return $this->belongsTo(OfficeType::class, 'office_type_id_1');
+    }
+
+    public function officeType2(){
+        return $this->belongsTo(OfficeType::class, 'office_type_id_2');
+    }
+
+    public function officeType3(){
+        return $this->belongsTo(OfficeType::class, 'office_type_id_3');
+    }
+
+    public function officeType4(){
+        return $this->belongsTo(OfficeType::class, 'office_type_id_4');
+    }
+
+    public function officeType5(){
+        return $this->belongsTo(OfficeType::class, 'office_type_id_5');
     }
 
     public function receivers(){

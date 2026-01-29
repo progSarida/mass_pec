@@ -6,6 +6,7 @@ use App\Enums\MailType;
 use App\Filament\User\Resources\RecipientResource\Pages;
 use App\Filament\User\Resources\RecipientResource\RelationManagers;
 use App\Models\City;
+use App\Models\OfficeType;
 use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
@@ -29,9 +30,9 @@ class RecipientResource extends Resource
     protected static ?string $model = Recipient::class;
     public static ?string $pluralModelLabel = 'Indirizzi interlocutori';
     public static ?string $modelLabel = 'Interlocutore';
-    protected static ?string $navigationIcon = 'fluentui-person-mail-20';
+    protected static ?string $navigationIcon = 'fluentui-person-mail-20-o';
     protected static ?string $navigationLabel = 'Indirizzi interlocutori';
-    protected static ?string $navigationGroup = 'Tabelle Pec Massiva';
+    protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
@@ -128,33 +129,48 @@ class RecipientResource extends Resource
                     ->schema([
                         TextInput::make('mail_1')->label('Mail 1')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        // Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_1')->label('Tipo')
                             ->options(MailType::class)
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_1')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_2')->label('Mail 2')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        // Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_2')->label('Tipo')
                             ->options(MailType::class)
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_2')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_3')->label('Mail 3')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        // Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_3')->label('Tipo')
                             ->options(MailType::class)
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_3')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_4')->label('Mail 4')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        // Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_4')->label('Tipo')
                             ->options(MailType::class)
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_4')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('mail_5')->label('Mail 5')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        // Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                         Select::make('mail_type_5')->label('Tipo')
                             ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_5')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ]),
                 Section::make('Altri recapiti')

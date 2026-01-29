@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ScopeTypeResource\Pages;
-use App\Filament\Resources\ScopeTypeResource\RelationManagers;
-use App\Models\ScopeType;
+use App\Filament\Resources\OfficeTypeResource\Pages;
+use App\Filament\Resources\OfficeTypeResource\RelationManagers;
+use App\Models\OfficeType;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -15,27 +15,24 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
-class ScopeTypeResource extends Resource
+class OfficeTypeResource extends Resource
 {
-    protected static ?string $model = ScopeType::class;
-    public static ?string $pluralModelLabel = 'Ambiti';
-    public static ?string $modelLabel = 'Ambito';
-    protected static ?string $navigationIcon = 'fas-list';
+    protected static ?string $model = OfficeType::class;
+    public static ?string $pluralModelLabel = 'Tipi ufficio';
+    public static ?string $modelLabel = 'Tipo ufficio';
+    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationLabel = 'Tipi ufficio';
     protected static ?string $navigationGroup = 'Tabelle';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {
         return $form
-            ->columns(3)
+            ->columns(12)
             ->schema([
-                TextInput::make('name')->label('Nome')
-                    ->required()
-                    ->columnSpan(1),
-                TextInput::make('description')->label('Descrizione')
-                    ->columnSpan(2),
+                TextInput::make('name')->label('Nome tipo')
+                    ->columnSpan(6),
                 TextInput::make('position')->label('Posizione')
-                    ->required()
                     ->columnSpan(1),
             ]);
     }
@@ -43,19 +40,17 @@ class ScopeTypeResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('position'))
             ->columns([
-                TextColumn::make('position')->label('Posizione')
-                    ->searchable()
-                    ->sortable(),
-                TextColumn::make('name')->label('Nome')
-                    ->searchable(),
-                TextColumn::make('description')->label('Descrizione')
-                    ->searchable(),
-                TextColumn::make('created_at')
+                TextColumn::make('position')
+                    ->label('Posizione'),
+                TextColumn::make('name')
+                    ->label('Nome tipo'),
+                Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
+                Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -83,9 +78,9 @@ class ScopeTypeResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListScopeTypes::route('/'),
-            'create' => Pages\CreateScopeType::route('/create'),
-            'edit' => Pages\EditScopeType::route('/{record}/edit'),
+            'index' => Pages\ListOfficeTypes::route('/'),
+            'create' => Pages\CreateOfficeType::route('/create'),
+            'edit' => Pages\EditOfficeType::route('/{record}/edit'),
         ];
     }
 }

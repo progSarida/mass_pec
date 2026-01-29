@@ -34,7 +34,8 @@ class EditShipment extends EditRecord
 
     public function getTitle(): string | Htmlable
     {
-        return $this->record->description;
+        // return $this->record->description;
+        return "Modifica spedizione";
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -73,11 +74,31 @@ class EditShipment extends EditRecord
 
     protected function getHeaderActions(): array
     {
+        $currentShipment = $this->record;
+        $previousCShipment = Shipment::where('created_at', '<=', $currentShipment->created_at)->where('id', '!=', $currentShipment->id)
+                                ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
+        $nextCShipment = Shipment::where('created_at', '>=', $currentShipment->created_at)->where('id', '!=', $currentShipment->id)
+                                ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
+        $previousIRegistry = Shipment::where('id', $currentShipment->flow_type)->orderBy('id', 'desc')->first();
+        $nextIRegistry = Shipment::where('id', $currentShipment->flow_type)->orderBy('id', 'asc')->first();
         return [
-            Actions\Action::make('back')
-                ->label('Indietro')
-                ->url($this->getResource()::getUrl('index'))
-                ->color('gray'),
+            // Scorrimento cronologico
+            Actions\Action::make('previous_c_shipment')
+                ->label('Precedente')
+                ->color('info')
+                ->icon('heroicon-o-arrow-left-circle')
+                ->visible(function () use ($previousCShipment) { return $previousCShipment;})
+                ->action(function () use ($previousCShipment) {
+                    $this->redirect(ShipmentResource::getUrl('edit', ['record' => $previousCShipment->id]));
+                }),
+            Actions\Action::make('next_c_shipment')
+                ->label('Successivo')
+                ->color('info')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->visible(function () use ($nextCShipment) { return $nextCShipment;})
+                ->action(function () use ($nextCShipment) {
+                    $this->redirect(ShipmentResource::getUrl('edit', ['record' => $nextCShipment->id]));
+                }),
             Actions\ActionGroup::make([
                 Actions\Action::make('send')
                     ->label('Invio PEC')
@@ -221,7 +242,7 @@ class EditShipment extends EditRecord
         return Actions\DeleteAction::make('delete')
                 ->requiresConfirmation()
                 ->modalHeading('Conferma eliminazione spedizione')
-                ->modalDescription('Sei sicuro di voler eliminare questa spedizione? Questa azione non può essere annullata.')
+                ->modalDescription('Questa azione non può essere annullata.')
                 ->modalSubmitActionLabel('Elimina')
                 ->modalCancelActionLabel('Annulla');
     }
@@ -350,7 +371,7 @@ class EditShipment extends EditRecord
 
                     try {
                         if ($email->send()) {
-                            $recipient->update(['send_date' => now()->format('Y-m-d')]);
+                            $recipient->update(['send_date' => now()->format('Y-m-d H:i:s')]);
                             $sent++;
                         } else {
                             $not_sent++;
@@ -371,7 +392,7 @@ class EditShipment extends EditRecord
             }
 
             $shipment->update([
-                'send_date' => now()->format('Y-m-d'),
+                'send_date' => now()->format('Y-m-d H:i:s'),
                 'send_user_id' => Auth::user()->id,
                 'no_mails_sended' => $sent,
                 'no_mails_to_send' => $not_sent

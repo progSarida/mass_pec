@@ -89,7 +89,7 @@ class AccountResource extends Resource
                             ->options(MailProtocolType::class),
                         TextInput::make('out_mail_port')->label('Porta')->columnSpan(3)
                             ->required(),
-                        Checkbox::make('out_authentication')->label('Richiesta autenticazione')->columnSpan(4),
+                        Checkbox::make('out_authentication')->label('Autenticazione')->columnSpan(2),
                         TextInput::make('out_username')->label('Username')->columnSpan(4)
                             ->required(),
                         TextInput::make('out_password')->label('Password')->columnSpan(4)
@@ -98,6 +98,7 @@ class AccountResource extends Resource
                             ->revealable()
                             ->afterStateHydrated(fn ($set, $record) => $set('out_password', $record?->out_password ? decrypt($record->out_password) : null) )
                             ->dehydrateStateUsing(fn ($state) => $state ? encrypt($state) : ''),
+                        Checkbox::make('send')->label('Invia mail')->columnSpan(2),
                     ]),
                 ]);
     }

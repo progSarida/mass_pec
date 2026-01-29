@@ -20,7 +20,7 @@ class CityResource extends Resource
     public static ?string $modelLabel = 'Comuni';
     protected static ?string $navigationIcon = 'fas-city';
     protected static ?string $navigationGroup = 'Tabelle';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 6;
 
     public static function form(Form $form): Form
     {

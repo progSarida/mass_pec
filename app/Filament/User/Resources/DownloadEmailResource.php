@@ -30,13 +30,14 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource\RelationManagers;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 
 class DownloadEmailResource extends Resource
 {
     protected static ?string $model = DownloadEmail::class;
 
     public static ?string $pluralModelLabel = 'Scarico posta ricevuta';
-    protected static ?string $navigationIcon = 'fluentui-mail-arrow-double-back-20';
+    protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20';
     protected static ?string $navigationLabel = 'Scarico posta ricevuta';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 2;
@@ -64,10 +65,10 @@ class DownloadEmailResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
                     ]),
 
-                DatePicker::make('receive_date')
+                DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 4]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
@@ -150,7 +151,7 @@ class DownloadEmailResource extends Resource
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
-                    ->date('d/m/Y')
+                    ->date('d/m/Y H:i:s')
                     ->sortable(),
 
                 TextColumn::make('created_at')
@@ -297,6 +298,7 @@ class DownloadEmailResource extends Resource
             Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'received',
+                'flow_index' => static::newIndex('received'),
                 'registry_origin_type' => 'download_email',
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
@@ -309,6 +311,7 @@ class DownloadEmailResource extends Resource
                 'send_date' => null,
                 'send_user_id' => null,
                 'shipment_id' => null,
+                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
@@ -376,5 +379,15 @@ class DownloadEmailResource extends Resource
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+
+        if ($lastIndex) {
+            return $lastIndex++;
+        }
+        return 1;
     }
 }

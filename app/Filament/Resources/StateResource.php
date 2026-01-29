@@ -22,7 +22,7 @@ class StateResource extends Resource
     public static ?string $modelLabel = 'Stato';
     protected static ?string $navigationIcon = 'fas-globe-europe';
     protected static ?string $navigationGroup = 'Tabelle';
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 9;
 
     public static function form(Form $form): Form
     {

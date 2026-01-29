@@ -68,7 +68,8 @@ class ShipmentErrorsRelationManager extends RelationManager
                     ->limit(25)
                     ->tooltip(fn ($record) => $record->address),
                 Tables\Columns\TextColumn::make('send_date')
-                    ->label('Data invio'),
+                    ->label('Data invio')
+                    ->date('d/m/Y H:i:s'),
                 Tables\Columns\IconColumn::make('shipment_error_type')
                     ->label('Tipo')
                     ->tooltip(fn (ShipmentErrorType $state): string => $state->getLabel()),

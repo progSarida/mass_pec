@@ -14,6 +14,7 @@ class Registry extends Model
     protected $fillable = [
         'protocol_number',
         'flow_type',
+        'flow_index',
         'registry_origin_type',
         'is_email',
         'scope_type_id',
@@ -26,6 +27,7 @@ class Registry extends Model
         'send_date',
         'send_user_id',
         'shipment_id',
+        'send_email_id',
         'attachment_path',
         'download_date',
         'download_user_id',
@@ -69,6 +71,10 @@ class Registry extends Model
             }
             if(!$registry->message_id){
                 $registry->message_id = $registry->protocol_number;
+            }
+            if($registry->flow_type == FlowType::INTERNAL){
+                $lastIndex = Registry::where('flow_type', 'internal')->max('flow_index');
+                $registry->flow_index = $lastIndex++;
             }
             $registry->register_user_id = Auth::user()->id;
         });

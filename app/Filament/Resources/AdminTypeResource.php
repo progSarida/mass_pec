@@ -46,6 +46,14 @@ class AdminTypeResource extends Resource
                     ->label('Posizione'),
                 TextColumn::make('name')
                     ->label('Nome tipo'),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //

@@ -20,7 +20,7 @@ class ProvinceResource extends Resource
     public static ?string $modelLabel = 'Provincia';
     protected static ?string $navigationIcon = 'fas-map-marker-alt';
     protected static ?string $navigationGroup = 'Tabelle';
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 7;
 
     public static function form(Form $form): Form
     {

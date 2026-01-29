@@ -11,7 +11,9 @@ use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -86,17 +88,23 @@ class RegistryResource extends Resource
                             ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 9]),
 
-                        Textarea::make('body')
-                            ->label('Messaggio')
-                            ->rows(10)
-                            ->columnSpan('full')
-                            ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
-                    ]),
+                        // Textarea::make('body')
+                        //     ->label('Messaggio')
+                        //     ->rows(10)
+                        //     ->columnSpan('full')
+                        //     ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
 
-                DatePicker::make('receive_date')
+                        RichEditor::make('body')
+                            ->label('Messaggio')
+                            ->required()
+                            ->default('') // Fondamentale per evitare l'errore "property not found"
+                            ->columnSpanFull(),
+                            ]),
+
+                DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
@@ -119,11 +127,11 @@ class RegistryResource extends Resource
                     ->visible(fn(Get $get) => !$get('is_email'))
                     ->columnSpan(['sm' => '0', 'md' => 6]),
 
-                DatePicker::make('created_at')
+                DateTimePicker::make('created_at')
                     ->label('Registrato il')
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 3])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y H:i:s')
                     ->visible(fn($record) => $record),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
@@ -219,13 +227,13 @@ class RegistryResource extends Resource
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
-                    ->date('d/m/Y')
+                    ->date('d/m/Y H:i:S')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('send_date')
                     ->label('Data invio')
-                    ->date('d/m/Y')
+                    ->date('d/m/Y H:i:s')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 

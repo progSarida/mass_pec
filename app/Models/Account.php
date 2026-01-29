@@ -13,6 +13,7 @@ class Account extends Model
 {
     protected $fillable = [
         'download',
+        'send',
         'management_type',
         'mail_type',
         'address',
@@ -34,6 +35,8 @@ class Account extends Model
     ];
 
     protected $casts = [
+        'download' => 'boolean',
+        'send' => 'boolean',
         'management_type' => ManagementType::class,
         'mail_type' => MailType::class,
         'connection_safety_type' => ConnectionSafetyType::class,

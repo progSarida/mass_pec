@@ -8,6 +8,7 @@ use App\Models\Registry;
 use App\Models\ScopeType;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Form;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
@@ -34,7 +35,7 @@ class InMailResource extends Resource
 
     public static ?string $pluralModelLabel = 'Leggi mail sped. massive';
     public static ?string $modelLabel = 'Mail';
-    protected static ?string $navigationIcon = 'fluentui-mail-inbox-20';
+    protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20-o';
     protected static ?string $navigationLabel = 'Leggi mail sped. massive';
     protected static ?string $navigationGroup = 'Pec Massiva';
     protected static ?int $navigationSort = 2;
@@ -63,10 +64,10 @@ class InMailResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
                     ]),
 
-                DatePicker::make('receive_date')
+                DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 4]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
@@ -148,7 +149,7 @@ class InMailResource extends Resource
 
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
-                    ->date('d/m/Y')
+                    ->date('d/m/Y H:i:s')
                     ->sortable(),
 
                 TextColumn::make('created_at')
@@ -261,8 +262,7 @@ class InMailResource extends Resource
                         ->deselectRecordsAfterCompletion()
                         ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
                 ]),
-            ])
-            ->defaultSort('receive_date', 'desc');
+            ]);
     }
 
     public static function getRelations(): array
@@ -293,6 +293,7 @@ class InMailResource extends Resource
             Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'received',
+                'flow_index' => static::newIndex('received'),
                 'registry_origin_type' => 'in_mail',
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
@@ -305,6 +306,7 @@ class InMailResource extends Resource
                 'send_date' => null,
                 'send_user_id' => null,
                 'shipment_id' => null,
+                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
@@ -372,5 +374,15 @@ class InMailResource extends Resource
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+
+        if ($lastIndex) {
+            return $lastIndex++;
+        }
+        return 1;
     }
 }

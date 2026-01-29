@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources\InMailResource\Pages;
 
 use Filament\Actions;
 use App\Filament\User\Resources\InMailResource;
+use App\Models\InMail;
 use App\Models\Registry;
 use App\Models\ScopeType;
 use Illuminate\Support\Facades\DB;
@@ -22,16 +23,60 @@ class ViewInMail extends ViewRecord
 
     public function getTitle(): string | Htmlable
     {
-        return $this->record->subject;
+        // return $this->record->subject;
+        return "Visualizza email ricevuta";
     }
 
     protected function getHeaderActions(): array
     {
+        $currentInMail = $this->record;
+        $previousCInMail = InMail::where('created_at', '<=', $currentInMail->created_at)->where('id', '!=', $currentInMail->id)
+                                ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
+        $nextCInMail = InMail::where('created_at', '>=', $currentInMail->created_at)->where('id', '!=', $currentInMail->id)
+                                ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
+        $previousRInMail = InMail::where('receive_date', '<=', $currentInMail->receive_date)->where('id', '!=', $currentInMail->id)
+                                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+        $nextRInMail = InMail::where('receive_date', '>=', $currentInMail->receive_date)->where('id', '!=', $currentInMail->id)
+                                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
         return [
             Actions\Action::make('back')
                 ->label('Indietro')
                 ->url($this->getResource()::getUrl('index'))
                 ->color('gray'),
+            // Scorrimento cronologico
+            Actions\Action::make('previous_c_in_mail')
+                ->label('Scarico')
+                ->color('info')
+                ->icon('heroicon-o-arrow-left-circle')
+                ->visible(function () use ($previousCInMail) { return $previousCInMail;})
+                ->action(function () use ($previousCInMail) {
+                    $this->redirect(InMailResource::getUrl('view', ['record' => $previousCInMail->id]));
+                }),
+            Actions\Action::make('next_c_in_mail')
+                ->label('Scarico')
+                ->color('info')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->visible(function () use ($nextCInMail) { return $nextCInMail;})
+                ->action(function () use ($nextCInMail) {
+                    $this->redirect(InMailResource::getUrl('view', ['record' => $nextCInMail->id]));
+                }),
+            // Scorrimento ricezione
+            Actions\Action::make('previous_r_in_mail')
+                ->label('Ricezione')
+                ->color('info')
+                ->icon('heroicon-o-arrow-left-circle')
+                ->visible(function () use ($previousRInMail) { return $previousRInMail;})
+                ->action(function () use ($previousRInMail) {
+                    $this->redirect(InMailResource::getUrl('view', ['record' => $previousRInMail->id]));
+                }),
+            Actions\Action::make('next_r_in_mail')
+                ->label('Ricezione')
+                ->color('info')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->visible(function () use ($nextRInMail) { return $nextRInMail;})
+                ->action(function () use ($nextRInMail) {
+                    $this->redirect(InMailResource::getUrl('view', ['record' => $nextRInMail->id]));
+                }),
             Actions\EditAction::make(),
             // Actions\Action::make('register')
             //     ->label('Protocolla')
@@ -82,6 +127,8 @@ class ViewInMail extends ViewRecord
             $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'received',
+                'flow_index' => static::newIndex('received'),
+                'registry_origin_type' => 'in_mail',
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,
@@ -90,6 +137,10 @@ class ViewInMail extends ViewRecord
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
+                'send_date' => null,
+                'send_user_id' => null,
+                'shipment_id' => null,
+                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
@@ -140,5 +191,15 @@ class ViewInMail extends ViewRecord
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+
+        if ($lastIndex) {
+            return $lastIndex++;
+        }
+        return 1;
     }
 }

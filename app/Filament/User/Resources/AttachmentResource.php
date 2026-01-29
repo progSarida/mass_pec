@@ -29,10 +29,10 @@ class AttachmentResource extends Resource
     protected static ?string $model = Attachment::class;
     public static ?string $pluralModelLabel = 'Allegati';
     public static ?string $modelLabel = 'Allegato';
-    protected static ?string $navigationIcon = 'fluentui-mail-attach-20';
+    protected static ?string $navigationIcon = 'fluentui-mail-attach-20-o';
     protected static ?string $navigationLabel = 'Allegati';
-    protected static ?string $navigationGroup = 'Tabelle Pec Massiva';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = 'Pec Massiva';
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

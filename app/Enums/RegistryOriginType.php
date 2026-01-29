@@ -9,6 +9,7 @@ enum RegistryOriginType: string implements HasLabel
     case SHIPMENT = 'shipment';
     case IN_MAIL = "in_mail";
     case DOWNLOAD_EMAIL = "download_email";
+    case SEND_EMAIL = "send_email";
     case MANUAL = "manual";
 
     public function getLabel(): string
@@ -17,6 +18,7 @@ enum RegistryOriginType: string implements HasLabel
             self::SHIPMENT => 'Spedizioni',
             self::IN_MAIL => 'Pec Massiva',
             self::DOWNLOAD_EMAIL => 'Accounts',
+            self::SEND_EMAIL => 'Posta inviata',
             self::MANUAL => 'Manuale',
         };
     }

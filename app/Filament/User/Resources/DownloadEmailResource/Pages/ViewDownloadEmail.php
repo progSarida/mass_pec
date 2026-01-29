@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use App\Filament\User\Resources\DownloadEmailResource;
+use App\Models\DownloadEmail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -22,17 +23,61 @@ class ViewDownloadEmail extends ViewRecord
 
     public function getTitle(): string | Htmlable
     {
-        return $this->record->subject;
+        // return $this->record->subject;
+        return "Visualizza email ricevuta";
     }
 
 
     protected function getHeaderActions(): array
     {
+        $currentDownloadEmail = $this->record;
+        $previousCDownloadEmail = DownloadEmail::where('created_at', '<=', $currentDownloadEmail->created_at)->where('id', '!=', $currentDownloadEmail->id)
+                                ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
+        $nextCDownloadEmail = DownloadEmail::where('created_at', '>=', $currentDownloadEmail->created_at)->where('id', '!=', $currentDownloadEmail->id)
+                                ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
+        $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
+                                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+        $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
+                                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
         return [
             Actions\Action::make('back')
                 ->label('Indietro')
                 ->url($this->getResource()::getUrl('index'))
                 ->color('gray'),
+            // Scorrimento cronologico
+            Actions\Action::make('previous_c_in_mail')
+                ->label('Scarico')
+                ->color('info')
+                ->icon('heroicon-o-arrow-left-circle')
+                ->visible(function () use ($previousCDownloadEmail) { return $previousCDownloadEmail;})
+                ->action(function () use ($previousCDownloadEmail) {
+                    $this->redirect(DownloadEmailResource::getUrl('view', ['record' => $previousCDownloadEmail->id]));
+                }),
+            Actions\Action::make('next_c_in_mail')
+                ->label('Scarico')
+                ->color('info')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->visible(function () use ($nextCDownloadEmail) { return $nextCDownloadEmail;})
+                ->action(function () use ($nextCDownloadEmail) {
+                    $this->redirect(DownloadEmailResource::getUrl('view', ['record' => $nextCDownloadEmail->id]));
+                }),
+            // Scorrimento ricezione
+            Actions\Action::make('previous_r_in_mail')
+                ->label('Ricezione')
+                ->color('info')
+                ->icon('heroicon-o-arrow-left-circle')
+                ->visible(function () use ($previousRDownloadEmail) { return $previousRDownloadEmail;})
+                ->action(function () use ($previousRDownloadEmail) {
+                    $this->redirect(DownloadEmailResource::getUrl('view', ['record' => $previousRDownloadEmail->id]));
+                }),
+            Actions\Action::make('next_r_in_mail')
+                ->label('Ricezione')
+                ->color('info')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->visible(function () use ($nextRDownloadEmail) { return $nextRDownloadEmail;})
+                ->action(function () use ($nextRDownloadEmail) {
+                    $this->redirect(DownloadEmailResource::getUrl('view', ['record' => $nextRDownloadEmail->id]));
+                }),
             Actions\EditAction::make(),
             // Actions\Action::make('register')
             //     ->label('Protocolla')
@@ -142,6 +187,8 @@ class ViewDownloadEmail extends ViewRecord
             $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'received',
+                'flow_index' => static::newIndex('received'),
+                'registry_origin_type' => 'download_email',
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,
@@ -150,6 +197,10 @@ class ViewDownloadEmail extends ViewRecord
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
+                'send_date' => null,
+                'send_user_id' => null,
+                'shipment_id' => null,
+                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
@@ -200,5 +251,15 @@ class ViewDownloadEmail extends ViewRecord
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+
+        if ($lastIndex) {
+            return $lastIndex++;
+        }
+        return 1;
     }
 }

@@ -44,7 +44,7 @@ class ShipmentResource extends Resource
     protected static ?string $model = Shipment::class;
     public static ?string $pluralModelLabel = 'Spedizioni';
     public static ?string $modelLabel = 'Spedizione';
-    protected static ?string $navigationIcon = 'fluentui-mail-arrow-forward-20';
+    protected static ?string $navigationIcon = 'fluentui-send-20-o';
     protected static ?string $navigationLabel = 'Spedizioni';
     protected static ?string $navigationGroup = 'Pec Massiva';
     protected static ?int $navigationSort = 1;
@@ -191,7 +191,7 @@ class ShipmentResource extends Resource
                     ->sortable(),
                 TextColumn::make('send_date')
                     ->label('Data invio')
-                    ->date('d/m/Y')
+                    ->date('d/m/Y H:i:s')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sendUser.name')
@@ -391,18 +391,19 @@ class ShipmentResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(fn($record) => $record->no_mails_sended > 0),
                 Tables\Actions\Action::make('register')
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')
                     ->color('warning')
                     ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
                                                 && $record->extraction_zip_file
-                                                && !Registry::where('uid', '#' . $record->id)->exists()
+                                                && !Registry::where('uid', '#shipment' . $record->id)->exists()
                     )
                     ->requiresConfirmation()
-                    ->modalHeading('Protocolla email')
-                    ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
+                    ->modalHeading('Protocolla spedizione')
+                    ->modalDescription('La spedizione verrà inserita nel protocollo')
                     ->modalSubmitActionLabel('Protocolla')
                     ->form([
                         Select::make('scope_type_id')
@@ -416,7 +417,7 @@ class ShipmentResource extends Resource
                             static::registerShipment($record, $data['scope_type_id']);
                             Notification::make()
                                 ->title('Mail protocollata')
-                                ->body('La mail e i suoi allegati sono stati protocollati con successo.')
+                                ->body('La spedizione e i suoi allegati sono stati protocollati con successo.')
                                 ->success()
                                 ->send();
                         } catch (\Exception $e) {
@@ -432,61 +433,61 @@ class ShipmentResource extends Resource
                     ->icon('heroicon-o-information-circle')
                     ->color('success')
                     ->tooltip('Spedizione già inserita nel protocollo.')
-                    ->visible(fn($record) => Registry::where('uid', '#' . $record->id)->exists())
+                    ->visible(fn($record) => Registry::where('uid', '#shipment' . $record->id)->exists())
                     ->action(fn () => null),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\BulkAction::make('register_selected')
-                        ->label('Protocolla selezionate')
-                        ->icon('fluentui-pen-20-o')
-                        ->color('warning')
-                        ->requiresConfirmation()
-                        ->modalHeading('Protocolla spedizioni selezionate')
-                        ->modalDescription('Le spedizioni selezionate verranno inserite nel protocollo.')
-                        ->modalSubmitActionLabel('Protocolla')
-                        ->form([
-                            Select::make('scope_type_id')
-                                ->label('Ambito')
-                                ->options(ScopeType::pluck('name', 'id'))
-                                ->searchable()
-                                ->required()
-                                ->placeholder('Seleziona l\'ambito per tutte le spedizioni')
-                        ])
-                        ->action(function (Collection $records, array $data) {
-                            $successCount = 0;
-                            $errorMessages = [];
+                    // Tables\Actions\DeleteBulkAction::make(),
+                    // Tables\Actions\BulkAction::make('register_selected')
+                    //     ->label('Protocolla selezionate')
+                    //     ->icon('fluentui-pen-20-o')
+                    //     ->color('warning')
+                    //     ->requiresConfirmation()
+                    //     ->modalHeading('Protocolla spedizioni selezionate')
+                    //     ->modalDescription('Le spedizioni selezionate verranno inserite nel protocollo.')
+                    //     ->modalSubmitActionLabel('Protocolla')
+                    //     ->form([
+                    //         Select::make('scope_type_id')
+                    //             ->label('Ambito')
+                    //             ->options(ScopeType::pluck('name', 'id'))
+                    //             ->searchable()
+                    //             ->required()
+                    //             ->placeholder('Seleziona l\'ambito per tutte le spedizioni')
+                    //     ])
+                    //     ->action(function (Collection $records, array $data) {
+                    //         $successCount = 0;
+                    //         $errorMessages = [];
 
-                            foreach ($records as $record) {
-                                try {
-                                    static::registerShipment($record, $data['scope_type_id']);
-                                    $successCount++;
-                                } catch (\Exception $e) {
-                                    $errorMessages[] = "Errore su ID {$record->id}: " . $e->getMessage();
-                                }
-                            }
+                    //         foreach ($records as $record) {
+                    //             try {
+                    //                 static::registerShipment($record, $data['scope_type_id']);
+                    //                 $successCount++;
+                    //             } catch (\Exception $e) {
+                    //                 $errorMessages[] = "Errore su ID {$record->id}: " . $e->getMessage();
+                    //             }
+                    //         }
 
-                            // Notifica finale
-                            if ($successCount > 0) {
-                                Notification::make()
-                                    ->title("Protocollate {$successCount} email")
-                                    ->body('Operazione completata con successo.')
-                                    ->success()
-                                    ->send();
-                            }
+                    //         // Notifica finale
+                    //         if ($successCount > 0) {
+                    //             Notification::make()
+                    //                 ->title("Protocollate {$successCount} email")
+                    //                 ->body('Operazione completata con successo.')
+                    //                 ->success()
+                    //                 ->send();
+                    //         }
 
-                            if (!empty($errorMessages)) {
-                                $body = "Alcune spedizioni non sono state protocollate:\n" . implode("\n", $errorMessages);
-                                Notification::make()
-                                    ->title('Errori parziali')
-                                    ->body($body)
-                                    ->danger()
-                                    ->send();
-                            }
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
+                    //         if (!empty($errorMessages)) {
+                    //             $body = "Alcune spedizioni non sono state protocollate:\n" . implode("\n", $errorMessages);
+                    //             Notification::make()
+                    //                 ->title('Errori parziali')
+                    //                 ->body($body)
+                    //                 ->danger()
+                    //                 ->send();
+                    //         }
+                    //     })
+                    //     ->deselectRecordsAfterCompletion()
+                    //     ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
                 ]),
             ]);
     }
@@ -520,10 +521,11 @@ class ShipmentResource extends Resource
             Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'issued',
+                'flow_index' => static::newIndex('issued'),
                 'registry_origin_type' => 'shipment',
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
-                'uid' => '#' . $record->id,
+                'uid' => '#shipment' . $record->id,
                 'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $record->id,
                 'from' => $record->sender->public_name,
                 'subject' => $record->mail_object,
@@ -532,6 +534,7 @@ class ShipmentResource extends Resource
                 'send_date' => $record->send_date,
                 'send_user_id' => $record->send_user_id,
                 'shipment_id' => $record->id,
+                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => null,
                 'download_user_id' => null,
@@ -604,5 +607,15 @@ class ShipmentResource extends Resource
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+
+        if ($lastIndex) {
+            return $lastIndex++;
+        }
+        return 1;
     }
 }

@@ -21,7 +21,7 @@ return new class extends Migration
             $table->date('download_date')->nullable()->change();                                                                // data ricezione mail
             $table->date('send_date')->after('receive_date')->nullable();                                                       // data di invio
             $table->foreignId('send_user_id')->after('send_date')->nullable()->constrained('users')->onUpdate('cascade');       // id utente che ha effettuato l'invio
-            $table->foreignId('shipment_id')->after('send_user_id')->nullable()->constrained('shipments')->onUpdate('cascade'); // id utente che ha effettuato l'invio
+            $table->foreignId('shipment_id')->after('send_user_id')->nullable()->constrained('shipments')->onUpdate('cascade'); // id spedizione protocollata
         });
     }
 

@@ -20,7 +20,7 @@ class RegionResource extends Resource
     public static ?string $modelLabel = 'Regione';
     protected static ?string $navigationIcon = 'fas-map-marker';
     protected static ?string $navigationGroup = 'Tabelle';
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 8;
 
     public static function form(Form $form): Form
     {

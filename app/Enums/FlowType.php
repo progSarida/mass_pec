@@ -14,7 +14,7 @@ enum FlowType: string implements HasLabel
     {
         return match($this) {
             self::RECEIVED => 'Ricevuto',
-            self::ISSUED => 'Emesso',
+            self::ISSUED => 'Inviato',
             self::INTERNAL => 'Interno',
         };
     }
