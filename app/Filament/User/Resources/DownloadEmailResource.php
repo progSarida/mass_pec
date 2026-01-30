@@ -295,7 +295,7 @@ class DownloadEmailResource extends Resource
 
             $newPath = 'registry/' . $protocolNumber;
 
-            Registry::create([
+            $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'received',
                 'flow_index' => static::newIndex('received'),
@@ -308,10 +308,11 @@ class DownloadEmailResource extends Resource
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
+                'account_id' => null,
+                'recipients' => null,
                 'send_date' => null,
                 'send_user_id' => null,
                 'shipment_id' => null,
-                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
@@ -332,8 +333,8 @@ class DownloadEmailResource extends Resource
                 $files = Storage::disk($disk)->allFiles($oldPath);
                 foreach ($files as $file) {
                     $relativePath = str_replace($oldPath . '/', '', $file);
-                    $newFilePath = $newPath . '/' . $relativePath;
-
+                    $newFilePath = $newPath . '/' . today()->format('d-m-Y') . '_' . $registry->protocol_number . '_RIC_' . $relativePath;
+// dd('oldPath: ' . $oldPath . ' - ' . 'relativePath: ' . $relativePath . ' - ' . 'newFilePath: ' . $newFilePath);
                     $directory = dirname($newFilePath);
                     if (!Storage::disk($disk)->exists($directory)) {
                         Storage::disk($disk)->makeDirectory($directory);
@@ -384,9 +385,9 @@ class DownloadEmailResource extends Resource
     private static function newIndex($flow_type): int
     {
         $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
-
         if ($lastIndex) {
-            return $lastIndex++;
+            $newIndex = $lastIndex+1;
+            return $newIndex;
         }
         return 1;
     }

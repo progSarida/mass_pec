@@ -235,9 +235,9 @@ class EditDownloadEmail extends EditRecord
     private static function newIndex($flow_type): int
     {
         $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
-
         if ($lastIndex) {
-            return $lastIndex++;
+            $newIndex = $lastIndex+1;
+            return $newIndex;
         }
         return 1;
     }

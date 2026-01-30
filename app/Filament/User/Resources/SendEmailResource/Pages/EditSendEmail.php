@@ -108,9 +108,10 @@ class EditSendEmail extends EditRecord
                     $this->redirect(SendEmailResource::getUrl('edit', ['record' => $nextSSendEmail->id]));
                 }),
             Action::make('uploadFile')
-                ->label('Carica File')
+                ->label('Carica allegati')
                 ->icon('heroicon-o-document-arrow-up')
                 ->color('info')
+                ->modalSubmitActionLabel('Carica')
                 // ->visible(fn($record) => !$record->is_email)
                 ->form([
                     FileUpload::make('attachments')
@@ -118,6 +119,25 @@ class EditSendEmail extends EditRecord
                         ->multiple()
                         ->directory(fn ($record) => $record->attachment_path)
                         ->preserveFilenames()
+                        ->getUploadedFileNameForStorageUsing(function ($file, $record) {
+                            $disk = config('filesystems.default');
+                            $directory = $record->attachment_path;
+
+                            // Estraiamo nome e estensione originali
+                            $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                            $extension = $file->getClientOriginalExtension();
+
+                            $finalName = $filename . '.' . $extension;
+                            $counter = 1;
+
+                            // Finché esiste un file con questo nome, incrementiamo il suffisso
+                            while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                                $finalName = $filename . '_' . $counter . '.' . $extension;
+                                $counter++;
+                            }
+
+                            return $finalName;
+                        })
                         ->required(),
                 ])
                 ->action(function (array $data) {
@@ -131,7 +151,7 @@ class EditSendEmail extends EditRecord
                 }),
 
             Action::make('deleteFile')
-                ->label('Elimina File')
+                ->label('Elimina allegati')
                 ->icon('heroicon-o-trash')
                 ->color('danger')
                 ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
@@ -176,32 +196,32 @@ class EditSendEmail extends EditRecord
                             ->send();
                     }
                 }),
-            Actions\Action::make('send')
-                ->label('Invia')
-                ->visible(fn($record) => !$record?->send_date)
-                ->icon('hugeicons-mail-send-01')
-                ->requiresConfirmation()
-                ->modalHeading('Conferma invio')
-                ->modalDescription('L\'invio partirà immediatamente. Continuare?')
-                ->modalSubmitActionLabel('Sì, invia')
-                ->action(function () {
-                    $mailId = $this->record->id;
-                    try {
-                        $this->dispatch('start-mail-send', mailId: $mailId);
+            // Actions\Action::make('send')
+            //     ->label('Invia')
+            //     ->visible(fn($record) => !$record?->send_date)
+            //     ->icon('hugeicons-mail-send-01')
+            //     ->requiresConfirmation()
+            //     ->modalHeading('Conferma invio')
+            //     ->modalDescription('L\'invio partirà immediatamente. Continuare?')
+            //     ->modalSubmitActionLabel('Sì, invia')
+            //     ->action(function () {
+            //         $mailId = $this->record->id;
+            //         try {
+            //             $this->dispatch('start-mail-send', mailId: $mailId);
 
-                        Notification::make()
-                            ->title('Invio PEC avviato')
-                            ->body('L\'invio è in corso in background...')
-                            ->success()
-                            ->send();
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore')
-                            ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
+            //             Notification::make()
+            //                 ->title('Invio PEC avviato')
+            //                 ->body('L\'invio è in corso in background...')
+            //                 ->success()
+            //                 ->send();
+            //         } catch (\Exception $e) {
+            //             Notification::make()
+            //                 ->title('Errore')
+            //                 ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
+            //                 ->danger()
+            //                 ->send();
+            //         }
+            //     }),
 
             // Actions\Action::make('register')
             //     ->label('Protocolla')
@@ -518,7 +538,7 @@ class EditSendEmail extends EditRecord
 
             $newPath = 'registry/' . $protocolNumber;
 
-            Registry::create([
+            $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'issued',
                 'flow_index' => static::newIndex('issued'),
@@ -612,9 +632,9 @@ class EditSendEmail extends EditRecord
     private static function newIndex($flow_type): int
     {
         $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
-
         if ($lastIndex) {
-            return $lastIndex++;
+            $newIndex = $lastIndex+1;
+            return $newIndex;
         }
         return 1;
     }

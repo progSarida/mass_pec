@@ -12,6 +12,7 @@ use App\Models\Registry;
 use App\Models\ScopeType;
 use App\Models\SendEmail;
 use Filament\Forms;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -23,6 +24,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -150,7 +152,8 @@ class SendEmailResource extends Resource
                                     // Verifico che l'email esista e i tipi corrispondono (se mail_type e office_type_id sono selezionati)
                                     if (!empty($item->$mailField)) {
                                         if ((!$mailType || $item->$mailTypeField == $mailType) && (!$officeTypeId || $item->$officeTypeField == $officeTypeId)) {
-                                            $label = "{$item->description} - {$item->resp_surname} {$item->resp_name} <{$item->$mailField}>";
+                                            // $label = "{$item->description} - {$item->resp_surname} {$item->resp_name} <{$item->$mailField}>";
+                                            $label = "{$item->description} - <{$item->$mailField}>";
                                             $out[$item->$mailField] = $label;
                                         }
                                     }
@@ -172,6 +175,36 @@ class SendEmailResource extends Resource
                 Forms\Components\RichEditor::make('body')
                     ->label('Messaggio')
                     ->required()
+                    ->columnSpanFull(),
+
+                FileUpload::make('attachments')
+                    ->label('Carica allegati')
+                    ->multiple()
+                    ->directory('send_email/0')
+                    ->preserveFilenames()
+                    ->visible(fn($record) => !$record)
+                    ->getUploadedFileNameForStorageUsing(function ($file) {
+                        $disk = config('filesystems.default');
+                        $directory = 'send_email/0';
+                        // creo cartella temporanea se non esiste
+                        if (!Storage::disk($disk)->exists('send_email/0')) {
+                            Storage::disk($disk)->makeDirectory('send_email/0');
+                        }
+                        // Estraiamo nome e estensione originali
+                        $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                        $extension = $file->getClientOriginalExtension();
+
+                        $finalName = $filename . '.' . $extension;
+                        $counter = 1;
+
+                        // Finché esiste un file con questo nome, incrementiamo il suffisso
+                        while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                            $finalName = $filename . '_' . $counter . '.' . $extension;
+                            $counter++;
+                        }
+
+                        return $finalName;
+                    })
                     ->columnSpanFull(),
 
                 Section::make('Allegati')
@@ -222,20 +255,20 @@ class SendEmailResource extends Resource
                     ->relationship('createUser', 'name')
                     ->visible(fn($state) => $state)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
-                Forms\Components\DateTimePicker::make('send_date')
-                    ->label('Data invio')
-                    ->disabled()
-                    ->extraInputAttributes(['class' => 'text-center'])
-                    ->visible(fn($state) => $state)
-                    ->displayFormat('d/m/Y H:i:s')
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                Forms\Components\Select::make('send_user_id')
-                    ->label('Inviata da')
-                    ->disabled()
-                    ->extraInputAttributes(['class' => 'text-center'])
-                    ->relationship('sendUser', 'name')
-                    ->visible(fn($state) => $state)
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                // Forms\Components\DateTimePicker::make('send_date')
+                //     ->label('Data invio')
+                //     ->disabled()
+                //     ->extraInputAttributes(['class' => 'text-center'])
+                //     ->visible(fn($state) => $state)
+                //     ->displayFormat('d/m/Y H:i:s')
+                //     ->columnSpan(['sm' => 'full', 'md' => 3]),
+                // Forms\Components\Select::make('send_user_id')
+                //     ->label('Inviata da')
+                //     ->disabled()
+                //     ->extraInputAttributes(['class' => 'text-center'])
+                //     ->relationship('sendUser', 'name')
+                //     ->visible(fn($state) => $state)
+                //     ->columnSpan(['sm' => 'full', 'md' => 3]),
             ]);
     }
 
@@ -248,7 +281,9 @@ class SendEmailResource extends Resource
                     ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('subject')
-                    ->label('Oggetto'),
+                    ->label('Oggetto')
+                    ->limit(80)
+                    ->tooltip(fn ($record) => $record->subject),
                 Tables\Columns\TextColumn::make('create_date')
                     ->label('Data creazione')
                     ->date()
@@ -257,10 +292,10 @@ class SendEmailResource extends Resource
                 Tables\Columns\TextColumn::make('createUser.name')
                     ->label('Creato da')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('send_date')
-                    ->label('Data invio')
-                    ->date('d/m/Y H:i:s')
-                    ->sortable(),
+                // Tables\Columns\TextColumn::make('send_date')
+                //     ->label('Data invio')
+                //     ->date('d/m/Y H:i:s')
+                //     ->sortable(),
                 Tables\Columns\TextColumn::make('sendUser.name')
                     ->label('Inviata da'),
                 Tables\Columns\TextColumn::make('updated_at')
@@ -274,15 +309,14 @@ class SendEmailResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
-                    ->hidden(fn($record) => $record->send_date),
+                Tables\Actions\DeleteAction::make(),
                 Tables\Actions\Action::make('register')
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')
                     ->color('warning')
                     ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
-                                                && $record->send_date
-                                                && !Registry::where('uid', '#send_email' . $record->id)->exists()
+                                                // && $record->send_date
+                                                // && !Registry::where('uid', '#send_email' . $record->id)->exists()
                     )
                     ->requiresConfirmation()
                     ->modalHeading('Protocolla email')
@@ -311,13 +345,13 @@ class SendEmailResource extends Resource
                                 ->send();
                         }
                     }),
-                Tables\Actions\Action::make('registered')
-                    ->label('Protocollata')
-                    ->icon('heroicon-o-information-circle')
-                    ->color('success')
-                    ->tooltip('Spedizione già inserita nel protocollo.')
-                    ->visible(fn($record) => Registry::where('uid', '#send_email' . $record->id)->exists())
-                    ->action(fn () => null),
+                // Tables\Actions\Action::make('registered')
+                //     ->label('Protocollata')
+                //     ->icon('heroicon-o-information-circle')
+                //     ->color('success')
+                //     ->tooltip('Spedizione già inserita nel protocollo.')
+                //     ->visible(fn($record) => Registry::where('uid', '#send_email' . $record->id)->exists())
+                //     ->action(fn () => null),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -405,7 +439,8 @@ class SendEmailResource extends Resource
         ->first();
 
         if ($rec) {
-            return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
+            // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
+            return "{$rec->description} - <{$email}>";
         }
 
         return $email;
@@ -420,7 +455,7 @@ class SendEmailResource extends Resource
 
             $newPath = 'registry/' . $protocolNumber;
 
-            Registry::create([
+            $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'issued',
                 'flow_index' => static::newIndex('issued'),
@@ -433,20 +468,21 @@ class SendEmailResource extends Resource
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => null,
+                'account_id' => $record->account_id,
+                'recipients' => $record->recipients,
                 'send_date' => $record->send_date,
                 'send_user_id' => $record->send_user_id,
                 'shipment_id' => null,
-                'send_email_id' => $record->id,
                 'attachment_path' => $newPath,
                 'download_date' => null,
                 'download_user_id' => null,
                 'register_user_id' => Auth::user()->id,
             ]);
 
-            // Elimino la spedizione
-            // Model::withoutEvents(function () use ($record) {
-            //     $record->delete();
-            // });
+            // Elimino la mail in uscita
+            Model::withoutEvents(function () use ($record) {
+                $record->delete();
+            });
 
             $disk = config('filesystems.default');
 
@@ -462,8 +498,8 @@ class SendEmailResource extends Resource
 
                 foreach ($files as $file) {
                     $relativePath = str_replace($oldPath . '/', '', $file);
-                    $newFilePath = $newPath . '/' . $relativePath;
-
+                    $newFilePath = $newPath . '/' . today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $relativePath;
+// dd('oldPath: ' . $oldPath . ' - ' . 'relativePath: ' . $relativePath . ' - ' . 'newFilePath: ' . $newFilePath);
                     $directory = dirname($newFilePath);
                     if (!Storage::disk($disk)->exists($directory)) {
                         Storage::disk($disk)->makeDirectory($directory);
@@ -474,9 +510,9 @@ class SendEmailResource extends Resource
             }
 
             // Elimino la vecchia cartella della spedizione
-            // if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
-            //     Storage::disk($disk)->deleteDirectory($oldPath);
-            // }
+            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
+                Storage::disk($disk)->deleteDirectory($oldPath);
+            }
 
             DB::commit();
         } catch (\Throwable $e) {
@@ -514,9 +550,9 @@ class SendEmailResource extends Resource
     private static function newIndex($flow_type): int
     {
         $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
-
         if ($lastIndex) {
-            return $lastIndex++;
+            $newIndex = $lastIndex+1;
+            return $newIndex;
         }
         return 1;
     }

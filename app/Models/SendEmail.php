@@ -17,8 +17,8 @@ class SendEmail extends Model
         'attachment_path',
         'create_date',
         'create_user_id',
-        'send_date',
-        'send_user_id',
+        // 'send_date',
+        // 'send_user_id',
     ];
 
     protected $casts = [
@@ -33,9 +33,9 @@ class SendEmail extends Model
         return $this->belongsTo(User::class,'create_user_id');
     }
 
-    public function sendUser(){
-        return $this->belongsTo(User::class,'send_user_id');
-    }
+    // public function sendUser(){
+    //     return $this->belongsTo(User::class,'send_user_id');
+    // }
 
     public function recipientsCount(): int{
         dd(count($this->recipients));
@@ -56,6 +56,17 @@ class SendEmail extends Model
             $disk = config('filesystems.default');
             if ($mail->attachment_path && !Storage::disk($disk)->exists($mail->attachment_path)) {
                 Storage::disk($disk)->makeDirectory($mail->attachment_path);                        // creo la cartella degli allegati
+            }
+            $files = Storage::disk($disk)->files('send_email/0');
+            foreach ($files as $file) {
+                // Estraiamo solo il nome del file (es: immagine.jpg)
+                $fileName = basename($file);
+
+                // Definiamo il percorso di destinazione completo
+                $finalPath = rtrim($mail->attachment_path, '/') . '/' . $fileName;
+
+                // 2. Spostiamo il file
+                Storage::disk($disk)->move($file, $finalPath);
             }
         });
 

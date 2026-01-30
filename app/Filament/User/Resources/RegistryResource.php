@@ -20,6 +20,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -57,20 +58,37 @@ class RegistryResource extends Resource
                             ->required()
                             ->disabled()
                             ->dehydrated()
-                            ->columnSpan(['sm' => 'full', 'md' => 3])
+                            ->columnSpan(['sm' => 'full', 'md' => 2])
                             ->default(static::newProtocol()),
 
                         Select::make('flow_type')
-                            ->label('Flusso')
+                            ->label('Corrispondenza')
                             ->required()
+                            ->live()
                             ->options(FlowType::class)
+                            ->afterStateUpdated(function(Set $set, $state){
+                                $lastIndex = Registry::where('flow_type', $state)->max('flow_index');
+                                if ($lastIndex) {
+                                    $newIndex = $lastIndex+1;
+                                    $set('flow_index', $newIndex);
+                                } else {
+                                    $set('flow_index', 1);
+                                }
+                            })
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
+
+                        TextInput::make('flow_index')
+                            ->label('Indice')
+                            ->required()
+                            ->disabled()
+                            ->dehydrated()
+                            ->columnSpan(['sm' => 'full', 'md' => 2]),
 
                         Select::make('scope_type_id')
                             ->label('Ambito')
                             ->required()
                             ->relationship('scopeType', 'name')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                         Checkbox::make('is_email')
                             ->label('Posta elettronica')
@@ -184,7 +202,7 @@ class RegistryResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('flow_type')
-                    ->label('Flusso')
+                    ->label('Corrispondenza')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('registry_origin_type')

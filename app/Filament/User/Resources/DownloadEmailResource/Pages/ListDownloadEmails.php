@@ -97,11 +97,11 @@ class ListDownloadEmails extends ListRecords
                     $uid = $message->getNumber();
 
                     // --- SKIP RICEVUTE PEC ---
-                    $rawHeaders = $message->getRawHeaders();
-                    if ($this->isOfficialPecReceipt($rawHeaders)) {
-                        Log::info("Ignorata ricevuta PEC: UID {$uid}");
-                        continue;
-                    }
+                    // $rawHeaders = $message->getRawHeaders();
+                    // if ($this->isOfficialPecReceipt($rawHeaders)) {
+                    //     Log::info("Ignorata ricevuta PEC: UID {$uid}");
+                    //     continue;
+                    // }
 
                     // --- DATA ---
                     $date = $message->getDate()?->format('Y-m-d H:i:s');

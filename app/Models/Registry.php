@@ -25,6 +25,8 @@ class Registry extends Model
         'body',
         'receive_date',
         'send_date',
+        'account_id',
+        'recipients',
         'send_user_id',
         'shipment_id',
         'send_email_id',
@@ -37,6 +39,7 @@ class Registry extends Model
     protected $casts = [
         'flow_type' => FlowType::class,
         'registry_origin_type' => RegistryOriginType::class,
+        'recipients' => 'array',
     ];
 
     public function downloadUser(){
@@ -57,6 +60,10 @@ class Registry extends Model
 
     public function shipment(){
         return $this->belongsTo(Shipment::class);
+    }
+
+    public function account(){
+        return $this->belongsTo(Account::class);
     }
 
     protected static function booted()
