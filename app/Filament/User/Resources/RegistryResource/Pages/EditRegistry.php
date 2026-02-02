@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -165,28 +166,42 @@ class EditRegistry extends EditRecord
                                 ->send();
                         }
                     }),
+
             Actions\Action::make('send')
-                ->label('Invia')
-                ->visible(fn($record) => !$record?->send_date)
+                ->label('Invia Email')
                 ->icon('hugeicons-mail-send-01')
-                ->visible(fn($record) => $record->registry_origin_type == RegistryOriginType::SEND_EMAIL)
+                ->color('success')
+                ->visible(fn($record) =>
+                    $record->registry_origin_type == RegistryOriginType::SEND_EMAIL
+                    && !$record->send_date
+                    && $record->account_id
+                    && !empty($record->recipients)
+                )
                 ->requiresConfirmation()
-                ->modalHeading('Conferma invio')
-                ->modalDescription('L\'invio partirà immediatamente. Continuare?')
+                ->modalHeading('Conferma invio email')
+                ->modalDescription(function ($record) {
+                    $count = count($record->recipients ?? []);
+                    return "L'email sarà inviata in background a {$count} destinatari. Riceverai una notifica al termine.";
+                })
                 ->modalSubmitActionLabel('Sì, invia')
-                ->action(function () {
-                    $registryId = $this->record->id;
+                ->modalCancelActionLabel('Annulla')
+                ->action(function ($record) {
                     try {
-                        $this->sendMail($registryId);
+                        \App\Jobs\ProcessRegistryEmailJob::dispatch(
+                            registryId: $record->id,
+                            userId: Auth::id(),
+                        );
 
                         Notification::make()
-                            ->title('Invio PEC avviato')
-                            ->body('L\'invio è in corso in background...')
+                            ->title('Invio avviato')
+                            ->body("L'email del protocollo {$record->protocol_number} sarà inviata in background.")
                             ->success()
+                            ->duration(5000)
                             ->send();
+
                     } catch (\Exception $e) {
                         Notification::make()
-                            ->title('Errore')
+                            ->title('Errore avvio invio')
                             ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
                             ->danger()
                             ->send();
@@ -247,189 +262,4 @@ class EditRegistry extends EditRecord
             });
     }
 
-//     public function sendMail($id)
-//     {
-//         set_time_limit(300);
-//         ini_set('max_execution_time', 300);
-
-//         $tempAttachments = [];
-
-//         try {
-//             DB::beginTransaction();
-
-//             $sendEmail = Registry::find($id);
-//             if (!$sendEmail) throw new \Exception("Spedizione non trovata!");
-// // dd($sendEmail);
-//             $account = Account::find($sendEmail->account_id);
-//             $recipients = $sendEmail->recipients;
-// // dd($recipients);
-//             $sent = 0;
-//             $not_sent = 0;
-//             $errors = [];
-
-//             // Configurazione SMTP
-//             $smtp = strtolower($account->out_mail_protocol_type->value) == 'smtp';
-//             $auth = (bool) $account->out_authentication;
-//             $host = $account->out_mail_server;
-//             $port = $account->out_mail_port;
-//             $secure = $account->connection_safety_type->value;
-//             $username = $account->out_username;
-//             $password = decrypt($account->out_password);
-//             $from = $account->out_username;
-//             $name = $account->public_name;
-//             $body = $sendEmail->body;
-//             $subject = $sendEmail->subject;
-// // dd('SMTP: '.$smtp,'AUTH: '.$auth,'HOST: '.$host,'PORT: '.$port,'CONN_S: '.$secure,'USER: '.$username,'PWD: '.$password,'FROM: '.$from,'NAME: '.$name,'SUBJ: '.$subject,'BODY: '.$body);
-//             // Preparo allegati
-//             $attachmentRelativePath = ltrim($sendEmail->attachment_path, '/');
-//             $attachments = Storage::files($attachmentRelativePath);
-// // dd($attachments);
-//             // Creo file temporanei per tutti gli allegati
-//             foreach ($attachments as $attachment) {
-//                 if (!Storage::exists($attachment)) {
-//                     throw new \Exception("Allegato non trovato: " . $attachment);
-//                 }
-
-//                 $tempFile = tempnam(sys_get_temp_dir(), 'attachment_');
-//                 file_put_contents($tempFile, Storage::get($attachment));
-
-//                 $tempAttachments[] = [
-//                     'path' => $tempFile,
-//                     'name' => basename($attachment)
-//                 ];
-//             }
-
-//             // Invio una email per ogni destinatario
-//             foreach ($recipients as $recipient) {
-//                 try {
-//                     // Creo una nuova istanza PHPMailer per ogni destinatario
-//                     $email = new PHPMailer(true);
-//                     $email->Timeout = 60;
-
-//                     // Configurazione SMTP
-//                     if ($smtp) $email->isSMTP();
-//                     $email->Host = $host;
-//                     $email->Port = $port;
-
-//                     // Autenticazione
-//                     if ($auth) {
-//                         $email->SMTPAuth = true;
-//                         $email->Username = $username;
-//                         $email->Password = $password;
-//                     }
-
-//                     // Crittografia
-//                     switch (strtolower($secure)) {
-//                         case 'ssl':
-//                             $email->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-//                             break;
-//                         case 'tls':
-//                             $email->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-//                             break;
-//                         default:
-//                             $email->SMTPSecure = '';
-//                     }
-
-//                     // Mittente
-//                     $email->setFrom($from, $name);
-
-//                     // Destinatario
-//                     $email->addAddress($recipient, static::nameRecipient($recipient));
-
-//                     // Oggetto e corpo
-//                     $email->Subject = '[' . $id . '] ' . $subject;
-//                     $email->isHTML(true);
-//                     $email->Body = $body;
-
-//                     // Aggiungo allegati
-//                     foreach ($tempAttachments as $attachment) {
-//                         $email->addAttachment($attachment['path'], $attachment['name']);
-//                     }
-// // dd($email);
-//                     // Invio
-//                     if ($email->send()) {
-//                         $sent++;
-//                         Log::info("Email inviata con successo a: {$recipient}");
-//                     } else {
-//                         $not_sent++;
-//                         $errors[] = "Invio fallito a {$recipient}";
-//                         Log::error("Errore invio email a {$recipient}");
-//                     }
-
-//                     // Libero memoria
-//                     $email->clearAddresses();
-//                     $email->clearAttachments();
-//                     unset($email);
-
-//                     // Pausa tra invii per evitare rate limiting
-//                     usleep(500000); // 0.5 secondi
-
-//                 } catch (Exception $e) {
-//                     $not_sent++;
-//                     $errors[] = "Errore con {$recipient}: " . $e->getMessage();
-//                     Log::error("Errore invio email a {$recipient}: " . $e->getMessage());
-//                     // Continua con il prossimo destinatario
-//                     continue;
-//                 }
-//             }
-
-//             // Aggiorna il record solo se almeno un invio è riuscito
-//             if ($sent > 0) {
-//                 $sendEmail->update([
-//                     'send_date' => now()->format('Y-m-d H:i:s'),
-//                     'send_user_id' => Auth::id(),
-//                 ]);
-//             }
-
-//             // Elimina file temporanei
-//             foreach ($tempAttachments as $attachment) {
-//                 if (file_exists($attachment['path'])) {
-//                     @unlink($attachment['path']);
-//                 }
-//             }
-// // dd('STOP');
-//             DB::commit();
-
-//             // Notifica risultato
-//             if ($sent > 0 && $not_sent === 0) {
-//                 Notification::make()
-//                     ->title('Email inviate con successo')
-//                     ->body("Inviate {$sent} email su " . count($recipients) . " destinatari")
-//                     ->success()
-//                     ->send();
-//             } elseif ($sent > 0 && $not_sent > 0) {
-//                 Notification::make()
-//                     ->title('Invio parziale')
-//                     ->body("Inviate: {$sent}, Fallite: {$not_sent}")
-//                     ->warning()
-//                     ->send();
-//             } else {
-//                 throw new \Exception("Nessuna email inviata. Errori: " . implode('; ', $errors));
-//             }
-
-//             $this->dispatch('mail-sent-success', sent: $sent, failed: $not_sent);
-
-//         } catch (\Exception $ex) {
-//             DB::rollBack();
-
-//             // Cleanup file temporanei in caso di errore
-//             foreach ($tempAttachments as $attachment) {
-//                 if (isset($attachment['path']) && file_exists($attachment['path'])) {
-//                     @unlink($attachment['path']);
-//                 }
-//             }
-
-//             Log::error("Errore invio spedizione {$id}: " . $ex->getMessage());
-
-//             Notification::make()
-//                 ->title('Errore invio email')
-//                 ->body($ex->getMessage())
-//                 ->danger()
-//                 ->send();
-
-//             $this->dispatch('mail-sent-error', message: $ex->getMessage());
-
-//             throw $ex;
-//         }
-//     }
 }

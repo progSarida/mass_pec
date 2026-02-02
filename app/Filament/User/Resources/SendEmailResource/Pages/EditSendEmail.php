@@ -15,6 +15,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -107,164 +108,138 @@ class EditSendEmail extends EditRecord
                 ->action(function () use ($nextSSendEmail) {
                     $this->redirect(SendEmailResource::getUrl('edit', ['record' => $nextSSendEmail->id]));
                 }),
-            Action::make('uploadFile')
-                ->label('Carica allegati')
-                ->icon('heroicon-o-document-arrow-up')
-                ->color('info')
-                ->modalSubmitActionLabel('Carica')
-                // ->visible(fn($record) => !$record->is_email)
-                ->form([
-                    FileUpload::make('attachments')
-                        ->label('Seleziona File')
-                        ->multiple()
-                        ->directory(fn ($record) => $record->attachment_path)
-                        ->preserveFilenames()
-                        ->getUploadedFileNameForStorageUsing(function ($file, $record) {
-                            $disk = config('filesystems.default');
-                            $directory = $record->attachment_path;
+            Actions\ActionGroup::make([
+                Action::make('uploadFile')
+                    ->label('Carica allegati')
+                    ->icon('heroicon-o-document-arrow-up')
+                    ->color('info')
+                    ->modalSubmitActionLabel('Carica')
+                    // ->visible(fn($record) => !$record->is_email)
+                    ->form([
+                        FileUpload::make('attachments')
+                            ->label('Seleziona File')
+                            ->multiple()
+                            ->directory(fn ($record) => $record->attachment_path)
+                            ->preserveFilenames()
+                            ->getUploadedFileNameForStorageUsing(function ($file, $record) {
+                                $disk = config('filesystems.default');
+                                $directory = $record->attachment_path;
 
-                            // Estraiamo nome e estensione originali
-                            $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                            $extension = $file->getClientOriginalExtension();
+                                // Estraiamo nome e estensione originali
+                                $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                                $extension = $file->getClientOriginalExtension();
 
-                            $finalName = $filename . '.' . $extension;
-                            $counter = 1;
+                                $finalName = $filename . '.' . $extension;
+                                $counter = 1;
 
-                            // Finché esiste un file con questo nome, incrementiamo il suffisso
-                            while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
-                                $finalName = $filename . '_' . $counter . '.' . $extension;
-                                $counter++;
-                            }
+                                // Finché esiste un file con questo nome, incrementiamo il suffisso
+                                while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                                    $finalName = $filename . '_' . $counter . '.' . $extension;
+                                    $counter++;
+                                }
 
-                            return $finalName;
-                        })
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    // I file vengono caricati automaticamente nella cartella
-                    // configurata nel metodo ->directory() sopra.
-
-                    Notification::make()
-                        ->title('Caricamento completato')
-                        ->success()
-                        ->send();
-                }),
-
-            Action::make('deleteFile')
-                ->label('Elimina allegati')
-                ->icon('heroicon-o-trash')
-                ->color('danger')
-                ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
-                ->form([
-                    Select::make('file_to_delete')
-                        ->label('Seleziona il file da eliminare')
-                        ->options(function ($record) {
-                            if (!$record || !$record->attachment_path) {
-                                return [];
-                            }
-
-                            $files = Storage::files($record->attachment_path);
-
-                            return collect($files)->mapWithKeys(function ($file) {
-                                return [$file => basename($file)];
-                            })->toArray();
-                        })
-                        ->required()
-                        ->native(false)
-                        ->searchable(),
-                ])
-                ->requiresConfirmation()
-                ->modalHeading('Elimina allegato')
-                ->modalDescription('Questa azione non può essere annullata.')
-                ->modalSubmitActionLabel('Elimina')
-                ->modalCancelActionLabel('Annulla')
-                ->action(function (array $data) {
-                    $file = $data['file_to_delete'];
-
-                    if (Storage::exists($file)) {
-                        Storage::delete($file);
+                                return $finalName;
+                            })
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        // I file vengono caricati automaticamente nella cartella
+                        // configurata nel metodo ->directory() sopra.
 
                         Notification::make()
-                            ->title('File eliminato con successo')
-                            ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                            ->title('Caricamento completato')
                             ->success()
                             ->send();
-                    } else {
-                        Notification::make()
-                            ->title('File non trovato')
-                            ->warning()
-                            ->send();
-                    }
-                }),
-            // Actions\Action::make('send')
-            //     ->label('Invia')
-            //     ->visible(fn($record) => !$record?->send_date)
-            //     ->icon('hugeicons-mail-send-01')
-            //     ->requiresConfirmation()
-            //     ->modalHeading('Conferma invio')
-            //     ->modalDescription('L\'invio partirà immediatamente. Continuare?')
-            //     ->modalSubmitActionLabel('Sì, invia')
-            //     ->action(function () {
-            //         $mailId = $this->record->id;
-            //         try {
-            //             $this->dispatch('start-mail-send', mailId: $mailId);
+                    }),
 
-            //             Notification::make()
-            //                 ->title('Invio PEC avviato')
-            //                 ->body('L\'invio è in corso in background...')
-            //                 ->success()
-            //                 ->send();
-            //         } catch (\Exception $e) {
-            //             Notification::make()
-            //                 ->title('Errore')
-            //                 ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
-            //                 ->danger()
-            //                 ->send();
-            //         }
-            //     }),
+                Action::make('deleteFile')
+                    ->label('Elimina allegati')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
+                    ->form([
+                        Select::make('file_to_delete')
+                            ->label('Seleziona il file da eliminare')
+                            ->options(function ($record) {
+                                if (!$record || !$record->attachment_path) {
+                                    return [];
+                                }
 
-            // Actions\Action::make('register')
-            //     ->label('Protocolla')
-            //     ->icon('fluentui-pen-20-o')
-            //     ->color('warning')
-            //     ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')) && $record?->send_date)
-            //     ->requiresConfirmation()
-            //     ->modalHeading('Protocolla email')
-            //     ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
-            //     ->modalSubmitActionLabel('Protocolla')
-            //     ->form([
-            //         Select::make('scope_type_id')
-            //             ->label('Ambito')
-            //             ->options(ScopeType::pluck('name', 'id'))
-            //             ->searchable()
-            //             ->placeholder('Seleziona l\'ambito della registrazione')
-            //     ])
-            //     ->action(function ($record, $data) {
-            //         try {
-            //             $this->registerEmail($record, $data['scope_type_id']);
-            //             Notification::make()
-            //                 ->title('Mail protocollata')
-            //                 ->body('La mail e i suoi allegati sono stati protocollati con successo.')
-            //                 ->success()
-            //                 ->send();
-            //             $resource = $this->getResource();
-            //             return $this->redirect($resource::getUrl('index'));
-            //         } catch (\Exception $e) {
-            //             Notification::make()
-            //                 ->title('Errore registrazione')
-            //                 ->body($e->getMessage())
-            //                 ->danger()
-            //                 ->send();
-            //         }
-            //     }),
+                                $files = Storage::files($record->attachment_path);
+
+                                return collect($files)->mapWithKeys(function ($file) {
+                                    return [$file => basename($file)];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->native(false)
+                            ->searchable(),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('Elimina allegato')
+                    ->modalDescription('Questa azione non può essere annullata.')
+                    ->modalSubmitActionLabel('Elimina')
+                    ->modalCancelActionLabel('Annulla')
+                    ->action(function (array $data) {
+                        $file = $data['file_to_delete'];
+
+                        if (Storage::exists($file)) {
+                            Storage::delete($file);
+
+                            Notification::make()
+                                ->title('File eliminato con successo')
+                                ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('File non trovato')
+                                ->warning()
+                                ->send();
+                        }
+                    }),
+
+                Actions\Action::make('register')
+                    ->label('Protocolla')
+                    ->icon('fluentui-pen-20-o')
+                    ->color('warning')
+                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')))
+                    ->requiresConfirmation()
+                    ->modalHeading('Protocolla email')
+                    ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
+                    ->modalSubmitActionLabel('Protocolla')
+                    ->form([
+                        Select::make('scope_type_id')
+                            ->label('Ambito')
+                            ->options(ScopeType::pluck('name', 'id'))
+                            ->searchable()
+                            ->placeholder('Seleziona l\'ambito della registrazione')
+                    ])
+                    ->action(function ($record, $data) {
+                        try {
+                            static::registerEmail($record, $data['scope_type_id']);
+                            Notification::make()
+                                ->title('Mail protocollata')
+                                ->body('La mail e i suoi allegati sono stati protocollati con successo.')
+                                ->success()
+                                ->send();
+                            $resource = $this->getResource();
+                            return $this->redirect($resource::getUrl('index'));
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore registrazione')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
-
-    protected $listeners = [
-        'start-mail-send' => 'sendMailBackground',
-        'mail-sent-success' => 'onMailSuccess',
-        'mail-sent-error' => 'onMailError',
-    ];
 
     protected function getFormActions(): array
     {
@@ -313,221 +288,25 @@ class EditSendEmail extends EditRecord
             });
     }
 
-    public function sendMailBackground($mailId)
-    {
-        try {
-            $this->sendMail($mailId);
-            $this->dispatch('mail-sent-success');
-        } catch (\Exception $e) {
-            $this->dispatch('mail-sent-error', message: $e->getMessage());
-        }
-    }
+//     private static function nameRecipient($email): string
+//     {
+//         $rec = Recipient::where(function ($query) use ($email) {
+//             $query->where('mail_1', $email)
+//                 ->orWhere('mail_2', $email)
+//                 ->orWhere('mail_3', $email)
+//                 ->orWhere('mail_4', $email)
+//                 ->orWhere('mail_5', $email);
+//         })
+//         ->select('description', 'resp_surname', 'resp_name')
+//         ->first();
 
-    public function sendMail($id)
-    {
-        set_time_limit(300);
-        ini_set('max_execution_time', 300);
+//         if ($rec) {
+//             // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name}";
+//             return "{$rec->description}";
+//         }
 
-        $tempAttachments = [];
-
-        try {
-            DB::beginTransaction();
-
-            $sendEmail = SendEmail::find($id);
-            if (!$sendEmail) throw new \Exception("Spedizione non trovata!");
-// dd($sendEmail);
-            $account = Account::find($sendEmail->account_id);
-            $recipients = $sendEmail->recipients;
-// dd($recipients);
-            $sent = 0;
-            $not_sent = 0;
-            $errors = [];
-
-            // Configurazione SMTP
-            $smtp = strtolower($account->out_mail_protocol_type->value) == 'smtp';
-            $auth = (bool) $account->out_authentication;
-            $host = $account->out_mail_server;
-            $port = $account->out_mail_port;
-            $secure = $account->connection_safety_type->value;
-            $username = $account->out_username;
-            $password = decrypt($account->out_password);
-            $from = $account->out_username;
-            $name = $account->public_name;
-            $body = $sendEmail->body;
-            $subject = $sendEmail->subject;
-// dd('SMTP: '.$smtp,'AUTH: '.$auth,'HOST: '.$host,'PORT: '.$port,'CONN_S: '.$secure,'USER: '.$username,'PWD: '.$password,'FROM: '.$from,'NAME: '.$name,'SUBJ: '.$subject,'BODY: '.$body);
-            // Preparo allegati
-            $attachmentRelativePath = ltrim($sendEmail->attachment_path, '/');
-            $attachments = Storage::files($attachmentRelativePath);
-// dd($attachments);
-            // Creo file temporanei per tutti gli allegati
-            foreach ($attachments as $attachment) {
-                if (!Storage::exists($attachment)) {
-                    throw new \Exception("Allegato non trovato: " . $attachment);
-                }
-
-                $tempFile = tempnam(sys_get_temp_dir(), 'attachment_');
-                file_put_contents($tempFile, Storage::get($attachment));
-
-                $tempAttachments[] = [
-                    'path' => $tempFile,
-                    'name' => basename($attachment)
-                ];
-            }
-
-            // Invio una email per ogni destinatario
-            foreach ($recipients as $recipient) {
-                try {
-                    // Creo una nuova istanza PHPMailer per ogni destinatario
-                    $email = new PHPMailer(true);
-                    $email->Timeout = 60;
-
-                    // Configurazione SMTP
-                    if ($smtp) $email->isSMTP();
-                    $email->Host = $host;
-                    $email->Port = $port;
-
-                    // Autenticazione
-                    if ($auth) {
-                        $email->SMTPAuth = true;
-                        $email->Username = $username;
-                        $email->Password = $password;
-                    }
-
-                    // Crittografia
-                    switch (strtolower($secure)) {
-                        case 'ssl':
-                            $email->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-                            break;
-                        case 'tls':
-                            $email->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                            break;
-                        default:
-                            $email->SMTPSecure = '';
-                    }
-
-                    // Mittente
-                    $email->setFrom($from, $name);
-
-                    // Destinatario
-                    $email->addAddress($recipient, static::nameRecipient($recipient));
-
-                    // Oggetto e corpo
-                    $email->Subject = '[' . $id . '] ' . $subject;
-                    $email->isHTML(true);
-                    $email->Body = $body;
-
-                    // Aggiungo allegati
-                    foreach ($tempAttachments as $attachment) {
-                        $email->addAttachment($attachment['path'], $attachment['name']);
-                    }
-// dd($email);
-                    // Invio
-                    if ($email->send()) {
-                        $sent++;
-                        Log::info("Email inviata con successo a: {$recipient}");
-                    } else {
-                        $not_sent++;
-                        $errors[] = "Invio fallito a {$recipient}";
-                        Log::error("Errore invio email a {$recipient}");
-                    }
-
-                    // Libero memoria
-                    $email->clearAddresses();
-                    $email->clearAttachments();
-                    unset($email);
-
-                    // Pausa tra invii per evitare rate limiting
-                    usleep(500000); // 0.5 secondi
-
-                } catch (Exception $e) {
-                    $not_sent++;
-                    $errors[] = "Errore con {$recipient}: " . $e->getMessage();
-                    Log::error("Errore invio email a {$recipient}: " . $e->getMessage());
-                    // Continua con il prossimo destinatario
-                    continue;
-                }
-            }
-
-            // Aggiorna il record solo se almeno un invio è riuscito
-            if ($sent > 0) {
-                $sendEmail->update([
-                    'send_date' => now()->format('Y-m-d H:i:s'),
-                    'send_user_id' => Auth::id(),
-                ]);
-            }
-
-            // Elimina file temporanei
-            foreach ($tempAttachments as $attachment) {
-                if (file_exists($attachment['path'])) {
-                    @unlink($attachment['path']);
-                }
-            }
-// dd('STOP');
-            DB::commit();
-
-            // Notifica risultato
-            if ($sent > 0 && $not_sent === 0) {
-                Notification::make()
-                    ->title('Email inviate con successo')
-                    ->body("Inviate {$sent} email su " . count($recipients) . " destinatari")
-                    ->success()
-                    ->send();
-            } elseif ($sent > 0 && $not_sent > 0) {
-                Notification::make()
-                    ->title('Invio parziale')
-                    ->body("Inviate: {$sent}, Fallite: {$not_sent}")
-                    ->warning()
-                    ->send();
-            } else {
-                throw new \Exception("Nessuna email inviata. Errori: " . implode('; ', $errors));
-            }
-
-            $this->dispatch('mail-sent-success', sent: $sent, failed: $not_sent);
-
-        } catch (\Exception $ex) {
-            DB::rollBack();
-
-            // Cleanup file temporanei in caso di errore
-            foreach ($tempAttachments as $attachment) {
-                if (isset($attachment['path']) && file_exists($attachment['path'])) {
-                    @unlink($attachment['path']);
-                }
-            }
-
-            Log::error("Errore invio spedizione {$id}: " . $ex->getMessage());
-
-            Notification::make()
-                ->title('Errore invio email')
-                ->body($ex->getMessage())
-                ->danger()
-                ->send();
-
-            $this->dispatch('mail-sent-error', message: $ex->getMessage());
-
-            throw $ex;
-        }
-    }
-
-    private static function nameRecipient($email): string
-    {
-        $rec = Recipient::where(function ($query) use ($email) {
-            $query->where('mail_1', $email)
-                ->orWhere('mail_2', $email)
-                ->orWhere('mail_3', $email)
-                ->orWhere('mail_4', $email)
-                ->orWhere('mail_5', $email);
-        })
-        ->select('description', 'resp_surname', 'resp_name')
-        ->first();
-
-        if ($rec) {
-            // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name}";
-            return "{$rec->description}";
-        }
-
-        return $email;
-    }
+//         return $email;
+//     }
 
     private static function registerEmail($record, $scopeTypeId){
         try {
@@ -551,20 +330,21 @@ class EditSendEmail extends EditRecord
                 'subject' => $record->mail_object,
                 'body' => $record->mail_body,
                 'receive_date' => null,
+                'account_id' => $record->account_id,
+                'recipients' => $record->recipients,
                 'send_date' => $record->send_date,
                 'send_user_id' => $record->send_user_id,
                 'shipment_id' => null,
-                'send_email_id' => $record->id,
                 'attachment_path' => $newPath,
                 'download_date' => null,
                 'download_user_id' => null,
                 'register_user_id' => Auth::user()->id,
             ]);
 
-            // Elimino la spedizione
-            // Model::withoutEvents(function () use ($record) {
-            //     $record->delete();
-            // });
+            // Elimino la mail in uscita
+            Model::withoutEvents(function () use ($record) {
+                $record->delete();
+            });
 
             $disk = config('filesystems.default');
 
@@ -591,10 +371,10 @@ class EditSendEmail extends EditRecord
                 }
             }
 
-            // Elimino la vecchia cartella della spedizione
-            // if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
-            //     Storage::disk($disk)->deleteDirectory($oldPath);
-            // }
+            // Elimino la vecchia cartella degli allegati
+            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
+                Storage::disk($disk)->deleteDirectory($oldPath);
+            }
 
             DB::commit();
         } catch (\Throwable $e) {

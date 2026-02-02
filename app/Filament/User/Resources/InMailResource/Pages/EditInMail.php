@@ -74,40 +74,46 @@ class EditInMail extends EditRecord
                 ->action(function () use ($nextRInMail) {
                     $this->redirect(InMailResource::getUrl('edit', ['record' => $nextRInMail->id]));
                 }),
-            Actions\Action::make('register')
-                ->label('Protocolla')
-                ->icon('fluentui-pen-20-o')
-                ->color('warning')
-                ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
-                ->requiresConfirmation()
-                ->modalHeading('Protocolla email')
-                ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
-                ->modalSubmitActionLabel('Protocolla')
-                ->form([
-                    Select::make('scope_type_id')
-                        ->label('Ambito')
-                        ->options(ScopeType::pluck('name', 'id'))
-                        ->searchable()
-                        ->placeholder('Seleziona l\'ambito della registrazione')
-                ])
-                ->action(function ($record, $data) {
-                    try {
-                        $this->registerEmail($record, $data['scope_type_id']);
-                        Notification::make()
-                            ->title('Mail protocollata')
-                            ->body('La mail e i suoi allegati sono stati protocollati con successo.')
-                            ->success()
-                            ->send();
-                        $resource = $this->getResource();
-                        return $this->redirect($resource::getUrl('index'));
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore registrazione')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
+            Actions\ActionGroup::make([
+                Actions\Action::make('register')
+                    ->label('Protocolla')
+                    ->icon('fluentui-pen-20-o')
+                    ->color('warning')
+                    ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+                    ->requiresConfirmation()
+                    ->modalHeading('Protocolla email')
+                    ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
+                    ->modalSubmitActionLabel('Protocolla')
+                    ->form([
+                        Select::make('scope_type_id')
+                            ->label('Ambito')
+                            ->options(ScopeType::pluck('name', 'id'))
+                            ->searchable()
+                            ->placeholder('Seleziona l\'ambito della registrazione')
+                    ])
+                    ->action(function ($record, $data) {
+                        try {
+                            static::registerEmail($record, $data['scope_type_id']);
+                            Notification::make()
+                                ->title('Mail protocollata')
+                                ->body('La mail e i suoi allegati sono stati protocollati con successo.')
+                                ->success()
+                                ->send();
+                            $resource = $this->getResource();
+                            return $this->redirect($resource::getUrl('index'));
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore registrazione')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
 
@@ -158,7 +164,7 @@ class EditInMail extends EditRecord
             });
     }
 
-    private function registerEmail($record, $scopeTypeId)
+    private static function registerEmail($record, $scopeTypeId)
     {
         try {
             DB::beginTransaction();
@@ -180,10 +186,11 @@ class EditInMail extends EditRecord
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
+                'account_id' => null,
+                'recipients' => null,
                 'send_date' => null,
                 'send_user_id' => null,
                 'shipment_id' => null,
-                'send_email_id' => null,
                 'attachment_path' => $newPath,
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,

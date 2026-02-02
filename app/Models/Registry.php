@@ -24,9 +24,9 @@ class Registry extends Model
         'subject',
         'body',
         'receive_date',
-        'send_date',
         'account_id',
         'recipients',
+        'send_date',
         'send_user_id',
         'shipment_id',
         'send_email_id',
@@ -40,6 +40,7 @@ class Registry extends Model
         'flow_type' => FlowType::class,
         'registry_origin_type' => RegistryOriginType::class,
         'recipients' => 'array',
+        'send_date' => 'datetime',
     ];
 
     public function downloadUser(){

@@ -30,6 +30,8 @@ class UserPanelProvider extends PanelProvider
             ->id('user')
             ->path('user')
             ->login()
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
             ])

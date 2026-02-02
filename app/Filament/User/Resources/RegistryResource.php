@@ -6,6 +6,9 @@ use App\Enums\FlowType;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
+use App\Models\Province;
+use App\Models\Recipient;
+use App\Models\Region;
 use App\Models\Registry;
 use App\Models\User;
 use Filament\Forms;
@@ -111,6 +114,42 @@ class RegistryResource extends Resource
                         //     ->rows(10)
                         //     ->columnSpan('full')
                         //     ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
+
+                        Select::make('region_display')
+                            ->label('Regione')
+                            ->visible(fn($record) => $record->shipment_id)
+                            ->options(\App\Models\Region::pluck('name', 'id'))
+                            ->formatStateUsing(fn ($record) => $record?->shipment?->region_id)
+                            ->columnSpan(['sm' => 'full', 'md' => 7])
+                            ->disabled()
+                            ->dehydrated(false), // Fondamentale: impedisce il salvataggio nel database
+
+                        Select::make('province_display')
+                            ->label('Provincia')
+                            ->visible(fn($record) => $record->shipment_id)
+                            ->options(\App\Models\Province::pluck('name', 'id'))
+                            ->formatStateUsing(fn ($record) => $record?->shipment?->province_id)
+                            ->columnSpan(['sm' => 'full', 'md' => 8])
+                            ->disabled()
+                            ->dehydrated(false),
+
+                        Forms\Components\Select::make('recipients')
+                            ->label('Destinatari')
+                            ->multiple()
+                            ->searchable()
+                            ->required()
+                            ->live()
+                            ->placeholder('')
+                            ->visible(fn($record) => $record->recipients)
+                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
+                            ->getOptionLabelsUsing(function ($values) {
+                                // Quando il record è salvato, voglio vedere l'email nei tag
+                                return collect($values)->mapWithKeys(fn ($email) => [$email => static::labelRecipient($email)])->toArray();
+                            })
+                            ->createOptionUsing(function (string $data) {
+                                // Se l'utente scrive un'email a mano, il valore salvato sarà il testo inserito
+                                return $data;
+                            }),
 
                         RichEditor::make('body')
                             ->label('Messaggio')
@@ -419,5 +458,30 @@ class RegistryResource extends Resource
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function labelRecipient($email): string
+    {
+        $rec = Recipient::where(function ($query) use ($email) {
+            $query->where('mail_1', $email)
+                ->orWhere('mail_2', $email)
+                ->orWhere('mail_3', $email)
+                ->orWhere('mail_4', $email)
+                ->orWhere('mail_5', $email);
+        })
+        ->select('description', 'resp_surname', 'resp_name')
+        ->first();
+
+        if ($rec) {
+            // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
+            return "{$rec->description} <{$email}>";
+        }
+
+        return $email;
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('shipment');
     }
 }

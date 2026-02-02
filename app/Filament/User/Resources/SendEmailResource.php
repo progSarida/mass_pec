@@ -356,55 +356,6 @@ class SendEmailResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     // Tables\Actions\DeleteBulkAction::make(),
-                    // Tables\Actions\BulkAction::make('register_selected')
-                    //     ->label('Protocolla selezionate')
-                    //     ->icon('fluentui-pen-20-o')
-                    //     ->color('warning')
-                    //     ->requiresConfirmation()
-                    //     ->modalHeading('Protocolla spedizioni selezionate')
-                    //     ->modalDescription('Le spedizioni selezionate verranno inserite nel protocollo.')
-                    //     ->modalSubmitActionLabel('Protocolla')
-                    //     ->form([
-                    //         Select::make('scope_type_id')
-                    //             ->label('Ambito')
-                    //             ->options(ScopeType::pluck('name', 'id'))
-                    //             ->searchable()
-                    //             ->required()
-                    //             ->placeholder('Seleziona l\'ambito per tutte le spedizioni')
-                    //     ])
-                    //     ->action(function (Collection $records, array $data) {
-                    //         $successCount = 0;
-                    //         $errorMessages = [];
-
-                    //         foreach ($records as $record) {
-                    //             try {
-                    //                 static::registerShipment($record, $data['scope_type_id']);
-                    //                 $successCount++;
-                    //             } catch (\Exception $e) {
-                    //                 $errorMessages[] = "Errore su ID {$record->id}: " . $e->getMessage();
-                    //             }
-                    //         }
-
-                    //         // Notifica finale
-                    //         if ($successCount > 0) {
-                    //             Notification::make()
-                    //                 ->title("Protocollate {$successCount} email")
-                    //                 ->body('Operazione completata con successo.')
-                    //                 ->success()
-                    //                 ->send();
-                    //         }
-
-                    //         if (!empty($errorMessages)) {
-                    //             $body = "Alcune spedizioni non sono state protocollate:\n" . implode("\n", $errorMessages);
-                    //             Notification::make()
-                    //                 ->title('Errori parziali')
-                    //                 ->body($body)
-                    //                 ->danger()
-                    //                 ->send();
-                    //         }
-                    //     })
-                    //     ->deselectRecordsAfterCompletion()
-                    //     ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
                 ]),
             ]);
     }
@@ -440,7 +391,7 @@ class SendEmailResource extends Resource
 
         if ($rec) {
             // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
-            return "{$rec->description} - <{$email}>";
+            return "{$rec->description} <{$email}>";
         }
 
         return $email;
@@ -509,7 +460,7 @@ class SendEmailResource extends Resource
                 }
             }
 
-            // Elimino la vecchia cartella della spedizione
+            // Elimino la vecchia cartella degli allegati
             if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
                 Storage::disk($disk)->deleteDirectory($oldPath);
             }

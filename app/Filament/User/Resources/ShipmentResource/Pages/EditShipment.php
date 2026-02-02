@@ -5,8 +5,11 @@ namespace App\Filament\User\Resources\ShipmentResource\Pages;
 use App\Enums\MailType;
 use App\Enums\ShipmentErrorType;
 use App\Filament\User\Resources\ShipmentResource;
+use App\Jobs\ProcessShipmentEmailJob;
 use App\Models\City;
 use App\Models\Receiver;
+use App\Models\Registry;
+use App\Models\ScopeType;
 use App\Models\Sender;
 use App\Models\Shipment;
 use App\Models\ShipmentError;
@@ -15,6 +18,7 @@ use Exception;
 use Filament\Actions;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -23,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPMailer\PHPMailer\PHPMailer;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -66,11 +71,11 @@ class EditShipment extends EditRecord
         return $data;
     }
 
-    protected $listeners = [
-        'start-shipment-send' => 'sendShipmentBackground',
-        'shipment-sent-success' => 'onShipmentSuccess',
-        'shipment-sent-error' => 'onShipmentError',
-    ];
+    // protected $listeners = [
+    //     'start-shipment-send' => 'sendShipmentBackground',
+    //     'shipment-sent-success' => 'onShipmentSuccess',
+    //     'shipment-sent-error' => 'onShipmentError',
+    // ];
 
     protected function getHeaderActions(): array
     {
@@ -100,31 +105,87 @@ class EditShipment extends EditRecord
                     $this->redirect(ShipmentResource::getUrl('edit', ['record' => $nextCShipment->id]));
                 }),
             Actions\ActionGroup::make([
-                Actions\Action::make('send')
+                // Actions\Action::make('send')
+                //     ->label('Invio PEC')
+                //     ->icon('hugeicons-mail-send-01')
+                //     ->requiresConfirmation()
+                //     ->modalHeading('Conferma invio PEC')
+                //     ->modalDescription('L\'invio partirà immediatamente. Continuare?')
+                //     ->modalSubmitActionLabel('Sì, invia')
+                //     ->action(function () {
+                //         $shipmentId = $this->record->id;
+                //         try {
+                //             $this->dispatch('start-shipment-send', shipmentId: $shipmentId);
+
+                //             Notification::make()
+                //                 ->title('Invio PEC avviato')
+                //                 ->body('L\'invio è in corso in background...')
+                //                 ->success()
+                //                 ->send();
+                //         } catch (\Exception $e) {
+                //             Notification::make()
+                //                 ->title('Errore')
+                //                 ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
+                //                 ->danger()
+                //                 ->send();
+                //         }
+                //     }),
+                Actions\Action::make('receivers')
+                    ->label('Pec destinatari')
+                    ->icon('fluentui-people-team-toolbox-20-o')
+                    ->modalHeading('Pec destinatari')
+                    ->modalWidth('5xl')
+                    ->form([
+                        Placeholder::make('receivers_list')
+                            ->label('')
+                            ->content(function () {
+                                $receivers = $this->getReceiversForForm();
+                                if (empty($receivers)) {
+                                    return 'Nessun destinatario';
+                                }
+
+                                $html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
+                                foreach ($receivers as $receiver) {
+                                    $html .= '<div class="p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-900">';
+                                    $html .= e($receiver['address']);
+                                    $html .= '</div>';
+                                }
+                                $html .= '</div>';
+
+                                return new \Illuminate\Support\HtmlString($html);
+                            })
+                            ->extraAttributes([
+                                'style' => 'min-height: 10vh; max-height: 67vh; overflow-y: auto;'
+                            ])
+                    ])
+                    ->modalSubmitAction(false)
+                    ->modalCancelAction(false),
+                Actions\Action::make('sendShipment')
                     ->label('Invio PEC')
                     ->icon('hugeicons-mail-send-01')
-                    ->requiresConfirmation()
-                    ->modalHeading('Conferma invio PEC')
-                    ->modalDescription('L\'invio partirà immediatamente. Continuare?')
-                    ->modalSubmitActionLabel('Sì, invia')
-                    ->action(function () {
-                        $shipmentId = $this->record->id;
-                        try {
-                            $this->dispatch('start-shipment-send', shipmentId: $shipmentId);
+                    // ->label('Invia Spedizione')
+                    // ->icon('heroicon-o-paper-airplane')
+                    // ->color('success')
+                    ->requiresConfirmation() // Chiede conferma prima di partire
+                    ->modalHeading('Conferma Invio')
+                    ->modalDescription('Sei sicuro di voler avviare l\'invio massivo per questa spedizione?')
+                    ->action(function ($record) {
+                        // Lanciamo il Job Padre (Orchestratore)
+                        ProcessShipmentEmailJob::dispatch(
+                            $record->id,
+                            Auth::id()
+                        );
 
-                            Notification::make()
-                                ->title('Invio PEC avviato')
-                                ->body('L\'invio è in corso in background...')
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Errore')
-                                ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                        // Feedback immediato all'interfaccia
+                        Notification::make()
+                            ->title('Invio avviato')
+                            ->body('Il processo di invio è stato preso in carico dal sistema.')
+                            ->info()
+                            ->send();
+                    })
+                    // Opzionale: nascondi il tasto se la spedizione è già stata inviata
+                    ->hidden(fn ($record) => $record->send_date !== null),
+
                 Actions\Action::make('download')
                     ->label('Scarico ricevute')
                     ->icon('hugeicons-mail-receive-01')
@@ -186,36 +247,41 @@ class EditShipment extends EditRecord
                             ->title('File non trovato')
                             ->send();
                     }),
-                Actions\Action::make('receivers')
-                    ->label('Pec destinatari')
-                    ->icon('fluentui-people-team-toolbox-20-o')
-                    ->modalHeading('Pec destinatari')
-                    ->modalWidth('5xl')
+                Actions\Action::make('register')
+                    ->label('Protocolla')
+                    ->icon('fluentui-pen-20-o')
+                    ->color('warning')
+                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+                                                && $record->extraction_zip_file
+                                                && !Registry::where('uid', '#shipment' . $record->id)->exists()
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Protocolla spedizione')
+                    ->modalDescription('La spedizione verrà inserita nel protocollo')
+                    ->modalSubmitActionLabel('Protocolla')
                     ->form([
-                        Placeholder::make('receivers_list')
-                            ->label('')
-                            ->content(function () {
-                                $receivers = $this->getReceiversForForm();
-                                if (empty($receivers)) {
-                                    return 'Nessun destinatario';
-                                }
-
-                                $html = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">';
-                                foreach ($receivers as $receiver) {
-                                    $html .= '<div class="p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-900">';
-                                    $html .= e($receiver['address']);
-                                    $html .= '</div>';
-                                }
-                                $html .= '</div>';
-
-                                return new \Illuminate\Support\HtmlString($html);
-                            })
-                            ->extraAttributes([
-                                'style' => 'min-height: 10vh; max-height: 67vh; overflow-y: auto;'
-                            ])
+                        Select::make('scope_type_id')
+                            ->label('Ambito')
+                            ->options(ScopeType::pluck('name', 'id'))
+                            ->searchable()
+                            ->placeholder('Seleziona l\'ambito della registrazione')
                     ])
-                    ->modalSubmitAction(false)
-                    ->modalCancelAction(false),
+                    ->action(function ($record, array $data) {
+                        try {
+                            static::registerShipment($record, $data['scope_type_id']);
+                            Notification::make()
+                                ->title('Mail protocollata')
+                                ->body('La spedizione e i suoi allegati sono stati protocollati con successo.')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore registrazione')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')
@@ -280,157 +346,6 @@ class EditShipment extends EditRecord
             ->get()
             ->map(fn($receiver) => ['address' => $receiver->address])
             ->toArray();
-    }
-
-    public function sendShipmentBackground($shipmentId)
-    {
-        try {
-            $this->sendShipment($shipmentId);
-            $this->dispatch('shipment-sent-success');
-        } catch (\Exception $e) {
-            $this->dispatch('shipment-sent-error', message: $e->getMessage());
-        }
-    }
-
-    public function sendShipment($id)
-    {
-        set_time_limit(120);
-        ini_set('max_execution_time', 120);
-
-        $tempAttachment = null;
-
-        try {
-            DB::beginTransaction();
-
-            $shipment = Shipment::find($id);
-            if (!$shipment) throw new \Exception("Spedizione non trovata!");
-
-            $sender = Sender::find($shipment->sender_id);
-            $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
-                ->where('shipment_id', $shipment->id)
-                ->select('receivers.*', 'R.description as r_description')
-                ->get();
-
-            $sent = 0;
-            $not_sent = 0;
-
-            $smtp = strtolower($sender->out_mail_protocol_type->value) == 'smtp';
-            $auth = (bool) $sender->out_authentication;
-            $host = $sender->out_mail_server;
-            $port = $sender->out_mail_port;
-            $secure = $sender->connection_safety_type->value;
-            $username = $sender->out_username;
-            $password = decrypt($sender->out_password);
-            $from = $sender->out_username;
-            $name = $sender->public_name;
-            $body = $shipment->mail_body;
-
-            // Gestione allegato compatibile con Storage
-            $attachmentRelativePath = ltrim($shipment->shipment_path . '/' . $shipment->attachment, '/');
-
-            if (!Storage::exists($attachmentRelativePath)) {
-                throw new \Exception("Allegato non trovato: " . $attachmentRelativePath);
-            }
-
-            // Scarica allegato in file temporaneo per PHPMailer
-            $tempAttachment = tempnam(sys_get_temp_dir(), 'attachment_');
-            file_put_contents($tempAttachment, Storage::get($attachmentRelativePath));
-
-            foreach ($recipients as $recipient) {
-                if (is_null($recipient->send_date)) {
-                    $subject = $shipment->mail_object . " [" . $recipient->ref . "]";
-                    $email = new PHPMailer(true);
-                    $email->Timeout = 60;
-
-                    if ($smtp) $email->isSMTP();
-                    $email->Host = $host;
-                    $email->Port = $port;
-
-                    if ($auth) {
-                        $email->SMTPAuth = true;
-                        $email->Username = $username;
-                        $email->Password = $password;
-                    }
-
-                    switch (strtolower($secure)) {
-                        case 'ssl':
-                            $email->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-                            break;
-                        case 'tls':
-                            $email->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                            break;
-                        default:
-                            $email->SMTPSecure = '';
-                    }
-
-                    $email->setFrom($from, $name);
-                    $email->addAddress($recipient->address, $recipient->r_description);
-                    $email->Subject = $subject;
-                    $email->Body = $body;
-                    $email->addAttachment($tempAttachment, $shipment->attachment);
-
-                    try {
-                        if ($email->send()) {
-                            $recipient->update(['send_date' => now()->format('Y-m-d H:i:s')]);
-                            $sent++;
-                        } else {
-                            $not_sent++;
-                        }
-                    } catch (Exception $e) {
-                        $not_sent++;
-                        Log::error("Errore invio PEC a {$recipient->address}: " . $e->getMessage());
-                        throw new \Exception("Errore invio PEC a {$recipient->address}: " . $e->getMessage());
-                    }
-                } else {
-                    $sent++;
-                }
-            }
-
-            // Elimina file temporaneo
-            if ($tempAttachment && file_exists($tempAttachment)) {
-                @unlink($tempAttachment);
-            }
-
-            $shipment->update([
-                'send_date' => now()->format('Y-m-d H:i:s'),
-                'send_user_id' => Auth::user()->id,
-                'no_mails_sended' => $sent,
-                'no_mails_to_send' => $not_sent
-            ]);
-// dd($shipment);
-            DB::commit();
-
-            $this->dispatch('shipment-sent-success', sent: $sent, failed: $not_sent);
-
-        } catch (\Exception $ex) {
-            DB::rollBack();
-
-            if ($tempAttachment && file_exists($tempAttachment)) {
-                @unlink($tempAttachment);
-            }
-
-            Log::error("Errore invio spedizione {$id}: " . $ex->getMessage());
-            $this->dispatch('shipment-sent-error', message: $ex->getMessage());
-        }
-    }
-
-    public function onShipmentSuccess()
-    {
-        Notification::make()
-            ->title('Invio completato')
-            ->success()
-            ->send();
-
-        $this->refreshFormData(['no_mails_sended', 'no_mails_to_send']);
-    }
-
-    public function onShipmentError($message)
-    {
-        Notification::make()
-            ->title('Errore invio')
-            ->body($message)
-            ->danger()
-            ->send();
     }
 
     private function connectToMail($sender)
@@ -909,6 +824,118 @@ class EditShipment extends EditRecord
             Log::error("Errore estrazione ZIP: " . $e->getMessage());
             return false;
         }
+    }
+
+    private static function registerShipment($record, $scopeTypeId)
+    {
+        try {
+            DB::beginTransaction();
+
+            $oldPath = $record->shipment_path;
+            $protocolNumber = static::newProtocol();
+
+            $newPath = 'registry/' . $protocolNumber;
+
+            $registry = Registry::create([
+                'protocol_number' => $protocolNumber,
+                'flow_type' => 'issued',
+                'flow_index' => static::newIndex('issued'),
+                'registry_origin_type' => 'shipment',
+                'is_email' => true,
+                'scope_type_id' => $scopeTypeId,
+                'uid' => '#shipment' . $record->id,
+                'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $record->id,
+                'from' => $record->sender->public_name,
+                'subject' => $record->mail_object,
+                'body' => $record->mail_body,
+                'receive_date' => null,
+                'account_id' => null,
+                'recipients' => null,
+                'send_date' => $record->send_date,
+                'send_user_id' => $record->send_user_id,
+                'shipment_id' => $record->id,
+                'attachment_path' => $newPath,
+                'download_date' => null,
+                'download_user_id' => null,
+                'register_user_id' => Auth::user()->id,
+            ]);
+
+            // Elimino la spedizione
+            // Model::withoutEvents(function () use ($record) {
+            //     $record->delete();
+            // });
+
+            $disk = config('filesystems.default');
+
+            // copio cartella allegati
+            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
+                Storage::disk($disk)->makeDirectory($newPath);
+
+                $files = collect(Storage::disk($disk)->files($oldPath))
+                    ->filter(function ($path) {
+                        return Str::contains($path, 'estrazione');
+                    })
+                    ->all();
+
+                foreach ($files as $file) {
+                    $relativePath = str_replace($oldPath . '/', '', $file);
+                    $newFilePath = $newPath . '/' . today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $relativePath;
+// dd('oldPath: ' . $oldPath . ' - ' . 'relativePath: ' . $relativePath . ' - ' . 'newFilePath: ' . $newFilePath);
+                    $directory = dirname($newFilePath);
+                    if (!Storage::disk($disk)->exists($directory)) {
+                        Storage::disk($disk)->makeDirectory($directory);
+                    }
+
+                    Storage::disk($disk)->put($newFilePath, Storage::disk($disk)->get($file));
+                }
+            }
+
+            // Elimino la vecchia cartella della spedizione
+            // if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
+            //     Storage::disk($disk)->deleteDirectory($oldPath);
+            // }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Errore scarico email: " . $e->getMessage() . ' - ' . $e->getLine());
+            throw $e;
+        }
+    }
+
+    private static function newProtocol(): string
+    {
+        $lastRegistry = Registry::orderBy('created_at', 'desc')->first();
+
+        if ($lastRegistry) {
+            $parts = explode('-', $lastRegistry->protocol_number);
+
+            if (count($parts) !== 3 || $parts[0] !== 'P') {
+                return 'P-' . today()->year . '-00001';
+            }
+
+            $lastYear = (int) $parts[1];
+            $lastNumber = (int) $parts[2];
+            $currentYear = today()->year;
+
+            if ($lastYear === $currentYear) {
+                $newNumber = $lastNumber + 1;
+                return 'P-' . $currentYear . '-' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
+            } else {
+                return 'P-' . $currentYear . '-00001';
+            }
+        }
+        return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+        if ($lastIndex) {
+            $newIndex = $lastIndex+1;
+            return $newIndex;
+        }
+        return 1;
     }
 
     public function hasCombinedRelationManagerTabsWithContent(): bool

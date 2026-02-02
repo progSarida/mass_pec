@@ -212,55 +212,55 @@ class InMailResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\BulkAction::make('register_selected')
-                        ->label('Protocolla selezionate')
-                        ->icon('fluentui-pen-20-o')
-                        ->color('warning')
-                        ->requiresConfirmation()
-                        ->modalHeading('Protocolla email selezionate')
-                        ->modalDescription('Le mail selezionate verranno inserite nel protocollo ed eliminate dall\'elenco.')
-                        ->modalSubmitActionLabel('Protocolla')
-                        ->form([
-                            Select::make('scope_type_id')
-                                ->label('Ambito')
-                                ->options(ScopeType::pluck('name', 'id'))
-                                ->searchable()
-                                ->required()
-                                ->placeholder('Seleziona l\'ambito per tutte le email')
-                        ])
-                        ->action(function (Collection $records, array $data) {
-                            $successCount = 0;
-                            $errorMessages = [];
+                    // Tables\Actions\BulkAction::make('register_selected')
+                    //     ->label('Protocolla selezionate')
+                    //     ->icon('fluentui-pen-20-o')
+                    //     ->color('warning')
+                    //     ->requiresConfirmation()
+                    //     ->modalHeading('Protocolla email selezionate')
+                    //     ->modalDescription('Le mail selezionate verranno inserite nel protocollo ed eliminate dall\'elenco.')
+                    //     ->modalSubmitActionLabel('Protocolla')
+                    //     ->form([
+                    //         Select::make('scope_type_id')
+                    //             ->label('Ambito')
+                    //             ->options(ScopeType::pluck('name', 'id'))
+                    //             ->searchable()
+                    //             ->required()
+                    //             ->placeholder('Seleziona l\'ambito per tutte le email')
+                    //     ])
+                    //     ->action(function (Collection $records, array $data) {
+                    //         $successCount = 0;
+                    //         $errorMessages = [];
 
-                            foreach ($records as $record) {
-                                try {
-                                    static::registerEmail($record, $data['scope_type_id']);
-                                    $successCount++;
-                                } catch (\Exception $e) {
-                                    $errorMessages[] = "Errore su ID {$record->id}: " . $e->getMessage();
-                                }
-                            }
+                    //         foreach ($records as $record) {
+                    //             try {
+                    //                 static::registerEmail($record, $data['scope_type_id']);
+                    //                 $successCount++;
+                    //             } catch (\Exception $e) {
+                    //                 $errorMessages[] = "Errore su ID {$record->id}: " . $e->getMessage();
+                    //             }
+                    //         }
 
-                            // Notifica finale
-                            if ($successCount > 0) {
-                                Notification::make()
-                                    ->title("Protocollate {$successCount} email")
-                                    ->body('Operazione completata con successo.')
-                                    ->success()
-                                    ->send();
-                            }
+                    //         // Notifica finale
+                    //         if ($successCount > 0) {
+                    //             Notification::make()
+                    //                 ->title("Protocollate {$successCount} email")
+                    //                 ->body('Operazione completata con successo.')
+                    //                 ->success()
+                    //                 ->send();
+                    //         }
 
-                            if (!empty($errorMessages)) {
-                                $body = "Alcune email non sono state protocollate:\n" . implode("\n", $errorMessages);
-                                Notification::make()
-                                    ->title('Errori parziali')
-                                    ->body($body)
-                                    ->danger()
-                                    ->send();
-                            }
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
+                    //         if (!empty($errorMessages)) {
+                    //             $body = "Alcune email non sono state protocollate:\n" . implode("\n", $errorMessages);
+                    //             Notification::make()
+                    //                 ->title('Errori parziali')
+                    //                 ->body($body)
+                    //                 ->danger()
+                    //                 ->send();
+                    //         }
+                    //     })
+                    //     ->deselectRecordsAfterCompletion()
+                    //     ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')),
                 ]),
             ]);
     }
