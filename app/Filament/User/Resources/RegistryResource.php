@@ -117,7 +117,7 @@ class RegistryResource extends Resource
 
                         Select::make('region_display')
                             ->label('Regione')
-                            ->visible(fn($record) => $record->shipment_id)
+                            ->visible(fn($record) => $record && $record->shipment_id)
                             ->options(\App\Models\Region::pluck('name', 'id'))
                             ->formatStateUsing(fn ($record) => $record?->shipment?->region_id)
                             ->columnSpan(['sm' => 'full', 'md' => 7])
@@ -126,7 +126,7 @@ class RegistryResource extends Resource
 
                         Select::make('province_display')
                             ->label('Provincia')
-                            ->visible(fn($record) => $record->shipment_id)
+                            ->visible(fn($record) => $record && $record->shipment_id)
                             ->options(\App\Models\Province::pluck('name', 'id'))
                             ->formatStateUsing(fn ($record) => $record?->shipment?->province_id)
                             ->columnSpan(['sm' => 'full', 'md' => 8])
@@ -140,7 +140,7 @@ class RegistryResource extends Resource
                             ->required()
                             ->live()
                             ->placeholder('')
-                            ->visible(fn($record) => $record->recipients)
+                            ->visible(fn($record) => $record && $record->recipients)
                             ->columnSpan(['sm' => 'full', 'md' => 'full'])
                             ->getOptionLabelsUsing(function ($values) {
                                 // Quando il record è salvato, voglio vedere l'email nei tag
