@@ -79,10 +79,10 @@ class ShipmentResource extends Resource
                     ->label('PEC Mittente')
                     ->content(function ($record) {
                         if ($record?->sender?->public_name) {
-                            return $record->sender->public_name . " (" . $record->sender->address . ")";
+                            return $record->sender->public_name . " <" . $record->sender->address . ">";
                         }
                         $sender = \App\Models\Sender::find(1);
-                        return $sender?->public_name ? $sender?->public_name . " (" . $sender?->address . ")" : 'Mittente non trovato';
+                        return $sender?->public_name ? $sender?->public_name . " <" . $sender?->address . ">" : 'Mittente non trovato';
                     })
                     ->columnSpan(['sm' => 'full', 'md' => 10]),
                 TextInput::make('mail_object')

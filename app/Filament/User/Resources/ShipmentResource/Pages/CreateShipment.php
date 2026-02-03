@@ -5,6 +5,7 @@ namespace App\Filament\User\Resources\ShipmentResource\Pages;
 use App\Enums\MailType;
 use App\Filament\User\Resources\ShipmentResource;
 use App\Models\Attachment;
+use App\Models\IstatType;
 use App\Models\Recipient;
 use App\Models\Region;
 use App\Models\Province;
@@ -63,10 +64,16 @@ class CreateShipment extends CreateRecord
     public array $receiverList = [];                                                                                    // id e campi dei destinatari selezionati
                                                                                                                         // [12 => ['mail_1', 'mail_3'], 15 => ['mail_2']]
     public array $receiverFilters = [                                                                                   // filtri ricerca destinatari
+        'mail_type' => null,
         'region_id' => null,
         'province_id' => null,
-        'mail_type' => null,
+        'istat_types' => null,
     ];
+
+    public $mail_type = null;
+    public $region_id = null;
+    public $province_id = null;
+    public $istat_types = null;
 
     // public function mount(): void
     // {
@@ -140,55 +147,86 @@ class CreateShipment extends CreateRecord
                 ->modalWidth('5xl')
                 ->form([
                     // Filtri persistenti
-                    Grid::make(9)->schema([
-                        Select::make('mail_type')
-                            ->label('Tipo email')
-                            ->required()
-                            // ->options(MailType::class)
-                            ->options(
-                                collect(MailType::cases())
-                                    ->filter(fn (MailType $type) => $type->show())
-                                    ->mapWithKeys(fn (MailType $type) => [
-                                        $type->value => $type->getLabel() // Forza il recupero della stringa
-                                    ])
-                                    ->toArray()
-                            )
-                            ->reactive()
-                            ->afterStateUpdated(fn ($state) => $this->receiverFilters['mail_type'] = $state)
-                            ->columnSpan(2),
-                        Select::make('region_id')
-                            ->label('Regione')
-                            ->required()
-                            ->options(Region::pluck('name', 'id'))
-                            ->default($this->receiverFilters['region_id'])
-                            ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $set('province_id', null);
-                                $this->receiverFilters['region_id'] = $state;
-                            })
-                            ->columnSpan(2),
-                        Select::make('province_id')
-                            ->label('Provincia')
-                            ->required()
-                            ->options(fn (callable $get) => $get('region_id')
-                                ? Province::where('region_id', $get('region_id'))->pluck('name', 'id')
-                                : []
-                            )
-                            ->default($this->receiverFilters['province_id'])
-                            ->reactive()
-                            ->afterStateUpdated(fn ($state) => $this->receiverFilters['province_id'] = $state)
-                            ->columnSpan(5),
-                    ]),
+                    Grid::make(9)
+                        ->schema([
+                            Select::make('mail_type')
+                                ->label('Tipo email')
+                                ->required()
+                                // ->options(MailType::class)
+                                ->options(
+                                    collect(MailType::cases())
+                                        ->filter(fn (MailType $type) => $type->show())
+                                        ->mapWithKeys(fn (MailType $type) => [
+                                            $type->value => $type->getLabel() // Forza il recupero della stringa
+                                        ])
+                                        ->toArray()
+                                )
+                                ->reactive()
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    $this->receiverFilters['mail_type'] = $state;
+                                    $set('region_id', null);
+                                    $set('province_id', null);
+                                    $set('istat_types', null);
+                                    $this->receiverFilters['region_id'] = null;
+                                    $this->receiverFilters['province_id'] = null;
+                                    $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverList = [];
+                                })
+                                ->columnSpan(3),
+                            Select::make('region_id')
+                                ->label('Regione')
+                                ->required()
+                                ->options(Region::pluck('name', 'id'))
+                                ->default($this->receiverFilters['region_id'])
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    $set('province_id', null);
+                                    $set('istat_types', null);
+                                    $this->receiverFilters['region_id'] = $state;
+                                    $this->receiverFilters['province_id'] = null;
+                                    $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverList = [];
+                                })
+                                ->columnSpan(3),
+                            Select::make('province_id')
+                                ->label('Provincia')
+                                ->required()
+                                ->options(fn (callable $get) => $get('region_id')
+                                    ? Province::where('region_id', $get('region_id'))->pluck('name', 'id')
+                                    : []
+                                )
+                                ->default($this->receiverFilters['province_id'])
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    $set('istat_types', null);
+                                    $this->receiverFilters['province_id'] = $state;
+                                    $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverList = [];
+                                })
+                                ->columnSpan(3),
+                            Select::make('istat_types')
+                                ->label('Tipo istat')
+                                ->options(IstatType::pluck('name', 'id'))
+                                ->multiple()
+                                ->default($this->receiverFilters['istat_types'])
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    $this->receiverFilters['istat_types'] = $state;
+                                    $this->receiverList = [];
+                                })
+                                ->columnSpan(8),
+                        ]),
 
                     Placeholder::make('recipients_list')                                                                // elenco dinamico con checkbox persistenti
                         ->label('Destinatari')
                         ->content(fn (callable $get) => $this->renderRecipientsList(
+                            $get('mail_type') ?? $this->receiverFilters['mail_type'],
                             $get('region_id') ?? $this->receiverFilters['region_id'],
                             $get('province_id') ?? $this->receiverFilters['province_id'],
-                            $get('mail_type') ?? $this->receiverFilters['mail_type']
+                            $get('istat_types') ?? $this->receiverFilters['istat_types']
                         ))
                         ->extraAttributes([
-                            'style' => 'min-height: 60vh; max-height: 67vh; overflow-y: auto;'
+                            'style' => 'min-height: 4vh; max-height: 60vh; overflow-y: auto;'
                         ])
                         ->visible(fn (callable $get) =>
                             !empty($get('region_id') ?? $this->receiverFilters['region_id']) ||
@@ -253,182 +291,10 @@ class CreateShipment extends CreateRecord
     }
 
     // === DESTINATARI ===
-    // private function renderRecipientsList($regionId, $provinceId): HtmlString
-    // {
-    //     if (!$regionId && !$provinceId) {
-    //         return new HtmlString('<em class="text-gray-500">Seleziona almeno regione o provincia per vedere i destinatari.</em>');
-    //     }
-
-
-    //     $recipients = Recipient::with('city.province.region')                                                           // ricerca dinamica: solo regione, o regione e provincia
-    //         ->when($provinceId, function ($q) use ($provinceId, $regionId) {
-    //             $validProvince = $regionId                                                                              // verifico che la provincia appartenga alla regione selezionata
-    //                 ? Province::where('id', $provinceId)->where('region_id', $regionId)->exists()
-    //                 : false;
-    //             if ($validProvince) {
-    //                 return $q->whereHas('city.province', fn($p) => $p->where('id', $provinceId));
-    //             }
-
-    //             return $q;                                                                                              // altrimenti ignora province_id
-    //         })
-    //         ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
-    //         ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
-    //         ->get();
-
-    //     if ($recipients->isEmpty()) {
-    //         return new HtmlString('<em class="text-gray-500">Nessun destinatario trovato per i filtri selezionati.</em>');
-    //     }
-
-    //     $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
-
-    //     foreach ($recipients as $recipient) {
-    //         $emails = [];
-    //         for ($i = 1; $i <= 5; $i++) {
-    //             $mail = $recipient->{"mail_$i"};
-    //             $type = $recipient->{"mail_type_$i"};
-    //             if (!empty($mail)) {
-    //                 $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
-    //             }
-    //         }
-    //         if (empty($emails)) continue;
-
-    //         $cityName = $recipient->city?->name ?? 'N/D';
-    //         $provinceCode = $recipient->city?->province?->code ?? 'N/D';
-
-    //         $html .= '<div class="border rounded-lg p-4 bg-gray-50">';
-    //         $html .= '<p class="font-medium text-sm mb-2">' . e($recipient->description) . ' - ' . e($cityName) . ' (' . e($provinceCode) . ')' . '</p>';
-    //         $html .= '<div class="space-y-1 text-sm">';
-
-    //         foreach ($emails as $index => $email) {
-    //             $field = "receiverList.{$recipient->id}.{$email['field']}";
-    //             $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
-
-    //             $hasSelection = isset($this->receiverList[$recipient->id]);                                             // verifico se il Recipient ha già selezioni salvate
-
-    //             $isFirstEmail = ($index === 0);                                                                         // spunto di default solo se è la prima email e non c'è selezione
-    //             $checked = $hasSelection
-    //                 ? in_array($email['field'], $this->receiverList[$recipient->id] ?? [])
-    //                 : $isFirstEmail;
-
-    //             // NON aggiungere automaticamente a $receiverList
-    //             // Solo l'utente può modificare lo stato
-
-    //             $html .= '
-    //             <div class="flex items-center gap-3">
-    //                 <input
-    //                     type="checkbox"
-    //                     wire:model.live="' . $field . '"
-    //                     id="' . $checkboxId . '"
-    //                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 flex-shrink-0"
-    //                     ' . ($checked ? 'checked' : '') . '
-    //                 >
-    //                 <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
-    //                     <span class="font-medium">' . e($email['email']) . '</span>
-    //                     <span class="text-gray-500 text-xs ml-1">(' . $email['type']->getLabel() . ')</span>
-    //                 </label>
-    //             </div>';
-    //         }
-
-    //         $html .= '</div></div>';
-    //     }
-
-    //     $html .= '</div>';
-    //     return new HtmlString($html);
-    // }
-
-    // private function renderRecipientsList($regionId, $provinceId): HtmlString
-    // {
-    //     if (!$regionId && !$provinceId) {
-    //         return new HtmlString('<em class="text-gray-500">Seleziona almeno regione o provincia per vedere i destinatari.</em>');
-    //     }
-
-    //     $recipients = Recipient::with('city.province.region')
-    //         ->when($provinceId, function ($q) use ($provinceId, $regionId) {
-    //             $validProvince = $regionId
-    //                 ? Province::where('id', $provinceId)->where('region_id', $regionId)->exists()
-    //                 : false;
-
-    //             if ($validProvince) {
-    //                 return $q->whereHas('city.province', fn($p) => $p->where('id', $provinceId));
-    //             }
-
-    //             return $q;
-    //         })
-    //         ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
-    //         ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
-    //         ->get();
-
-    //     if ($recipients->isEmpty()) {
-    //         return new HtmlString('<em class="text-gray-500">Nessun destinatario trovato per i filtri selezionati.</em>');
-    //     }
-
-    //     // Inizializza receiverList come array associativo con TUTTE le email spuntate
-    //     foreach ($recipients as $recipient) {
-    //         for ($i = 1; $i <= 5; $i++) {
-    //             $mail = $recipient->{"mail_$i"};
-    //             $type = $recipient->{"mail_type_$i"};
-    //             if (!empty($mail && $type === MailType::PEC)) {
-    //                 $fieldKey = "receiverList.{$recipient->id}.mail_{$i}";
-
-    //                 // Se non esiste già un valore, impostalo a true (spuntato)
-    //                 if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
-    //                     $this->receiverList[$recipient->id]["mail_{$i}"] = true;
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
-
-    //     foreach ($recipients as $recipient) {
-    //         $emails = [];
-    //         for ($i = 1; $i <= 5; $i++) {
-    //             $mail = $recipient->{"mail_$i"};
-    //             $type = $recipient->{"mail_type_$i"};
-    //             if (!empty($mail) && $type === MailType::PEC) {
-    //                 $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
-    //             }
-    //         }
-    //         if (empty($emails)) continue;
-
-    //         $cityName = $recipient->city?->name ?? 'N/D';
-    //         $provinceCode = $recipient->city?->province?->code ?? 'N/D';
-
-    //         $html .= '<div class="border rounded-lg p-4 bg-gray-50">';
-    //         $html .= '<p class="font-medium text-sm mb-2">' . e($recipient->description) . ' - ' . e($cityName) . ' (' . e($provinceCode) . ')' . '</p>';
-    //         $html .= '<div class="space-y-1 text-sm">';
-
-    //         foreach ($emails as $email) {
-    //             $field = "receiverList.{$recipient->id}.{$email['field']}";
-    //             $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
-
-    //             $html .= '
-    //             <div class="flex items-center gap-3">
-    //                 <input
-    //                     type="checkbox"
-    //                     wire:model.live="' . $field . '"
-    //                     id="' . $checkboxId . '"
-    //                     value="true"
-    //                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 flex-shrink-0"
-    //                 >
-    //                 <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
-    //                     <span class="font-medium">' . e($email['email']) . '</span>
-    //                     <span class="text-gray-500 text-xs ml-1">(' . $email['type']->getLabel() . ')</span>
-    //                 </label>
-    //             </div>';
-    //         }
-
-    //         $html .= '</div></div>';
-    //     }
-
-    //     $html .= '</div>';
-    //     return new HtmlString($html);
-    // }
-
-    private function renderRecipientsList($regionId, $provinceId, $mailType): HtmlString
+    private function renderRecipientsList($mailType, $regionId, $provinceId, $istatTypes): HtmlString
     {
-        if (!$regionId && !$provinceId) {
-            return new HtmlString('<em class="text-gray-500">Seleziona almeno regione o provincia per vedere i destinatari.</em>');
+        if (!$mailType || !$regionId || !$provinceId) {
+            return new HtmlString('<em class="text-gray-500">Impostare tutti i filtri obbligatori per vedere i destinatari.</em>');
         }
 
         $recipients = Recipient::with('city.province.region')
@@ -445,6 +311,7 @@ class CreateShipment extends CreateRecord
             })
             ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
             ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
+            ->when(!empty($istatTypes), fn($q) => $q->whereIn('istat_type_id', $istatTypes))
             ->get();
 
         if ($recipients->isEmpty()) {

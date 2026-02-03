@@ -41,13 +41,16 @@ class RecipientResource extends Resource
             ->columns(12)
             ->schema([
                 TextInput::make('description')->label('Descrizione')
+                    ->required()
                     ->columnSpan('full'),
                 Select::make('admin_type_id')->label('Tipo ente')
+                    ->required()
                     ->relationship(name: 'adminType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
                 Select::make('istat_type_id')->label('Tipo Istat')
+                    ->required()
                     ->relationship(name: 'istatType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
@@ -58,6 +61,7 @@ class RecipientResource extends Resource
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('city_id')->label('Comune')
+                    ->required()
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
                     ->preload()

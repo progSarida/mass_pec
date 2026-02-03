@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateRegistry extends CreateRecord
 {
     protected static string $resource = RegistryResource::class;
+
+    public function getTitle(): string
+    {
+        return "Nuova registrazione";
+    }
 }

@@ -15,6 +15,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
@@ -66,8 +67,15 @@ class AccountResource extends Resource
                             ->options(MailProtocolType::class),
                         TextInput::make('in_mail_port')->label('Porta')->columnSpan(2)
                             ->required(),
-                        Checkbox::make('delete')->label('Cancella mail')->columnSpan(2),
-                        TextInput::make('deleta_after_days')->label('dopo (gg)')->columnSpan(1),
+                        Checkbox::make('delete')->label('Cancella mail')->columnSpan(2)
+                            ->live(),
+                        TextInput::make('deleta_after_days')->label('dopo (gg)')->columnSpan(1)
+                            ->minValue(10)
+                            ->required(fn(Get $get) => $get('delete'))
+                            ->validationMessages([
+                                'min' => 'Valore minore di 10 giorni.'
+                            ])
+                            ->disabled(fn(Get $get) => !$get('delete')),
                         TextInput::make('username')->label('Username')->columnSpan(5)
                             ->required(),
                         TextInput::make('password')->label('Password')->columnSpan(5)

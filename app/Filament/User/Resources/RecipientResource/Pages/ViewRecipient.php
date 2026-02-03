@@ -23,8 +23,14 @@ class ViewRecipient extends ViewRecord
         $currentRecipient = $this->record;
         $previousDRecipient = Recipient::where('description', '<', $currentRecipient->description)->orderBy('description', 'desc')->first();
         $nextDRecipient = Recipient::where('description', '>', $currentRecipient->description)->orderBy('description', 'asc')->first();
-        $previousIRecipient = Recipient::where('id', '<', $currentRecipient->id)->orderBy('id', 'desc')->first();
-        $nextIRecipient = Recipient::where('id', '>', $currentRecipient->id)->orderBy('id', 'asc')->first();
+        $previousPRecipient = Recipient::whereHas('city', function ($query) use ($currentRecipient) {
+            $query->where('province_id', $currentRecipient->city->province_id);
+        })
+        ->where('id', '<', $currentRecipient->id)->orderBy('id', 'desc')->first();
+        $nextPRecipient = Recipient::whereHas('city', function ($query) use ($currentRecipient) {
+            $query->where('province_id', $currentRecipient->city->province_id);
+        })
+        ->where('id', '>', $currentRecipient->id)->orderBy('id', 'asc')->first();
         return [
             Actions\Action::make('back')
                 ->label('Indietro')
@@ -46,6 +52,23 @@ class ViewRecipient extends ViewRecord
                 ->visible(function () use ($nextDRecipient) { return $nextDRecipient;})
                 ->action(function () use ($nextDRecipient) {
                     $this->redirect(RecipientResource::getUrl('view', ['record' => $nextDRecipient->id]));
+                }),
+            // Scorrimento provincia
+            Actions\Action::make('previous_p_recipient')
+                ->label('Prec. provincia')
+                ->color('info')
+                ->icon('heroicon-o-arrow-left-circle')
+                ->visible(function () use ($previousPRecipient) { return $previousPRecipient;})
+                ->action(function () use ($previousPRecipient) {
+                    $this->redirect(RecipientResource::getUrl('view', ['record' => $previousPRecipient->id]));
+                }),
+            Actions\Action::make('next_p_recipient')
+                ->label('Succ. provincia')
+                ->color('info')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->visible(function () use ($nextPRecipient) { return $nextPRecipient;})
+                ->action(function () use ($nextPRecipient) {
+                    $this->redirect(RecipientResource::getUrl('view', ['record' => $nextPRecipient->id]));
                 }),
             Actions\EditAction::make(),
         ];
