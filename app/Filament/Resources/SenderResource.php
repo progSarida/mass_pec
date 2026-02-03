@@ -55,7 +55,15 @@ class SenderResource extends Resource
                     ->options(ManagementType::class),
                 Select::make('mail_type')->label('Tipo mail')->columnSpan(4)
                     ->required()
-                    ->options(MailType::class),
+                    // ->options(MailType::class)
+                    ->options(
+                        collect(MailType::cases())
+                            ->filter(fn (MailType $type) => $type->show())
+                            ->mapWithKeys(fn (MailType $type) => [
+                                $type->value => $type->getLabel() // Forza il recupero della stringa
+                            ])
+                            ->toArray()
+                    ),
                 Select::make('connection_safety_type')->label('Tipo cifratura')->columnSpan(4)
                     ->required()
                     ->options(ConnectionSafetyType::class),
