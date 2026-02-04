@@ -6,6 +6,7 @@ use App\Enums\MailType;
 use App\Filament\User\Resources\ShipmentResource;
 use App\Models\Attachment;
 use App\Models\IstatType;
+use App\Models\OfficeType;
 use App\Models\Recipient;
 use App\Models\Region;
 use App\Models\Province;
@@ -68,12 +69,14 @@ class CreateShipment extends CreateRecord
         'region_id' => null,
         'province_id' => null,
         'istat_types' => null,
+        'office_types' => null,
     ];
 
     public $mail_type = null;
     public $region_id = null;
     public $province_id = null;
     public $istat_types = null;
+    public $office_types = null;
 
     // public function mount(): void
     // {
@@ -144,7 +147,7 @@ class CreateShipment extends CreateRecord
                     : 'Destinatari PEC'
                 )
                 ->modalHeading('Selezione Destinatari PEC')
-                ->modalWidth('5xl')
+                ->modalWidth('7xl')
                 ->form([
                     // Filtri persistenti
                     Grid::make(9)
@@ -167,9 +170,11 @@ class CreateShipment extends CreateRecord
                                     $set('region_id', null);
                                     $set('province_id', null);
                                     $set('istat_types', null);
+                                    $set('office_types', null);
                                     $this->receiverFilters['region_id'] = null;
                                     $this->receiverFilters['province_id'] = null;
                                     $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
                                 ->columnSpan(3),
@@ -182,9 +187,11 @@ class CreateShipment extends CreateRecord
                                 ->afterStateUpdated(function ($state, callable $set) {
                                     $set('province_id', null);
                                     $set('istat_types', null);
+                                    $set('office_types', null);
                                     $this->receiverFilters['region_id'] = $state;
                                     $this->receiverFilters['province_id'] = null;
                                     $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
                                 ->columnSpan(3),
@@ -199,8 +206,10 @@ class CreateShipment extends CreateRecord
                                 ->live()
                                 ->afterStateUpdated(function ($state, callable $set) {
                                     $set('istat_types', null);
+                                    $set('office_types', null);
                                     $this->receiverFilters['province_id'] = $state;
                                     $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
                                 ->columnSpan(3),
@@ -211,10 +220,23 @@ class CreateShipment extends CreateRecord
                                 ->default($this->receiverFilters['istat_types'])
                                 ->live()
                                 ->afterStateUpdated(function ($state, callable $set) {
+                                    $set('office_types', null);
                                     $this->receiverFilters['istat_types'] = $state;
+                                    $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
-                                ->columnSpan(8),
+                                ->columnSpan(7),
+                            Select::make('office_types')
+                                ->label('Ufficio')
+                                ->options(OfficeType::pluck('name', 'id'))
+                                ->multiple()
+                                ->default($this->receiverFilters['office_types'])
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    $this->receiverFilters['office_types'] = $state;
+                                    $this->receiverList = [];
+                                })
+                                ->columnSpan(2),
                         ]),
 
                     Placeholder::make('recipients_list')                                                                // elenco dinamico con checkbox persistenti
@@ -223,7 +245,8 @@ class CreateShipment extends CreateRecord
                             $get('mail_type') ?? $this->receiverFilters['mail_type'],
                             $get('region_id') ?? $this->receiverFilters['region_id'],
                             $get('province_id') ?? $this->receiverFilters['province_id'],
-                            $get('istat_types') ?? $this->receiverFilters['istat_types']
+                            $get('istat_types') ?? $this->receiverFilters['istat_types'],
+                            $get('office_types') ?? $this->receiverFilters['office_types']
                         ))
                         ->extraAttributes([
                             'style' => 'min-height: 4vh; max-height: 60vh; overflow-y: auto;'
@@ -237,6 +260,8 @@ class CreateShipment extends CreateRecord
                     'region_id' => $this->receiverFilters['region_id'],
                     'province_id' => $this->receiverFilters['province_id'],
                     'mail_type' => $this->receiverFilters['mail_type'] ?? MailType::PEC,
+                    'istat_types' => $this->receiverFilters['istat_types'],
+                    'office_types' => $this->receiverFilters['office_types'],
                 ])
                 ->action(function () {
                     // Rimuovo le email deselezionate (false o null)
@@ -291,102 +316,191 @@ class CreateShipment extends CreateRecord
     }
 
     // === DESTINATARI ===
-    private function renderRecipientsList($mailType, $regionId, $provinceId, $istatTypes): HtmlString
+    // private function renderRecipientsList($mailType, $regionId, $provinceId, $istatTypes, $officeTypes): HtmlString
+    // {
+    //     if (!$mailType || !$regionId || !$provinceId) {
+    //         return new HtmlString('<em class="text-gray-500">Impostare tutti i filtri obbligatori per vedere i destinatari.</em>');
+    //     }
+
+    //     $officeNames = OfficeType::pluck('name', 'id');
+
+    //     $recipients = Recipient::with('city.province.region')
+    //         ->when($provinceId, function ($q) use ($provinceId, $regionId) {
+    //             $validProvince = $regionId
+    //                 ? Province::where('id', $provinceId)->where('region_id', $regionId)->exists()
+    //                 : false;
+
+    //             if ($validProvince) {
+    //                 return $q->whereHas('city.province', fn($p) => $p->where('id', $provinceId));
+    //             }
+
+    //             return $q;
+    //         })
+    //         ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
+    //         ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
+    //         ->when(!empty($istatTypes), fn($q) => $q->whereIn('istat_type_id', $istatTypes))
+    //         ->get();
+
+    //     if ($recipients->isEmpty()) {
+    //         return new HtmlString('<em class="text-gray-500">Nessun destinatario trovato per i filtri selezionati.</em>');
+    //     }
+
+    //     // NUOVO: Inizializza receiverList solo per nuovi destinatari
+    //     foreach ($recipients as $recipient) {
+    //         for ($i = 1; $i <= 5; $i++) {
+    //             $mail = $recipient->{"mail_$i"};
+    //             $type = $recipient->{"mail_type_$i"};
+    //             $oType = $recipient->{"office_type_id_$i"};
+
+    //             $officeFilter = !empty($officeTypes) ? in_array($oType, $officeTypes) : true;
+
+    //             // if (!empty($mail) && $type === MailType::PEC) {
+    //             if (!empty($mail) && $type === $mailType && $officeFilter) {
+    //                 // Inizializza solo se il destinatario non ha ancora selezioni
+    //                 if (!isset($this->receiverList[$recipient->id])) {
+    //                     $this->receiverList[$recipient->id] = [];
+    //                 }
+
+    //                 // Spunta di default solo se non è mai stato selezionato prima
+    //                 if (!array_key_exists("mail_{$i}", $this->receiverList[$recipient->id])) {
+    //                     $this->receiverList[$recipient->id]["mail_{$i}"] = true;
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     // $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
+    //     $html = '<div class="space-y-4 p-1">';
+
+    //     foreach ($recipients as $recipient) {
+    //         $emails = [];
+    //         for ($i = 1; $i <= 5; $i++) {
+    //             $mail = $recipient->{"mail_$i"};
+    //             $type = $recipient->{"mail_type_$i"};
+    //             $oType = $recipient->{"office_type_id_$i"};
+    //             $officeFilter = !empty($officeTypes) ? in_array($oType, $officeTypes) : true;
+    //             // $officeFilter = true;
+    //             if (!empty($mail) && $type === $mailType && $officeFilter) {
+    //                 $emails[] = ['field' => "mail_$i", 'email' => $mail, 'mtype' => $type, 'otype' => $oType];
+    //             }
+    //         }
+    //         if (empty($emails)) continue;
+
+    //         $cityName = $recipient->city?->name ?? 'N/D';
+    //         $provinceCode = $recipient->city?->province?->code ?? 'N/D';
+
+    //         $html .= '<div class="border rounded-lg p-4 bg-gray-50">';
+    //         $html .= '<p class="font-medium text-sm mb-2">' . e($recipient->description) . ' - ' . e($cityName) . ' (' . e($provinceCode) . ')' . '</p>';
+    //         $html .= '<div class="space-y-1 text-sm">';
+
+    //         foreach ($emails as $email) {
+    //             $field = "receiverList.{$recipient->id}.{$email['field']}";
+    //             $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
+
+    //             // Verifica se è spuntato
+    //             $checked = !empty($this->receiverList[$recipient->id][$email['field']]);
+
+    //             $office = $officeNames[$email['otype']] ?? 'N/D';
+
+    //             $html .= '
+    //             <div class="flex items-center gap-3">
+    //                 <input
+    //                     type="checkbox"
+    //                     wire:model.live="' . $field . '"
+    //                     id="' . $checkboxId . '"
+    //                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 flex-shrink-0"
+    //                     ' . ($checked ? 'checked' : '') . '
+    //                 >
+    //                 <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
+    //                     <span class="font-medium">' . e($email['email']) . '</span>
+    //                     <span class="text-gray-500 text-xs ml-1">(' . $email['mtype']->getLabel() . ' - ' . $office . ')</span>
+    //                 </label>
+    //             </div>';
+    //         }
+
+    //         $html .= '</div></div>';
+    //     }
+
+    //     $html .= '</div>';
+    //     return new HtmlString($html);
+    // }
+
+    private function renderRecipientsList($mailType, $regionId, $provinceId, $istatTypes, $officeTypes): HtmlString
     {
-        if (!$mailType || !$regionId || !$provinceId) {
-            return new HtmlString('<em class="text-gray-500">Impostare tutti i filtri obbligatori per vedere i destinatari.</em>');
+        // 1. Verifica Filtri Base
+        if (!$mailType || !$provinceId) {
+            return new HtmlString('<div class="p-4 text-orange-600 bg-orange-50 rounded-lg">Seleziona Tipo Email e Provincia per caricare i destinatari.</div>');
         }
 
-        $recipients = Recipient::with('city.province.region')
-            ->when($provinceId, function ($q) use ($provinceId, $regionId) {
-                $validProvince = $regionId
-                    ? Province::where('id', $provinceId)->where('region_id', $regionId)->exists()
-                    : false;
+        $officeNames = OfficeType::pluck('name', 'id');
 
-                if ($validProvince) {
-                    return $q->whereHas('city.province', fn($p) => $p->where('id', $provinceId));
-                }
-
-                return $q;
-            })
-            ->when(!$provinceId && $regionId, fn($q) => $q->whereHas('city.province.region', fn($r) => $r->where('id', $regionId)))
-            ->when(!$provinceId && !$regionId, fn($q) => $q->whereRaw('1 = 0'))
+        // 2. Query Destinatari
+        $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
             ->when(!empty($istatTypes), fn($q) => $q->whereIn('istat_type_id', $istatTypes))
+            ->with('city.province')
             ->get();
 
         if ($recipients->isEmpty()) {
-            return new HtmlString('<em class="text-gray-500">Nessun destinatario trovato per i filtri selezionati.</em>');
+            return new HtmlString('<div class="p-4 text-gray-500 italic">Nessun destinatario trovato per questa provincia.</div>');
         }
 
-        // NUOVO: Inizializza receiverList solo per nuovi destinatari
-        foreach ($recipients as $recipient) {
-            for ($i = 1; $i <= 5; $i++) {
-                $mail = $recipient->{"mail_$i"};
-                $type = $recipient->{"mail_type_$i"};
+        $isFirstLoad = empty($this->receiverList);
 
-                // if (!empty($mail) && $type === MailType::PEC) {
-                if (!empty($mail) && $type === $mailType) {
-                    // Inizializza solo se il destinatario non ha ancora selezioni
-                    if (!isset($this->receiverList[$recipient->id])) {
-                        $this->receiverList[$recipient->id] = [];
-                    }
-
-                    // Spunta di default solo se non è mai stato selezionato prima
-                    if (!array_key_exists("mail_{$i}", $this->receiverList[$recipient->id])) {
-                        $this->receiverList[$recipient->id]["mail_{$i}"] = true;
-                    }
-                }
-            }
-        }
-
-        // $html = '<div class="space-y-4 max-h-96 overflow-y-auto p-1">';
         $html = '<div class="space-y-4 p-1">';
+        $foundAnyEmail = false;
 
         foreach ($recipients as $recipient) {
-            $emails = [];
+            $emailsHtml = '';
+
             for ($i = 1; $i <= 5; $i++) {
                 $mail = $recipient->{"mail_$i"};
-                $type = $recipient->{"mail_type_$i"};
-                if (!empty($mail) && $type === $mailType) {
-                    $emails[] = ['field' => "mail_$i", 'email' => $mail, 'type' => $type];
+                $type = $recipient->{"mail_type_$i"}; // Questo di solito è un Enum
+                $oType = $recipient->{"office_type_id_$i"};
+
+                // Filtro Ufficio
+                $officeFilter = empty($officeTypes) || in_array((string)$oType, array_map('strval', $officeTypes));
+
+                // CONFRONTO (usiamo == meno rigido per evitare problemi di tipo stringa/int)
+                if (!empty($mail) && $type == $mailType && $officeFilter) {
+                    $foundAnyEmail = true;
+                    $field = "receiverList.{$recipient->id}.mail_{$i}";
+                    $checkboxId = "rcpt-{$recipient->id}-{$i}";
+
+                    // Inizializza lo stato se non esiste
+                    if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
+                        $this->receiverList[$recipient->id]["mail_{$i}"] = $isFirstLoad;
+                    }
+
+                    $officeLabel = $officeNames[$oType] ?? 'N/D';
+
+                    $emailsHtml .= '
+                    <div class="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                        <input type="checkbox"
+                            wire:model.live="' . $field . '"
+                            id="' . $checkboxId . '"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <label for="' . $checkboxId . '" class="flex flex-col cursor-pointer">
+                            <span class="text-sm font-semibold text-gray-900">' . e($mail) . '</span>
+                            <span class="text-xs text-gray-500">' . e($type->getLabel()) . ' - ' . e($officeLabel) . '</span>
+                        </label>
+                    </div>';
                 }
             }
-            if (empty($emails)) continue;
 
-            $cityName = $recipient->city?->name ?? 'N/D';
-            $provinceCode = $recipient->city?->province?->code ?? 'N/D';
-
-            $html .= '<div class="border rounded-lg p-4 bg-gray-50">';
-            $html .= '<p class="font-medium text-sm mb-2">' . e($recipient->description) . ' - ' . e($cityName) . ' (' . e($provinceCode) . ')' . '</p>';
-            $html .= '<div class="space-y-1 text-sm">';
-
-            foreach ($emails as $email) {
-                $field = "receiverList.{$recipient->id}.{$email['field']}";
-                $checkboxId = 'rcpt-' . $recipient->id . '-' . $email['field'];
-
-                // Verifica se è spuntato
-                $checked = !empty($this->receiverList[$recipient->id][$email['field']]);
-
-                $html .= '
-                <div class="flex items-center gap-3">
-                    <input
-                        type="checkbox"
-                        wire:model.live="' . $field . '"
-                        id="' . $checkboxId . '"
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 flex-shrink-0"
-                        ' . ($checked ? 'checked' : '') . '
-                    >
-                    <label for="' . $checkboxId . '" class="cursor-pointer select-none text-sm">
-                        <span class="font-medium">' . e($email['email']) . '</span>
-                        <span class="text-gray-500 text-xs ml-1">(' . $email['type']->getLabel() . ')</span>
-                    </label>
-                </div>';
+            if ($emailsHtml !== '') {
+                $html .= '<div class="border rounded-xl p-4 bg-white shadow-sm ring-1 ring-gray-200">';
+                $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . '</div>';
+                $html .= $emailsHtml;
+                $html .= '</div>';
             }
-
-            $html .= '</div></div>';
         }
 
         $html .= '</div>';
+
+        if (!$foundAnyEmail) {
+            return new HtmlString('<div class="p-4 text-red-500 bg-red-50 rounded-lg">Trovati destinatari, ma nessuno ha una mail di tipo "' . e($mailType) . '" negli uffici selezionati.</div>');
+        }
+
         return new HtmlString($html);
     }
 
