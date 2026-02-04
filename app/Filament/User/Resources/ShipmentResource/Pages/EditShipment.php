@@ -160,6 +160,7 @@ class EditShipment extends EditRecord
                     ])
                     ->modalSubmitAction(false)
                     ->modalCancelAction(false),
+
                 Actions\Action::make('sendShipment')
                     ->label('Invio PEC')
                     ->icon('hugeicons-mail-send-01')

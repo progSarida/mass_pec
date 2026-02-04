@@ -51,19 +51,23 @@ class ShipmentEmailService
      */
     public function prepareAttachments(Shipment $shipment): array
     {
-        $attachments = [];
+        $disk = config('filesystems.default'); // 's3' o 'local'
 
-        // Costruiamo il percorso: shipments/{id}/{nome_zip}
-        $zipPath = $shipment->shipment_path . '/' . $shipment->attachment;
+        // Pulisci il path per evitare slash doppi o iniziali (fondamentale per S3)
+        $folder = ltrim((string)$shipment->shipment_path, '/');
+        $fileName = ltrim((string)$shipment->attachment, '/');
+        $zipPath = $folder . '/' . $fileName;
 
-        if (Storage::exists($zipPath)) {
-            $attachments[] = [
-                'path' => Storage::path($zipPath),
+        // Verifichiamo che il file esista sul disco (S3 o locale)
+        if (Storage::disk($disk)->exists($zipPath)) {
+            return [[
+                'disk' => $disk,
+                'path' => $zipPath,
                 'name' => $shipment->attachment,
                 'mime' => 'application/zip',
-            ];
+            ]];
         }
 
-        return $attachments;
+        return [];
     }
 }

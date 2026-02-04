@@ -49,10 +49,12 @@ class RegistryMailable extends Mailable
     public function attachments(): array
     {
         return collect($this->mailAttachments)
-            ->map(fn($attachment) => Attachment::fromPath($attachment['path'])
-                ->as($attachment['name'])
-                ->withMime($attachment['mime'] ?? 'application/octet-stream')
-            )
+            ->map(function($attachment) {
+                // Usiamo fromStorageDisk per compatibilità S3
+                return Attachment::fromStorageDisk($attachment['disk'], $attachment['path'])
+                    ->as($attachment['name'])
+                    ->withMime($attachment['mime'] ?? 'application/octet-stream');
+            })
             ->toArray();
     }
 }

@@ -78,6 +78,8 @@ class ProcessRegistryEmailJob implements ShouldQueue
         Bus::batch($jobs)
             ->name("Send Registry Email #{$registryId} ({$protocolNumber})")
             ->then(function (Batch $batch) use ($registryId, $userId, $protocolNumber) {
+                if ($batch->cancelled()) return; // Aggiunta di sicurezza
+
                 // Tutti i job sono completati con successo
                 $registry = Registry::find($registryId);
 

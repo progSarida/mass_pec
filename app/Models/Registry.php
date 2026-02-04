@@ -82,7 +82,7 @@ class Registry extends Model
             }
             if($registry->flow_type == FlowType::INTERNAL){
                 $lastIndex = Registry::where('flow_type', 'internal')->max('flow_index');
-                $registry->flow_index = $lastIndex++;
+                $registry->flow_index = ++$lastIndex;
             }
             $registry->register_user_id = Auth::user()->id;
         });

@@ -37,65 +37,40 @@ class SendRegistryEmailJob implements ShouldQueue
      * Execute the job.
      */
     public function handle(RegistryEmailService $registryEmailService): void
-    {
-        // Controlla se il batch è stato cancellato
-        if ($this->batch()?->cancelled()) {
-            return;
-        }
+{
+    if ($this->batch()?->cancelled()) return;
 
-        $registry = Registry::find($this->registryId);
+    $registry = Registry::find($this->registryId);
+    if (!$registry || $registry->send_date) return;
 
-        if (!$registry) {
-            Log::error("Registry non trovato", ['id' => $this->registryId]);
-            return;
-        }
+    try {
+        $registryEmailService->setAccount($registry->account_id);
+        $account = $registryEmailService->getAccount();
 
-        // Verifica che sia un'email in uscita non ancora inviata
-        if ($registry->send_date) {
-            Log::warning("Email già inviata", [
-                'registry_id' => $this->registryId,
-                'protocol_number' => $registry->protocol_number,
-            ]);
-            return;
-        }
+        // Usiamo un nome mailer standard o univoco per il processo
+        $mailerName = "dynamic_smtp";
 
-        if (!$registry->account_id) {
-            throw new Exception("Account non specificato per Registry #{$this->registryId}");
-        }
+        Config::set("mail.mailers.{$mailerName}", $account->getSmtpMailerConfig());
 
-        try {
-            // Imposta l'account
-            $registryEmailService->setAccount($registry->account_id);
-            $account = $registryEmailService->getAccount();
+        $attachments = $registryEmailService->prepareAttachments($registry);
 
-            // Configura il mailer dinamico
-            $mailerName = "registry_{$registry->id}_{$account->id}";
-            Config::set("mail.mailers.{$mailerName}", $account->getSmtpMailerConfig());
+        $mailable = new RegistryMailable(
+            subject: $registry->subject,
+            body: $registry->body,
+            fromAddress: $account->getFromAddress(),
+            fromName: $account->getFromName(),
+            attachments: $attachments,
+            protocolNumber: $registry->protocol_number,
+        );
 
-            // Prepara gli allegati
-            $attachments = $registryEmailService->prepareAttachments($registry);
+        // Forza l'utilizzo del mailer appena configurato
+        Mail::mailer($mailerName)
+            ->to($this->recipientEmail, $this->recipientName)
+            ->send($mailable);
 
-            // Crea e invia la mail
-            $mailable = new RegistryMailable(
-                subject: $registry->subject,
-                body: $registry->body,
-                fromAddress: $account->getFromAddress(),
-                fromName: $account->getFromName(),
-                attachments: $attachments,
-                protocolNumber: $registry->protocol_number,
-            );
+        Log::info("Email Registry inviata", ['recipient' => $this->recipientEmail]);
 
-            Mail::mailer($mailerName)
-                ->to($this->recipientEmail, $this->recipientName)
-                ->send($mailable);
-
-            Log::info("Email Registry inviata con successo", [
-                'registry_id' => $this->registryId,
-                'protocol_number' => $registry->protocol_number,
-                'recipient' => $this->recipientEmail,
-            ]);
-
-        } catch (Exception $e) {
+    } catch (Exception $e) {
             Log::error("Errore invio email Registry", [
                 'registry_id' => $this->registryId,
                 'protocol_number' => $registry->protocol_number ?? 'N/A',

@@ -7,6 +7,7 @@ use App\Models\Registry;
 use App\Models\Recipient;
 use Illuminate\Support\Facades\Storage;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class RegistryEmailService
 {
@@ -40,29 +41,53 @@ class RegistryEmailService
     }
 
     /**
-     * Prepara gli allegati per l'invio da Registry
+     * Prepara gli allegati per l'invio da Registry, compatibile con S3 e Local.
      */
     public function prepareAttachments(Registry $registry): array
     {
         $attachments = [];
-        $attachmentRelativePath = ltrim($registry->attachment_path, '/');
+        $disk = config('filesystems.default'); // Recupera il disco (es. 's3' o 'public')
 
-        if (!$attachmentRelativePath) {
+        // Pulizia del percorso per evitare slash doppi o iniziali
+        $path = ltrim((string)$registry->attachment_path, '/');
+
+        if (empty($path)) {
             return $attachments;
         }
 
-        $files = Storage::files($attachmentRelativePath);
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
+        $storage = Storage::disk($disk);
 
-        foreach ($files as $file) {
-            if (!Storage::exists($file)) {
-                continue;
+        try {
+            // 1. Controllo esistenza della cartella/percorso
+            if (!$storage->exists($path)) {
+                Log::warning("Percorso allegati Registry non trovato", [
+                    'registry_id' => $registry->id,
+                    'disk' => $disk,
+                    'path' => $path
+                ]);
+                return $attachments;
             }
 
-            $attachments[] = [
-                'path' => Storage::path($file),
-                'name' => basename($file),
-                'mime' => Storage::mimeType($file),
-            ];
+            // 2. Recupero lista file (restituisce path relativi al disco)
+            $files = $storage->files($path);
+
+            foreach ($files as $file) {
+                // Verifichiamo l'esistenza del singolo file per ridondanza
+                if ($storage->exists($file)) {
+                    $attachments[] = [
+                        'disk' => $disk,
+                        'path' => $file,
+                        'name' => basename($file),
+                        // Fallback se il Mime Type non è rilevabile (fondamentale su S3)
+                        'mime' => $storage->mimeType($file) ?: 'application/octet-stream',
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Errore durante la preparazione allegati Registry #{$registry->id}", [
+                'error' => $e->getMessage()
+            ]);
         }
 
         return $attachments;

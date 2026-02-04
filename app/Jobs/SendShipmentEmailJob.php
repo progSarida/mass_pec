@@ -47,7 +47,7 @@ class SendShipmentEmailJob implements ShouldQueue
         $shipment = Shipment::find($this->shipmentId);
         $receiver = Receiver::find($this->receiverId);
 
-        if (!$shipment || !$receiver) return;
+        if (!$shipment || !$receiver || $receiver->send_date !== null) return;
 
         /**
          * 1. CONTROLLO ANTI-DUPLICATO
@@ -58,8 +58,10 @@ class SendShipmentEmailJob implements ShouldQueue
 
         $sender = Sender::find($shipment->sender_id) ?? Sender::find(1);
 
+        $mailerName = 'dynamic_smtp';
+
         // 2. Configurazione SMTP dinamica
-        $this->configureSmtp($sender);
+        $this->configureSmtp($sender, $mailerName);
 
         // 3. Preparazione oggetto con REF (come nella vecchia versione)
         $customSubject = $shipment->mail_object . " [" . $receiver->ref . "]";
@@ -68,7 +70,7 @@ class SendShipmentEmailJob implements ShouldQueue
         $attachments = $service->prepareAttachments($shipment);
 
         // 5. INVIO EMAIL
-        Mail::to($receiver->address)->send(
+        Mail::mailer($mailerName)->to($receiver->address)->send(
             new ShipmentMailable($shipment, $attachments, $customSubject)
         );
 
@@ -93,23 +95,19 @@ class SendShipmentEmailJob implements ShouldQueue
     /**
      * Configura il mittente SMTP leggendo i dati dal DB
      */
-    protected function configureSmtp(Sender $sender): void
+    protected function configureSmtp(Sender $sender, string $mailerName): void
     {
         $password = $sender->out_password;
 
         try {
             $decrypted = Crypt::decryptString($sender->out_password);
-
-            if (str_starts_with($decrypted, 's:')) {
-                $password = unserialize($decrypted);
-            } else {
-                $password = $decrypted;
-            }
+            $password = str_starts_with($decrypted, 's:') ? unserialize($decrypted) : $decrypted;
         } catch (\Exception $e) {
             Log::error("Errore decriptazione password per Sender ID: {$sender->id}");
         }
 
-        Config::set('mail.mailers.dynamic_smtp', [
+        // Settiamo lo slot specifico senza toccare i default globali
+        Config::set("mail.mailers.{$mailerName}", [
             'transport' => 'smtp',
             'host' => $sender->out_mail_server,
             'port' => $sender->out_mail_port,
@@ -120,8 +118,5 @@ class SendShipmentEmailJob implements ShouldQueue
             'auth_mode' => null,
         ]);
 
-        Config::set('mail.default', 'dynamic_smtp');
-        Config::set('mail.from.address', $sender->address);
-        Config::set('mail.from.name', $sender->public_name);
     }
 }

@@ -20,7 +20,7 @@ class ShipmentMailable extends Mailable
      */
     public function __construct(
         public Shipment $shipment,
-        public array $attachmentData = [],
+        public array $attachmentsData = [],
         public ?string $customSubject = null
     ) {}
 
@@ -30,6 +30,11 @@ class ShipmentMailable extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            // Recupera il mittente direttamente dal Sender legato alla spedizione
+            from: new Address(
+                $this->shipment->sender->address,
+                $this->shipment->sender->public_name
+            ),
             subject: $this->customSubject ?? $this->shipment->mail_object ?? 'Invio Spedizione',
         );
     }
@@ -51,14 +56,17 @@ class ShipmentMailable extends Mailable
      */
     public function attachments(): array
     {
-        $attachments = [];
+        $attachmentsList = [];
 
-        foreach ($this->attachmentData as $data) {
-            $attachments[] = Attachment::fromPath($data['path'])
-                ->as($data['name'])
-                ->withMime($data['mime']);
+        foreach ($this->attachmentsData as $attachment) {
+            $attachmentsList[] = Attachment::fromStorageDisk(
+                    $attachment['disk'],
+                    $attachment['path']
+                )
+                ->as($attachment['name'])
+                ->withMime($attachment['mime']);
         }
 
-        return $attachments;
+        return $attachmentsList;
     }
 }

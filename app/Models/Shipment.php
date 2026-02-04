@@ -33,7 +33,6 @@ class Shipment extends Model
         'no_delivery_receipt',
         'no_missed_delivery_receipt',
         'no_anomaly_receipt',
-        'no_anomaly_receipt',
         'extraction_date',
         'extraction_zip_file',
     ];
@@ -99,8 +98,9 @@ class Shipment extends Model
         });
 
         static::deleted(function ($shipment) {
-            if (Storage::exists($shipment->shipment_path)) {
-                Storage::deleteDirectory($shipment->shipment_path);
+            // Usiamo il disco di default o specifichiamo 's3' / 'public'
+            if ($shipment->shipment_path && Storage::disk(config('filesystems.default'))->exists($shipment->shipment_path)) {
+                Storage::disk(config('filesystems.default'))->deleteDirectory($shipment->shipment_path);
             }
         });
 
