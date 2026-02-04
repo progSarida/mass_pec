@@ -5,7 +5,9 @@ namespace App\Filament\User\Resources;
 use App\Enums\MailType;
 use App\Filament\User\Resources\RecipientResource\Pages;
 use App\Filament\User\Resources\RecipientResource\RelationManagers;
+use App\Models\AdminType;
 use App\Models\City;
+use App\Models\IstatType;
 use App\Models\OfficeType;
 use App\Models\Province;
 use App\Models\Recipient;
@@ -257,6 +259,28 @@ class RecipientResource extends Resource
                         $value = $data['value'] ?? null;
                         if ($value) {
                             $query->where('city_id', $value);
+                        }
+                    })
+                    ->searchable(),
+
+                SelectFilter::make('admin_type_id')
+                    ->label('Tipo ente')
+                    ->options(fn () => AdminType::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->where('admin_type_id', $value);
+                        }
+                    })
+                    ->searchable(),
+
+                SelectFilter::make('istat_type_id')
+                    ->label('Tipo istat')
+                    ->options(fn () => IstatType::pluck('name', 'id')->toArray())
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value) {
+                            $query->where('istat_type_id', $value);
                         }
                     })
                     ->searchable(),
