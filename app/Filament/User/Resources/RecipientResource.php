@@ -205,11 +205,9 @@ class RecipientResource extends Resource
                     ->label('Descrizione')
                     ->searchable(),
                 TextColumn::make('adminType.name')
-                    ->label('Tipo ente')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Tipo ente'),
                 TextColumn::make('istatType.name')
-                    ->label('Tipo Istat')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Tipo Istat'),
                 TextColumn::make('city.name')
                     ->label('Comune'),
                 TextColumn::make('city.province.code')
@@ -217,13 +215,16 @@ class RecipientResource extends Resource
                 TextColumn::make('city.province.region.name')
                     ->label('Regione'),
                 TextColumn::make('resp_title')
-                    ->label('Titolo Resp.'),
+                    ->label('Titolo Resp.')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('resp_surname')
                     ->label('Cognome Resp.')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('resp_name')
                     ->label('Nome Resp.')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('region_id')
