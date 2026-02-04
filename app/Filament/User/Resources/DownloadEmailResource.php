@@ -29,6 +29,7 @@ use Filament\Forms\Components\Placeholder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource\RelationManagers;
+use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 
@@ -87,35 +88,53 @@ class DownloadEmailResource extends Resource
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)
+                    ->visible(fn($record) => $record)
+                    ->headerActions([
+                        Action::make('downloadAll')
+                            ->label('Scarica tutto (.zip)')
+                            ->icon('heroicon-m-arrow-down-tray')
+                            ->color('gray')
+                            ->size('sm')
+                            // Il pulsante appare solo se c'è più di un file
+                            ->visible(function ($record) {
+                                if (!$record || !$record->attachment_path) return false;
+                                return count(Storage::files($record->attachment_path)) > 1;
+                            })
+                            ->url(fn ($record) => route('attachments.zip', [
+                                'type' => $record->getMorphClass(),
+                                'id' => $record->id
+                            ]))
+                            ->openUrlInNewTab(),
+                    ])
                     ->schema([
                         Placeholder::make('attachments')
                             ->label('')
                             ->content(function ($record) {
                                 if (!$record || !$record->attachment_path) {
-                                    return 'Nessun allegato.';
+                                    return 'Nessuna cartella allegati trovata.';
                                 }
 
-                                // $files = Storage::disk('public')->files($record->attachment_path);
                                 $files = Storage::files($record->attachment_path);
 
                                 if (empty($files)) {
-                                    return 'Nessuna cartella allegati trovata.';
+                                    return 'Nessun allegato.';
                                 }
 
                                 return new HtmlString(
                                     collect($files)->map(function ($file) {
                                         $name = basename($file);
-                                        // $url = Storage::url($file);
-                                        $url = Storage::temporaryUrl($file, now()->addMinutes(5));
+                                        $url = Storage::temporaryUrl($file, now()->addMinutes(15));
                                         return <<<HTML
-                                        <div class="flex items-center gap-2">
-                                            📎 <a href="{$url}" target="_blank" class="text-blue-600 hover:underline">{$name}</a>
+                                        <div class="flex items-center gap-2 py-1">
+                                            <span class="text-gray-400 text-xs">📎</span>
+                                            <a href="{$url}" target="_blank" class="text-sm text-blue-600 hover:underline hover:text-blue-800 transition">
+                                                {$name}
+                                            </a>
                                         </div>
                                         HTML;
                                     })->implode('')
                                 );
                             })
-                            ->extraAttributes(['style' => 'line-height:1.8'])
                             ->columnSpan('full'),
                     ]),
             ]);
