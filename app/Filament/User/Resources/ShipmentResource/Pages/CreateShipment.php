@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources\ShipmentResource\Pages;
 
 use App\Enums\MailType;
 use App\Filament\User\Resources\ShipmentResource;
+use App\Models\AdminType;
 use App\Models\Attachment;
 use App\Models\IstatType;
 use App\Models\OfficeType;
@@ -68,14 +69,14 @@ class CreateShipment extends CreateRecord
         'mail_type' => null,
         'region_id' => null,
         'province_id' => null,
-        'istat_types' => null,
+        'admin_types' => null,
         'office_types' => null,
     ];
 
     public $mail_type = null;
     public $region_id = null;
     public $province_id = null;
-    public $istat_types = null;
+    public $admin_types = null;
     public $office_types = null;
 
     // public function mount(): void
@@ -147,7 +148,7 @@ class CreateShipment extends CreateRecord
                     : 'Destinatari PEC'
                 )
                 ->modalHeading('Selezione Destinatari PEC')
-                ->modalWidth('7xl')
+                ->modalWidth('5xl')
                 ->form([
                     // Filtri persistenti
                     Grid::make(9)
@@ -169,11 +170,11 @@ class CreateShipment extends CreateRecord
                                     $this->receiverFilters['mail_type'] = $state;
                                     $set('region_id', null);
                                     $set('province_id', null);
-                                    $set('istat_types', null);
+                                    $set('admin_types', null);
                                     $set('office_types', null);
                                     $this->receiverFilters['region_id'] = null;
                                     $this->receiverFilters['province_id'] = null;
-                                    $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverFilters['admin_types'] = null;
                                     $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
@@ -186,11 +187,11 @@ class CreateShipment extends CreateRecord
                                 ->live()
                                 ->afterStateUpdated(function ($state, callable $set) {
                                     $set('province_id', null);
-                                    $set('istat_types', null);
+                                    $set('admin_types', null);
                                     $set('office_types', null);
                                     $this->receiverFilters['region_id'] = $state;
                                     $this->receiverFilters['province_id'] = null;
-                                    $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverFilters['admin_types'] = null;
                                     $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
@@ -205,27 +206,27 @@ class CreateShipment extends CreateRecord
                                 ->default($this->receiverFilters['province_id'])
                                 ->live()
                                 ->afterStateUpdated(function ($state, callable $set) {
-                                    $set('istat_types', null);
+                                    $set('admin_types', null);
                                     $set('office_types', null);
                                     $this->receiverFilters['province_id'] = $state;
-                                    $this->receiverFilters['istat_types'] = null;
+                                    $this->receiverFilters['admin_types'] = null;
                                     $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
                                 ->columnSpan(3),
-                            Select::make('istat_types')
-                                ->label('Tipo istat')
-                                ->options(IstatType::pluck('name', 'id'))
+                            Select::make('admin_types')
+                                ->label('Tipo ente')
+                                ->options(AdminType::pluck('name', 'id'))
                                 ->multiple()
-                                ->default($this->receiverFilters['istat_types'])
+                                ->default($this->receiverFilters['admin_types'])
                                 ->live()
                                 ->afterStateUpdated(function ($state, callable $set) {
                                     $set('office_types', null);
-                                    $this->receiverFilters['istat_types'] = $state;
+                                    $this->receiverFilters['admin_types'] = $state;
                                     $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
-                                ->columnSpan(7),
+                                ->columnSpan(6),
                             Select::make('office_types')
                                 ->label('Ufficio')
                                 ->options(OfficeType::pluck('name', 'id'))
@@ -236,7 +237,7 @@ class CreateShipment extends CreateRecord
                                     $this->receiverFilters['office_types'] = $state;
                                     $this->receiverList = [];
                                 })
-                                ->columnSpan(2),
+                                ->columnSpan(3),
                         ]),
 
                     Placeholder::make('recipients_list')                                                                // elenco dinamico con checkbox persistenti
@@ -245,7 +246,7 @@ class CreateShipment extends CreateRecord
                             $get('mail_type') ?? $this->receiverFilters['mail_type'],
                             $get('region_id') ?? $this->receiverFilters['region_id'],
                             $get('province_id') ?? $this->receiverFilters['province_id'],
-                            $get('istat_types') ?? $this->receiverFilters['istat_types'],
+                            $get('admin_types') ?? $this->receiverFilters['admin_types'],
                             $get('office_types') ?? $this->receiverFilters['office_types']
                         ))
                         ->extraAttributes([
@@ -260,7 +261,7 @@ class CreateShipment extends CreateRecord
                     'region_id' => $this->receiverFilters['region_id'],
                     'province_id' => $this->receiverFilters['province_id'],
                     'mail_type' => $this->receiverFilters['mail_type'] ?? MailType::PEC,
-                    'istat_types' => $this->receiverFilters['istat_types'],
+                    'admin_types' => $this->receiverFilters['admin_types'],
                     'office_types' => $this->receiverFilters['office_types'],
                 ])
                 ->action(function () {
@@ -425,7 +426,7 @@ class CreateShipment extends CreateRecord
     //     return new HtmlString($html);
     // }
 
-    private function renderRecipientsList($mailType, $regionId, $provinceId, $istatTypes, $officeTypes): HtmlString
+    private function renderRecipientsList($mailType, $regionId, $provinceId, $adminTypes, $officeTypes): HtmlString
     {
         // 1. Verifica Filtri Base
         if (!$mailType || !$provinceId) {
@@ -436,7 +437,7 @@ class CreateShipment extends CreateRecord
 
         // 2. Query Destinatari
         $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
-            ->when(!empty($istatTypes), fn($q) => $q->whereIn('istat_type_id', $istatTypes))
+            ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
             ->with('city.province')
             ->get();
 

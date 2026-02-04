@@ -12,6 +12,7 @@ use App\Models\Registry;
 use App\Models\ScopeType;
 use App\Models\Sender;
 use App\Models\Shipment;
+use App\Models\Signature;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -22,6 +23,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -58,7 +61,19 @@ class ShipmentResource extends Resource
                 TextInput::make('description')
                     ->required()
                     ->label('Descrizione (non visibile ai destinatari)')
-                    ->columnSpan('full'),
+                    ->columnSpan(['sm' => 'full', 'md' => 19]),
+                Select::make('signature_id')->label('Firma')
+                    ->required()
+                    ->live()
+                    ->visible(fn($record) => !$record)
+                    ->options(Signature::pluck('description', 'id'))
+                    ->afterStateUpdated(function(Set $set, Get $get, $state) {
+                        $text = Signature::find($state)->text;
+                        $msg = $get('mail_body');
+                        $set('mail_body', $msg . '<br><br><br>' . $text);
+                    })
+                    ->dehydrated(false)
+                    ->columnSpan(['sm' => 'full', 'md' => 5]),
                 // TextInput::make('sender_name')
                 //     ->label('PEC Mittente')
                 //     ->disabled()

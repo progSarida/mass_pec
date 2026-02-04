@@ -11,6 +11,7 @@ use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\ScopeType;
 use App\Models\SendEmail;
+use App\Models\Signature;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\FileUpload;
@@ -48,7 +49,7 @@ class SendEmailResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->columns(12)
+            ->columns(24)
             ->schema([
                 Forms\Components\Select::make('account_id')
                     ->label('Account')
@@ -68,12 +69,24 @@ class SendEmailResource extends Resource
                     ->live()
                     ->searchable()
                     ->preload()
-                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                 Forms\Components\TextInput::make('subject')
                     ->label('Oggetto')
                     ->required()
-                    ->columnSpan(['sm' => 'full', 'md' => 8]),
+                    ->columnSpan(['sm' => 'full', 'md' => 12]),
+
+                Select::make('signature_id')->label('Firma')
+                    ->live()
+                    ->visible(fn($record) => !$record)
+                    ->options(Signature::pluck('description', 'id'))
+                    ->afterStateUpdated(function(Set $set, Get $get, $state) {
+                        $text = Signature::find($state)->text;
+                        $msg = $get('body');
+                        $set('body', $msg . '<br><br><br>' . $text);
+                    })
+                    ->dehydrated(false)
+                    ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                 Forms\Components\Select::make('mail_type')
                     ->label('Tipo mail')
@@ -90,7 +103,7 @@ class SendEmailResource extends Resource
                     ->live()
                     ->searchable()
                     ->preload()
-                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                 Forms\Components\Select::make('office_type_id')
                     ->label('Tipo ufficio')
@@ -100,7 +113,7 @@ class SendEmailResource extends Resource
                     ->live()
                     ->searchable()
                     ->preload()
-                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                 Forms\Components\Select::make('recipients')
                     ->label('Destinatari')
@@ -266,14 +279,14 @@ class SendEmailResource extends Resource
                     ->disabled()
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->visible(fn($state) => $state)
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
                 Forms\Components\Select::make('create_user_id')
                     ->label('Creata da')
                     ->disabled()
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->relationship('createUser', 'name')
                     ->visible(fn($state) => $state)
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
                 // Forms\Components\DateTimePicker::make('send_date')
                 //     ->label('Data invio')
                 //     ->disabled()
