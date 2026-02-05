@@ -12,6 +12,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
@@ -118,5 +119,21 @@ class SendShipmentEmailJob implements ShouldQueue
             'auth_mode' => null,
         ]);
 
+    }
+
+    /**
+     * Determina dopo quanti secondi riprovare il job se il limite è superato.
+     */
+    public function retryAfter(): int
+    {
+        return 60; // Aspetta un minuto prima di riprovare
+    }
+
+    /**
+     * Richiamo del limiter per scongiurare il blocco del server SMTP per troppi invii successivi.
+     */
+    public function middleware(): array
+    {
+        return [new RateLimited('shipment-emails')];
     }
 }

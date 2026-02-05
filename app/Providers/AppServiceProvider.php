@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Responses\SsoLogoutResponse;
 use Filament\Forms\Components\FileUpload;
 use Filament\Http\Responses\Auth\LogoutResponse;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -56,5 +58,13 @@ class AppServiceProvider extends ServiceProvider
             'registry'   => \App\Models\Registry::class,
             'send_email'   => \App\Models\SendEmail::class,
         ]);
+
+
+        /**
+         * Gestione del flusso per ovviare al blocco per invio sospetto del server SMTP
+         */
+        RateLimiter::for('shipment-emails', function (object $job) {
+            return Limit::perMinute(25)->by('shipment-' . $job->shipmentId);
+        });
     }
 }
