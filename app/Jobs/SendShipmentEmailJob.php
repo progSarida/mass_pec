@@ -57,6 +57,19 @@ class SendShipmentEmailJob implements ShouldQueue
          */
         if ($receiver->send_date !== null) return;
 
+        // --- LOGICA DI LOGGING PER BLOCCHI ---
+        $cacheKey = "shipment_log_count_{$this->shipmentId}";
+        // Incrementiamo un contatore in cache e lo leggiamo
+        $currentCount = \Illuminate\Support\Facades\Cache::increment($cacheKey);
+        // Se è la prima email o un multiplo esatto di 30, lasciamo un log di "blocco"
+        if ($currentCount === 1) {
+            Log::info("--- [Spedizione #{$this->shipmentId}] Inizio primo blocco di invii ---");
+        } elseif (($currentCount - 1) % 30 === 0) {
+            $blocco = ceil($currentCount / 30);
+            Log::info("--- [Spedizione #{$this->shipmentId}] Inizio blocco d'invio n. {$blocco} (email {$currentCount}+) ---");
+        }
+        // -------------------------------------
+
         $sender = Sender::find($shipment->sender_id) ?? Sender::find(1);
 
         $mailerName = 'dynamic_smtp';
@@ -69,6 +82,8 @@ class SendShipmentEmailJob implements ShouldQueue
 
         // 4. Preparazione allegati
         $attachments = $service->prepareAttachments($shipment);
+
+        Log::info('Invio pec a ' . $receiver->recipient->description);
 
         // 5. INVIO EMAIL
         Mail::mailer($mailerName)->to($receiver->address)->send(

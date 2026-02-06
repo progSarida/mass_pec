@@ -71,6 +71,10 @@ class ProcessShipmentEmailJob implements ShouldQueue
         $shipmentId = $this->shipmentId;
         $userId = $this->userId;
 
+        \Illuminate\Support\Facades\Cache::forget("shipment_log_count_{$this->shipmentId}");
+
+        Log::info('Avvio spedizione_______________________________________________________________');
+
         // 5. Avviamo il Batch
         Bus::batch($jobs)
             ->name("Invio Massivo Spedizione #{$shipmentId}")
@@ -86,6 +90,8 @@ class ProcessShipmentEmailJob implements ShouldQueue
                 $user = User::find($userId);
                 if ($user) {
                     $hasFailures = $batch->failedJobs > 0;
+
+                    Log::info($hasFailures ? 'Spedizione terminata con alcuni errori' : 'Spedizione completata');
 
                     \Filament\Notifications\Notification::make()
                         ->title($hasFailures ? 'Spedizione terminata con alcuni errori' : 'Spedizione completata')
