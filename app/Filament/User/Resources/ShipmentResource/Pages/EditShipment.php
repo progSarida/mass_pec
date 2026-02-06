@@ -574,7 +574,7 @@ class EditShipment extends EditRecord
         }
     }
 
-    private function extractShipment($id)
+    private function extractShipmentOld($id)
     {
         $tempDir = null;
 
@@ -733,7 +733,176 @@ class EditShipment extends EditRecord
         }
     }
 
-    private function cleanupTempDir($tempDir)
+    private function extractShipment($id)
+    {
+        set_time_limit(300);                                                            // Estende il timeout a 5 minuti
+        ini_set('memory_limit', '512M');                                                // Aumenta la RAM disponibile per questa operazione
+        $tempDir = null;
+
+        try {
+            DB::beginTransaction();
+
+            $shipment = Shipment::findOrFail($id);
+            $recipients = Receiver::join('recipients as R', 'R.id', '=', 'receivers.recipient_id')
+                ->where('shipment_id', $id)
+                ->select('R.description', 'R.city_id', 'receivers.ref as object_ref', 'receivers.address', 'receivers.mail_type')
+                ->get();
+
+            // 1. Crea cartella temporanea locale unica
+            $tempDir = sys_get_temp_dir() . '/extraction_' . $id . '_' . microtime(true);
+            if (!mkdir($tempDir, 0755, true)) {
+                throw new \Exception("Impossibile creare la cartella temporanea locale.");
+            }
+
+            $filename = 'estrazione_' . $id . '_' . now()->format('Y-m-d_H-i-s');
+            $zipFilename = $filename . '.zip';
+            $xlsFilename = $filename . '.xlsx';
+            $zipPath = $tempDir . '/' . $zipFilename;
+
+            // 2. Pulizia vecchie estrazioni su Storage (S3)
+            $folderPath = ltrim((string)$shipment->shipment_path, '/');
+            if ($shipment->extraction_zip_file) {
+                Storage::delete($folderPath . '/' . $shipment->extraction_zip_file);
+                Storage::delete($folderPath . '/' . str_replace('.zip', '.xlsx', $shipment->extraction_zip_file));
+            }
+
+            // 3. Recupero lista file ricorsiva (allFiles recupera anche sottocartelle)
+            $allFiles = Storage::allFiles($folderPath);
+
+            // Filtriamo solo i file .eml e normalizziamo i percorsi rispetto alla cartella base
+            $receipts = [];
+            foreach ($allFiles as $file) {
+                if (pathinfo($file, PATHINFO_EXTENSION) === 'eml') {
+                    // S3 allFiles restituisce il path intero, calcoliamo il relativo rispetto a $folderPath
+                    $relativeToFolder = ltrim(str_replace($folderPath, '', $file), '/');
+                    $receipts[] = $relativeToFolder;
+                }
+            }
+
+            $header = ["Descrizione", "Comune", "Indirizzo Mail", "Tipo", "Accettazione", "File Acc.", "Consegna", "File Cons.", "Anomalia", "File An."];
+            $dataExcel = [];
+            $toZip = []; // Array associativo: [ 'percorso/nello/zip' => 'percorso/fisico/locale' ]
+
+            // 4. Elaborazione destinatari e download file
+            foreach ($recipients as $row) {
+                $input = (string)$row->object_ref;
+                if (empty($input)) continue;
+
+                // Cerchiamo i file che contengono il REF nel nome (anche nelle sottocartelle)
+                $result = array_filter($receipts, fn($r) => stripos($r, $input) !== false);
+
+                $recSend = $recSendFile = $recDeliver = $recDeliverFile = $recAnomaly = $recAnomalyFile = '';
+
+                foreach ($result as $relativePath) {
+                    $s3FilePath = $folderPath . '/' . $relativePath;
+                    $localFilePath = $tempDir . '/' . $relativePath;
+
+                    // Crea sottocartelle locali se il file è in una sottocartella S3
+                    $localSubDir = dirname($localFilePath);
+                    if (!is_dir($localSubDir)) {
+                        mkdir($localSubDir, 0755, true);
+                    }
+
+                    // Download da S3 a locale
+                    if (Storage::exists($s3FilePath)) {
+                        file_put_contents($localFilePath, Storage::get($s3FilePath));
+                        $toZip[$relativePath] = $localFilePath;
+                    }
+
+                    // Parsing del tipo ricevuta dal nome file
+                    $nameOnly = pathinfo($relativePath, PATHINFO_FILENAME);
+                    $refs = explode('_', $nameOnly);
+                    if (count($refs) >= 4) {
+                        $recType = str_replace('-', ' ', $refs[3]);
+                        match (strtoupper($recType)) {
+                            'ACCETTAZIONE', 'AVVISO DI MANCATA ACCETTAZIONE' => [$recSend, $recSendFile] = [$recType, $relativePath],
+                            'CONSEGNA', 'AVVISO DI MANCATA CONSEGNA' => [$recDeliver, $recDeliverFile] = [$recType, $relativePath],
+                            'ANOMALIA MESSAGGIO' => [$recAnomaly, $recAnomalyFile] = [$recType, $relativePath],
+                            default => null,
+                        };
+                    }
+                }
+
+                $dataExcel[] = [
+                    $row->description,
+                    City::find($row->city_id)->name ?? '',
+                    $row->address,
+                    MailType::tryFrom($row->mail_type)?->getLabel() ?? $row->mail_type,
+                    $recSend, $recSendFile,
+                    $recDeliver, $recDeliverFile,
+                    $recAnomaly, $recAnomalyFile,
+                ];
+            }
+
+            // 5. Generazione Excel
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray($header, null, 'A1');
+            $sheet->fromArray($dataExcel, null, 'A2');
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $xlsLocalPath = $tempDir . '/' . $xlsFilename;
+            $writer->save($xlsLocalPath);
+
+            $toZip[$xlsFilename] = $xlsLocalPath;
+
+            // 6. Aggiunta allegato originale della spedizione
+            if ($shipment->attachment) {
+                $attachmentS3Path = $folderPath . '/' . $shipment->attachment;
+                if (Storage::exists($attachmentS3Path)) {
+                    $attachmentLocalPath = $tempDir . '/' . $shipment->attachment;
+                    file_put_contents($attachmentLocalPath, Storage::get($attachmentS3Path));
+                    $toZip[$shipment->attachment] = $attachmentLocalPath;
+                }
+            }
+
+            // 7. Creazione ZIP preservando la struttura
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                throw new \Exception("Impossibile creare lo ZIP locale.");
+            }
+
+            foreach ($toZip as $zipInternalPath => $fullLocalPath) {
+                if (file_exists($fullLocalPath)) {
+                    $zip->addFile($fullLocalPath, $zipInternalPath);
+                }
+            }
+            $zip->close();
+
+            // 8. Upload ZIP finale su S3
+            $s3ZipPath = $folderPath . '/' . $zipFilename;
+            Storage::put($s3ZipPath, fopen($zipPath, 'r+'));
+
+            // 9. Aggiornamento Database
+            $shipment->update([
+                'extraction_date' => now(),
+                'extraction_zip_file' => $zipFilename
+            ]);
+
+            DB::commit();
+
+            // Pulizia cartella temporanea locale
+            $this->cleanupTempDir($tempDir);
+
+            \Filament\Notifications\Notification::make()
+                ->success()
+                ->title('Estrazione completata')
+                ->body("File generato: {$zipFilename}")
+                ->send();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if ($tempDir) $this->cleanupTempDir($tempDir);
+
+            Log::error("Estrazione fallita [ID: {$id}]: " . $e->getMessage());
+            \Filament\Notifications\Notification::make()
+                ->danger()
+                ->title('Errore estrazione')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    private function cleanupTempDirOld($tempDir)
     {
         if (!is_dir($tempDir)) return;
 
@@ -743,6 +912,24 @@ class EditShipment extends EditRecord
                 @unlink($file);
             }
         }
+        @rmdir($tempDir);
+    }
+
+    private function cleanupTempDir($tempDir)
+    {
+        if (!is_dir($tempDir)) return;
+
+        // Usiamo un iteratore ricorsivo per assicurarci di eliminare tutto
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($tempDir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($files as $fileinfo) {
+            $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+            @$todo($fileinfo->getRealPath());
+        }
+
         @rmdir($tempDir);
     }
 
