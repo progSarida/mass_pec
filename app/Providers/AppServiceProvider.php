@@ -64,7 +64,12 @@ class AppServiceProvider extends ServiceProvider
          * Gestione del flusso per ovviare al blocco per invio sospetto del server SMTP
          */
         RateLimiter::for('shipment-emails', function (object $job) {
-            return Limit::perMinute(25)->by('shipment-' . $job->shipmentId);
+            // return Limit::perMinute(25)->by('shipment-' . $job->shipmentId);
+            return Limit::perMinutes(5, 30)->by('shipment-' . $job->shipmentId);
+            // return [
+            //     Limit::perMinute(10)->by('shipment-' . $job->shipmentId),           // Non più di 10 email al minuto (sicurezza)
+            //     Limit::perHour(500)->by('shipment-' . $job->shipmentId),            // Non più di 500 email all'ora (limite SMTP)
+            // ];
         });
     }
 }
