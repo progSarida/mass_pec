@@ -510,6 +510,9 @@ class EditShipment extends EditRecord
                     ]);
                 }
             }
+
+            // Eliminazione ricevuta
+            imap_delete($imap, $uid, FT_UID);
         }
     }
 
@@ -555,8 +558,6 @@ class EditShipment extends EditRecord
 
             Log::info("Ricevute elaborate → Accettazione: {$count['send']}, Mancate: {$count['missedSend']}, Consegna: {$count['delivery']}, Mancata consegna: {$count['missedDelivery']}, Anomalie: {$count['anomaly']}");
 
-            imap_expunge($imap);
-            imap_close($imap);
 
             $shipment->update([
                 'no_send_receipt' => $count["send"],
@@ -567,6 +568,9 @@ class EditShipment extends EditRecord
             ]);
 
             DB::commit();
+
+            imap_expunge($imap);
+            imap_close($imap);
 
         } catch (\Exception $e) {
             DB::rollBack();

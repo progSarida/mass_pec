@@ -69,6 +69,7 @@ class CreateShipment extends CreateRecord
         'mail_type' => null,
         'region_id' => null,
         'province_id' => null,
+        'deselect_all' => false,
         'admin_types' => null,
         'office_types' => null,
     ];
@@ -178,7 +179,7 @@ class CreateShipment extends CreateRecord
                                     $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
-                                ->columnSpan(3),
+                                ->columnSpan(2),
                             Select::make('region_id')
                                 ->label('Regione')
                                 ->required()
@@ -195,10 +196,10 @@ class CreateShipment extends CreateRecord
                                     $this->receiverFilters['office_types'] = null;
                                     $this->receiverList = [];
                                 })
-                                ->columnSpan(3),
+                                ->columnSpan(2),
                             Select::make('province_id')
                                 ->label('Provincia')
-                                ->required()
+                                // ->required()
                                 ->options(fn (callable $get) => $get('region_id')
                                     ? Province::where('region_id', $get('region_id'))->pluck('name', 'id')
                                     : []
@@ -214,6 +215,14 @@ class CreateShipment extends CreateRecord
                                     $this->receiverList = [];
                                 })
                                 ->columnSpan(3),
+                            Checkbox::make('deselect_all')
+                                ->label('Deseleziona tutti')
+                                ->live()
+                                ->afterStateUpdated(function ($state, callable $set) {
+                                    $this->receiverFilters['deselect_all'] = $state;
+                                    $this->receiverList = [];
+                                })
+                                ->columnSpan(2),
                             Select::make('admin_types')
                                 ->label('Tipo ente')
                                 ->options(AdminType::pluck('name', 'id'))
@@ -246,6 +255,7 @@ class CreateShipment extends CreateRecord
                             $get('mail_type') ?? $this->receiverFilters['mail_type'],
                             $get('region_id') ?? $this->receiverFilters['region_id'],
                             $get('province_id') ?? $this->receiverFilters['province_id'],
+                            $get('deselect_all') ?? $this->receiverFilters['deselect_all'],
                             $get('admin_types') ?? $this->receiverFilters['admin_types'],
                             $get('office_types') ?? $this->receiverFilters['office_types']
                         ))
@@ -426,26 +436,34 @@ class CreateShipment extends CreateRecord
     //     return new HtmlString($html);
     // }
 
-    private function renderRecipientsList($mailType, $regionId, $provinceId, $adminTypes, $officeTypes): HtmlString
+    private function renderRecipientsList($mailType, $regionId, $provinceId, $deselectAll, $adminTypes, $officeTypes): HtmlString
     {
         // 1. Verifica Filtri Base
-        if (!$mailType || !$provinceId) {
-            return new HtmlString('<div class="p-4 text-orange-600 bg-orange-50 rounded-lg">Seleziona Tipo Email e Provincia per caricare i destinatari.</div>');
-        }
+        // if (!$mailType || !$provinceId) {
+        //     return new HtmlString('<div class="p-4 text-orange-600 bg-orange-50 rounded-lg">Seleziona Tipo Email e Provincia per caricare i destinatari.</div>');
+        // }
 
         $officeNames = OfficeType::pluck('name', 'id');
+        $recipients = '';
 
         // 2. Query Destinatari
-        $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
-            ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
-            ->with('city.province')
-            ->get();
+        if($provinceId){                // è indicata la provincia
+            $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
+                ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
+                ->with('city.province')
+                ->get();
+        } else {                        // è indicata solo la regione
+            $recipients = Recipient::whereHas('city.province', fn($q) => $q->where('region_id', $regionId))
+                ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
+                ->with('city.province')
+                ->get();
+        }
 
         if ($recipients->isEmpty()) {
             return new HtmlString('<div class="p-4 text-gray-500 italic">Nessun destinatario trovato per questa provincia.</div>');
         }
 
-        $isFirstLoad = empty($this->receiverList);
+        $isFirstLoad = empty($this->receiverList) && !$deselectAll;
 
         $html = '<div class="space-y-4 p-1">';
         $foundAnyEmail = false;
@@ -490,7 +508,7 @@ class CreateShipment extends CreateRecord
 
             if ($emailsHtml !== '') {
                 $html .= '<div class="border rounded-xl p-4 bg-white shadow-sm ring-1 ring-gray-200">';
-                $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . '</div>';
+                $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . ' (' . $recipient->city->province->code . ')' . '</div>';
                 $html .= $emailsHtml;
                 $html .= '</div>';
             }
