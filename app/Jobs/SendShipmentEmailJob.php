@@ -24,6 +24,11 @@ class SendShipmentEmailJob implements ShouldQueue
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
+     * Coda dedicata
+     */
+    public $queue = 'pec';
+
+    /**
      * Numero di tentativi in caso di fallimento
      */
     // public $tries = 3;
@@ -91,6 +96,8 @@ class SendShipmentEmailJob implements ShouldQueue
         Mail::mailer($mailerName)->to($receiver->address)->send(
             new ShipmentMailable($shipment, $attachments, $customSubject)
         );
+
+        sleep(2);
 
         /**
          * 6. AGGIORNAMENTO STATO E CONTATORI
