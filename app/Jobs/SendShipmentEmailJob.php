@@ -26,7 +26,7 @@ class SendShipmentEmailJob implements ShouldQueue
     /**
      * Coda dedicata
      */
-    public $queue = 'pec';
+    // public $queue = 'pec';
 
     /**
      * Numero di tentativi in caso di fallimento
