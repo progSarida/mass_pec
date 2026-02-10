@@ -309,9 +309,24 @@ class SendEmailResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('account.public_name')
-                    ->label('Mittente')
-                    ->numeric()
-                    ->sortable(),
+                    ->label('Mittente'),
+                Tables\Columns\TextColumn::make('recipients')
+                    ->label('Destinatari')
+                    ->formatStateUsing(function ($state) {
+                        if (blank($state)) return '0 destinatari';
+                        // Conta gli elementi nell'array recipients
+                        $emails = explode(',', $state);
+                        $count = is_array($emails) ? count($emails) : 0;
+                        return $count . ' ' . ($count === 1 ? 'destinatario' : 'destinatari');
+                    })
+                    ->tooltip(function ($state) {
+                        // Se lo stato non è un array o è vuoto, restituisci null
+                        if (!is_array($state) || empty($state)) {
+                            return null;
+                        }
+                        // Unisce i nomi con una virgola e uno spazio per il tooltip
+                        return implode(', ', $state);
+                    }),
                 Tables\Columns\TextColumn::make('subject')
                     ->label('Oggetto')
                     ->limit(80)
@@ -329,7 +344,8 @@ class SendEmailResource extends Resource
                 //     ->date('d/m/Y H:i:s')
                 //     ->sortable(),
                 Tables\Columns\TextColumn::make('sendUser.name')
-                    ->label('Inviata da'),
+                    ->label('Inviata da')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()

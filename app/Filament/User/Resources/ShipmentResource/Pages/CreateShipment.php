@@ -451,11 +451,13 @@ class CreateShipment extends CreateRecord
             $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
                 ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
                 ->with('city.province')
+                ->orderBy('recipients.description', 'asc')
                 ->get();
         } else {                        // è indicata solo la regione
             $recipients = Recipient::whereHas('city.province', fn($q) => $q->where('region_id', $regionId))
                 ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
-                ->with('city.province')
+                ->with('city.province.region')
+                ->orderBy('recipients.description', 'asc')
                 ->get();
         }
 
