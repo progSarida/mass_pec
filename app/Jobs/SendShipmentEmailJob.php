@@ -26,12 +26,14 @@ class SendShipmentEmailJob implements ShouldQueue
     /**
      * Numero di tentativi in caso di fallimento
      */
-    public $tries = 3;
+    // public $tries = 3;
+    public $tries = 1;
 
     /**
      * Secondi di attesa tra un tentativo e l'altro
      */
-    public $backoff = 60;
+    // public $backoff = 60;
+    public $backoff = [300, 600, 1200];
 
     public function __construct(
         public int $shipmentId,
