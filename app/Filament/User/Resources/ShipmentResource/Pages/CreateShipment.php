@@ -20,6 +20,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
@@ -182,7 +183,7 @@ class CreateShipment extends CreateRecord
                                 ->columnSpan(2),
                             Select::make('region_id')
                                 ->label('Regione')
-                                ->required()
+                                // ->required()
                                 ->options(Region::pluck('name', 'id'))
                                 ->default($this->receiverFilters['region_id'])
                                 ->live()
@@ -226,6 +227,7 @@ class CreateShipment extends CreateRecord
                             Select::make('admin_types')
                                 ->label('Tipo ente')
                                 ->options(AdminType::pluck('name', 'id'))
+                                ->required(fn(Get $get) => !$get('region_id'))
                                 ->multiple()
                                 ->default($this->receiverFilters['admin_types'])
                                 ->live()
@@ -438,27 +440,24 @@ class CreateShipment extends CreateRecord
 
     private function renderRecipientsList($mailType, $regionId, $provinceId, $deselectAll, $adminTypes, $officeTypes): HtmlString
     {
-        // 1. Verifica Filtri Base
-        // if (!$mailType || !$provinceId) {
-        //     return new HtmlString('<div class="p-4 text-orange-600 bg-orange-50 rounded-lg">Seleziona Tipo Email e Provincia per caricare i destinatari.</div>');
-        // }
-
         $officeNames = OfficeType::pluck('name', 'id');
         $recipients = '';
 
-        // 2. Query Destinatari
-        if($provinceId){                // è indicata la provincia
+        // Query Destinatari
+        if($provinceId){                                                                                                // è indicata la provincia
             $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
                 ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
                 ->with('city.province')
                 ->orderBy('recipients.description', 'asc')
                 ->get();
-        } else {                        // è indicata solo la regione
+        } else if($regionId){                                                                                           // è indicata solo la regione
             $recipients = Recipient::whereHas('city.province', fn($q) => $q->where('region_id', $regionId))
                 ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
                 ->with('city.province.region')
                 ->orderBy('recipients.description', 'asc')
                 ->get();
+        } else{
+            //
         }
 
         if ($recipients->isEmpty()) {
