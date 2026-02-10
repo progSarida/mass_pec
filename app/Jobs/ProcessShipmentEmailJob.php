@@ -53,6 +53,7 @@ class ProcessShipmentEmailJob implements ShouldQueue
          * Prepariamo la tabella Shipment impostando chi invia e resettando i numeri.
          */
         $shipment->update([
+            'send_date' => now()->format('Y-m-d H:i:s'),
             'send_user_id' => $this->userId,
             'no_mails_to_send' => $totalRecipients,
             'no_mails_sended' => 0,

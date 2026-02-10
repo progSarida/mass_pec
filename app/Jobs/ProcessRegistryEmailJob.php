@@ -85,7 +85,7 @@ class ProcessRegistryEmailJob implements ShouldQueue
 
                 if ($registry && !$registry->send_date) {
                     $registry->update([
-                        'send_date' => now(),
+                        'send_date' => now()->format('Y-m-d H:i:s'),
                         'send_user_id' => $userId,
                     ]);
 
