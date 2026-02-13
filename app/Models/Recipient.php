@@ -105,10 +105,12 @@ class Recipient extends Model
 
         static::saving(function ($recipient) {
             // assegno la colonna per il controllo dei duplicati
-            $recipient->description_search = str($recipient->description)
-                ->trim()
-                ->squish()
-                ->lower();
+            if ($recipient->description) {
+                $recipient->description_search = str($recipient->description)
+                    ->trim()
+                    ->squish()
+                    ->lower();
+            }
         });
 
         static::saved(function ($attachment) {

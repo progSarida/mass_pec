@@ -41,18 +41,20 @@ class RecipientResource extends Resource
             ->schema([
                 TextInput::make('description')->label('Descrizione')
                     ->required()
-                    ->dehydrateStateUsing(fn ($state) => str($state)->trim()->squish()->toString())
-                    ->unique(
-                        table: 'recipients',
-                        column: 'description_search', // <--- Controllo sulla colonna indicizzata
-                        ignoreRecord: true,
-                        modifyRuleUsing: function ($rule, $state) {
-                            // Trasformo l'input dell'utente allo stesso modo della colonna DB
-                            return $rule->where('description_search', str($state)->trim()->squish()->lower());
-                        }
-                    )
-                    ->validationMessages([
-                        'unique' => 'Esiste già un interlocutore con questa descrizione o simile.',
+                    ->rules([
+                        fn ($get, $record) => function (string $attribute, $value, $fail) use ($record) {
+                            // 1. Normalizziamo l'input attuale
+                            $normalized = str($value)->trim()->squish()->lower()->toString();
+
+                            // 2. Query personalizzata sulla colonna description_search
+                            $exists = \App\Models\Recipient::where('description_search', $normalized)
+                                ->when($record, fn($q) => $q->where('id', '!=', $record->id)) // Ignora il record attuale in edit
+                                ->exists();
+
+                            if ($exists) {
+                                $fail('Esiste già un interlocutore con questa descrizione o simile.');
+                            }
+                        },
                     ])
                     ->columnSpan('full'),
                 Select::make('admin_type_id')->label('Tipo ente')
