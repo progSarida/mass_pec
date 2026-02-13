@@ -6,6 +6,7 @@ use App\Enums\FlowType;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
+use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
 use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
@@ -25,7 +26,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
@@ -33,7 +33,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
@@ -51,8 +50,16 @@ class RegistryResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            // ->disabled()
             ->columns(15)
+            ->disabled(function ($record, $livewire) {
+                $operation = $livewire instanceof \Filament\Resources\Pages\ViewRecord
+                                ? 'view'
+                                : 'create';
+                if ($operation === 'view') { return true; }                                                     // disabilito in view
+                if (!$record) { return false; }                                                                 // non disabilito in create
+                return $record->registry_origin_type != RegistryOriginType::SEND_EMAIL                          // disabilito in edit se non è una mail in uscita o
+                    || ($record->registry_origin_type == RegistryOriginType::SEND_EMAIL && $record->send_date); // disabilito in edit se è una mail in uscita ed è stata inviata
+            })
             ->schema([
                 Section::make('Informazioni Principali')
                     ->columns(15)
@@ -133,24 +140,6 @@ class RegistryResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 8])
                             ->disabled()
                             ->dehydrated(false),
-
-                        Forms\Components\Select::make('recipients')
-                            ->label('Destinatari')
-                            ->multiple()
-                            ->searchable()
-                            ->required()
-                            ->live()
-                            ->placeholder('')
-                            ->visible(fn($record) => $record && $record->recipients)
-                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
-                            ->getOptionLabelsUsing(function ($values) {
-                                // Quando il record è salvato, voglio vedere l'email nei tag
-                                return collect($values)->mapWithKeys(fn ($email) => [$email => static::labelRecipient($email)])->toArray();
-                            })
-                            ->createOptionUsing(function (string $data) {
-                                // Se l'utente scrive un'email a mano, il valore salvato sarà il testo inserito
-                                return $data;
-                            }),
 
                         RichEditor::make('body')
                             ->label('Messaggio')
@@ -440,7 +429,7 @@ class RegistryResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RegistryReceiversRelationManager::class,
         ];
     }
 

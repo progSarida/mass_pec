@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Registry;
+use App\Models\RegistryReceiver;
 use App\Services\RegistryEmailService;
 use Illuminate\Bus\Batch;
 use Illuminate\Bus\Queueable;
@@ -59,15 +60,11 @@ class ProcessRegistryEmailJob implements ShouldQueue
         }
 
         // Crea un batch di job per ogni destinatario
-        $jobs = collect($recipients)->map(function ($recipientEmail) use ($registryEmailService) {
-            $recipientName = $registryEmailService->getRecipientName($recipientEmail);
-
-            return new SendRegistryEmailJob(
-                registryId: $this->registryId,
-                recipientEmail: $recipientEmail,
-                recipientName: $recipientName,
-            );
-        })->toArray();
+        $jobs = $recipients->map(fn (RegistryReceiver $recipient) => new SendRegistryEmailJob(
+            registryId: $this->registryId,
+            recipientEmail: $recipient->address,
+            registryReceiverId: $recipient->id,
+        ))->toArray();
 
         // IMPORTANTE: salva le variabili in variabili locali per evitare problemi di serializzazione
         $registryId = $this->registryId;

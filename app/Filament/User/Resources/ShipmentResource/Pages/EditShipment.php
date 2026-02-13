@@ -17,9 +17,7 @@ use Carbon\Carbon;
 use Exception;
 use Filament\Actions;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
@@ -434,8 +432,10 @@ class EditShipment extends EditRecord
         if (preg_match_all('/^X-Ricevuta:\s*(.+)/mi', $rawHeaders, $arubaTypes)) {
             $arubaType = strtolower(trim($arubaTypes[1][0]));
             $arubaMap = [
+                'accettazione'      => 'ACCETTAZIONE',
                 'avvenuta-consegna' => 'CONSEGNA',
-                'non-accettazione' => 'AVVISO DI MANCATA ACCETTAZIONE'
+                'non-accettazione'  => 'AVVISO DI MANCATA ACCETTAZIONE',
+                'errore-consegna'   => 'AVVISO DI MANCATA CONSEGNA',
             ];
             $type = $arubaMap[$arubaType] ?? $type;
         }

@@ -7,6 +7,7 @@ use App\Models\Registry;
 use App\Models\Recipient;
 use Illuminate\Support\Facades\Storage;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
 class RegistryEmailService
@@ -114,10 +115,8 @@ class RegistryEmailService
     /**
      * Estrae i destinatari da Registry
      */
-    public function extractRecipients(Registry $registry): array
+    public function extractRecipients(Registry $registry): Collection
     {
-        // Il campo recipients è già un JSON che viene automaticamente
-        // convertito in array grazie al cast nel model
-        return $registry->recipients ?? [];
+        return $registry->registryReceivers ?? [];
     }
 }

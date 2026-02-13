@@ -4,7 +4,6 @@ namespace App\Filament\User\Resources;
 
 use App\Enums\MailType;
 use App\Filament\User\Resources\RecipientResource\Pages;
-use App\Filament\User\Resources\RecipientResource\RelationManagers;
 use App\Models\AdminType;
 use App\Models\City;
 use App\Models\IstatType;
@@ -19,13 +18,11 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Support\Enums\Platform;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class RecipientResource extends Resource
 {
@@ -44,15 +41,28 @@ class RecipientResource extends Resource
             ->schema([
                 TextInput::make('description')->label('Descrizione')
                     ->required()
+                    ->dehydrateStateUsing(fn ($state) => str($state)->trim()->squish()->toString())
+                    ->unique(
+                        table: 'recipients',
+                        column: 'description_search', // <--- Controllo sulla colonna indicizzata
+                        ignoreRecord: true,
+                        modifyRuleUsing: function ($rule, $state) {
+                            // Trasformo l'input dell'utente allo stesso modo della colonna DB
+                            return $rule->where('description_search', str($state)->trim()->squish()->lower());
+                        }
+                    )
+                    ->validationMessages([
+                        'unique' => 'Esiste già un interlocutore con questa descrizione o simile.',
+                    ])
                     ->columnSpan('full'),
                 Select::make('admin_type_id')->label('Tipo ente')
-                    ->required()
+                    // ->required()
                     ->relationship(name: 'adminType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
                 Select::make('istat_type_id')->label('Tipo Istat')
-                    ->required()
+                    // ->required()
                     ->relationship(name: 'istatType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
@@ -63,7 +73,7 @@ class RecipientResource extends Resource
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('city_id')->label('Comune')
-                    ->required()
+                    // ->required()
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
@@ -200,6 +210,7 @@ class RecipientResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(10)
             ->columns([
                 TextColumn::make('description')
                     ->label('Descrizione')
@@ -219,11 +230,11 @@ class RecipientResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('resp_surname')
                     ->label('Cognome Resp.')
-                    ->searchable()
+                    // ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('resp_name')
                     ->label('Nome Resp.')
-                    ->searchable()
+                    // ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -238,7 +249,8 @@ class RecipientResource extends Resource
                             );
                         }
                     })
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(false),
 
                 SelectFilter::make('province_id')
                     ->label('Provincia')
@@ -251,7 +263,8 @@ class RecipientResource extends Resource
                             );
                         }
                     })
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(false),
 
                 SelectFilter::make('city_id')
                     ->label('Comune')
@@ -262,7 +275,8 @@ class RecipientResource extends Resource
                             $query->where('city_id', $value);
                         }
                     })
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(false),
 
                 SelectFilter::make('admin_type_id')
                     ->label('Tipo ente')
@@ -273,7 +287,8 @@ class RecipientResource extends Resource
                             $query->where('admin_type_id', $value);
                         }
                     })
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(false),
 
                 SelectFilter::make('istat_type_id')
                     ->label('Tipo istat')
@@ -284,7 +299,8 @@ class RecipientResource extends Resource
                             $query->where('istat_type_id', $value);
                         }
                     })
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(false),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

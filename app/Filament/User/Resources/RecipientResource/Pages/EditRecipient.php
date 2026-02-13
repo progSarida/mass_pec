@@ -116,4 +116,9 @@ class EditRecipient extends EditRecord
                 $this->fillForm();
             });
     }
+
+    public function hasCombinedRelationManagerTabsWithContent(): bool
+    {
+        return true;
+    }
 }

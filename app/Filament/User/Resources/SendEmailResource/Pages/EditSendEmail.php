@@ -2,10 +2,11 @@
 
 namespace App\Filament\User\Resources\SendEmailResource\Pages;
 
+use App\Enums\PecStatus;
 use App\Filament\User\Resources\SendEmailResource;
-use App\Models\Account;
 use App\Models\Recipient;
 use App\Models\Registry;
+use App\Models\RegistryReceiver;
 use App\Models\ScopeType;
 use App\Models\SendEmail;
 use Exception;
@@ -20,8 +21,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use PHPMailer\PHPMailer\PHPMailer;
 
 class EditSendEmail extends EditRecord
 {
@@ -326,12 +325,11 @@ class EditSendEmail extends EditRecord
                 'scope_type_id' => $scopeTypeId,
                 'uid' => '#send_email' . $record->id,
                 'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $record->id,
-                'from' => $record->sender->public_name,
-                'subject' => $record->mail_object,
-                'body' => $record->mail_body,
+                'from' => $record->account->public_name,
+                'subject' => $record->subject,
+                'body' => $record->body,
                 'receive_date' => null,
                 'account_id' => $record->account_id,
-                'recipients' => $record->recipients,
                 'send_date' => $record->send_date,
                 'send_user_id' => $record->send_user_id,
                 'shipment_id' => null,
@@ -341,39 +339,50 @@ class EditSendEmail extends EditRecord
                 'register_user_id' => Auth::user()->id,
             ]);
 
+            foreach($record->recipients as $receiver){
+                RegistryReceiver::create([
+                    'registry_id' => $registry->id,
+                    'protocol_number' => $protocolNumber,
+                    'address' => $receiver,
+                    'pec_status' => PecStatus::WAITING,
+                ]);
+            }
+
             // Elimino la mail in uscita
             Model::withoutEvents(function () use ($record) {
                 $record->delete();
             });
 
             $disk = config('filesystems.default');
+            $storage = Storage::disk($disk);
 
-            // copio cartella allegati
-            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
-                Storage::disk($disk)->makeDirectory($newPath);
+            if ($oldPath && $storage->exists($oldPath)) {
 
-                $files = collect(Storage::disk($disk)->files($oldPath))
-                    ->filter(function ($path) {
-                        return Str::contains($path, 'estrazione');
-                    })
-                    ->all();
+                // 1. Assicuriamoci che la nuova directory esista
+                if (!$storage->exists($newPath)) {
+                    $storage->makeDirectory($newPath);
+                }
+
+                // 2. Recuperiamo i file presenti nella vecchia cartella
+                $files = $storage->files($oldPath);
 
                 foreach ($files as $file) {
-                    $relativePath = str_replace($oldPath . '/', '', $file);
-                    $newFilePath = $newPath . '/' . $relativePath;
+                    // basename($file) è fondamentale: estrae solo "documento.pdf" da "vecchia/cartella/documento.pdf"
+                    $fileName = basename($file);
 
-                    $directory = dirname($newFilePath);
-                    if (!Storage::disk($disk)->exists($directory)) {
-                        Storage::disk($disk)->makeDirectory($directory);
-                    }
+                    // Costruiamo il nuovo nome file
+                    $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
 
-                    Storage::disk($disk)->put($newFilePath, Storage::disk($disk)->get($file));
+                    // Percorso finale pulito
+                    $finalPath = $newPath . '/' . $newFileName;
+
+                    // 3. Copia del file (metodo performante)
+                    $storage->copy($file, $finalPath);
                 }
-            }
 
-            // Elimino la vecchia cartella degli allegati
-            if ($oldPath && Storage::disk($disk)->exists($oldPath)) {
-                Storage::disk($disk)->deleteDirectory($oldPath);
+                // 4. Una volta finita la copia di tutti i file, eliminiamo la vecchia cartella
+                // La cartella verrà eliminata solo se il processo sopra è andato a buon fine
+                $storage->deleteDirectory($oldPath);
             }
 
             DB::commit();

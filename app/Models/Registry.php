@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\FlowType;
+use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,18 @@ class Registry extends Model
 
     public function account(){
         return $this->belongsTo(Account::class);
+    }
+
+    public function registryReceivers(){
+        return $this->hasMany(RegistryReceiver::class);
+    }
+
+    public function pendingReceipts(){
+        $pending = true;
+        foreach($this->registryReceivers as $receiver){
+            if($receiver->pec_status == PecStatus::WAITING) $pending = false;
+        }
+        return $pending;
     }
 
     protected static function booted()

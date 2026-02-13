@@ -6,7 +6,6 @@ use App\Enums\MailType;
 use App\Filament\User\Resources\ShipmentResource;
 use App\Models\AdminType;
 use App\Models\Attachment;
-use App\Models\IstatType;
 use App\Models\OfficeType;
 use App\Models\Recipient;
 use App\Models\Region;
@@ -24,9 +23,7 @@ use Filament\Forms\Get;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
-use ZipArchive;
 
 class CreateShipment extends CreateRecord
 {

@@ -85,6 +85,10 @@ class Recipient extends Model
         return $this->hasMany(Receiver::class);
     }
 
+    public function registryReceivers(){
+        return $this->hasMany(RegistryReceiver::class);
+    }
+
     protected static function booted()
     {
         static::creating(function ($attachment) {
@@ -97,6 +101,14 @@ class Recipient extends Model
 
         static::updating(function ($attachment) {
             //
+        });
+
+        static::saving(function ($recipient) {
+            // assegno la colonna per il controllo dei duplicati
+            $recipient->description_search = str($recipient->description)
+                ->trim()
+                ->squish()
+                ->lower();
         });
 
         static::saved(function ($attachment) {
