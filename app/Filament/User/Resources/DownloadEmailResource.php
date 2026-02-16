@@ -140,7 +140,7 @@ class DownloadEmailResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('receive_date', 'desc')
+            ->defaultSort('receive_date', 'asc')
             ->columns([
                 TextColumn::make('from')
                     ->label('Mittente')
@@ -325,7 +325,6 @@ class DownloadEmailResource extends Resource
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
                 'account_id' => null,
-                'recipients' => null,
                 'send_date' => null,
                 'send_user_id' => null,
                 'shipment_id' => null,

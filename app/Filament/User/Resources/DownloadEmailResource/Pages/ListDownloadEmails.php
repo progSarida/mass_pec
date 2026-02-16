@@ -126,16 +126,16 @@ class ListDownloadEmails extends ListRecords
                     if ($skip) {
                         Log::info("Ignorata mail già scaricata/protocollata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
                         if ($account->delete && $date) {                                                        // se è prevista la cancellazione dal server
-                        if ($account->delete_after_days && $date){
-                            $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
-                            if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
-                                // $message->delete();
+                            if ($account->delete_after_days && $date){
+                                $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                                if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                            // se ho indicato i giorni da aspettare per cancellare
+                                    $message->delete();
+                                }
+                            }
+                            else{                                                                               // se non ho indicato i giorni da aspettare per cancellare
+                                $message->delete();
                             }
                         }
-                        else{                                                                                   // se non ho indicato i giorni da aspettare per cancellare
-                            // $message->delete();
-                        }
-                    }
                         continue;
                     }
 

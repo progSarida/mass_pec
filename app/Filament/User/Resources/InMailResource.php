@@ -323,7 +323,6 @@ class InMailResource extends Resource
                 'body' => $record->body,
                 'receive_date' => $record->receive_date,
                 'account_id' => null,
-                'recipients' => null,
                 'send_date' => null,
                 'send_user_id' => null,
                 'shipment_id' => null,

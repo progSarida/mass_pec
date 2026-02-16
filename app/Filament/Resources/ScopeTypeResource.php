@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ScopeTypeResource\Pages;
-use App\Filament\Resources\ScopeTypeResource\RelationManagers;
 use App\Models\ScopeType;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
@@ -12,14 +11,12 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ScopeTypeResource extends Resource
 {
     protected static ?string $model = ScopeType::class;
-    public static ?string $pluralModelLabel = 'Ambiti';
-    public static ?string $modelLabel = 'Ambito';
+    public static ?string $pluralModelLabel = 'Settori Interni';
+    public static ?string $modelLabel = 'Settore Interno';
     protected static ?string $navigationIcon = 'fas-list';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 5;

@@ -1042,7 +1042,6 @@ class EditShipment extends EditRecord
                 'body' => $record->mail_body,
                 'receive_date' => null,
                 'account_id' => null,
-                'recipients' => null,
                 'send_date' => $record->send_date,
                 'send_user_id' => $record->send_user_id,
                 'shipment_id' => $record->id,

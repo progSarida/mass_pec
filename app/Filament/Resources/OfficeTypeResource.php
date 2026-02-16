@@ -16,10 +16,10 @@ use Illuminate\Database\Eloquent\Builder;
 class OfficeTypeResource extends Resource
 {
     protected static ?string $model = OfficeType::class;
-    public static ?string $pluralModelLabel = 'Uffici';
-    public static ?string $modelLabel = 'Ufficio';
+    public static ?string $pluralModelLabel = 'Uffici esterni';
+    public static ?string $modelLabel = 'Ufficio esterno';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationLabel = 'Uffici';
+    protected static ?string $navigationLabel = 'Uffici esterni';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 4;
 
