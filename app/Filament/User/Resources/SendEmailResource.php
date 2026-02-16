@@ -37,9 +37,9 @@ class SendEmailResource extends Resource
 {
     protected static ?string $model = SendEmail::class;
 
-    public static ?string $pluralModelLabel = 'Invio posta';
+    public static ?string $pluralModelLabel = 'Gestione posta in uscita';
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-forward-20';
-    protected static ?string $navigationLabel = 'Invio posta';
+    protected static ?string $navigationLabel = 'Gestione posta in uscita';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 3;
 

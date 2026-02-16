@@ -97,11 +97,11 @@ class ListDownloadEmails extends ListRecords
                     $uid = $message->getNumber();
 
                     // --- SKIP RICEVUTE PEC ---
-                    // $rawHeaders = $message->getRawHeaders();
-                    // if ($this->isOfficialPecReceipt($rawHeaders)) {
-                    //     Log::info("Ignorata ricevuta PEC: UID {$uid}");
-                    //     continue;
-                    // }
+                    $rawHeaders = $message->getRawHeaders();
+                    if ($this->isOfficialPecReceipt($rawHeaders)) {
+                        Log::info("Ignorata ricevuta PEC: UID {$uid}");
+                        continue;
+                    }
 
                     // --- DATA ---
                     $date = $message->getDate()?->format('Y-m-d H:i:s');
@@ -195,11 +195,11 @@ class ListDownloadEmails extends ListRecords
                         if ($account->delete_after_days && $date){
                             $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
                             if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
-                                // $message->delete();
+                                $message->delete();
                             }
                         }
                         else{                                                                                   // se non ho indicato i giorni da aspettare per cancellare
-                            // $message->delete();
+                            $message->delete();
                         }
                     }
                 }

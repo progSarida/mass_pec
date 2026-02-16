@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\OfficeTypeResource\Pages;
-use App\Filament\Resources\OfficeTypeResource\RelationManagers;
 use App\Models\OfficeType;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
@@ -13,15 +12,14 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class OfficeTypeResource extends Resource
 {
     protected static ?string $model = OfficeType::class;
-    public static ?string $pluralModelLabel = 'Tipi ufficio';
-    public static ?string $modelLabel = 'Tipo ufficio';
+    public static ?string $pluralModelLabel = 'Uffici';
+    public static ?string $modelLabel = 'Ufficio';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationLabel = 'Tipi ufficio';
+    protected static ?string $navigationLabel = 'Uffici';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 4;
 

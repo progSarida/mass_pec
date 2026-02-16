@@ -13,7 +13,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class ProcessShipmentEmailJob implements ShouldQueue
 {
@@ -22,7 +21,7 @@ class ProcessShipmentEmailJob implements ShouldQueue
     /**
      * Timeout del job padre. Deve essere sufficiente per creare tutti i job figli.
      */
-    public $timeout = 120;
+    public $timeout = 180;
 
     public function __construct(
         public int $shipmentId,

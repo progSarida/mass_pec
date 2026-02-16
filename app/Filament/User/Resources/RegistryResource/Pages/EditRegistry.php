@@ -257,6 +257,25 @@ class EditRegistry extends EditRecord
             ->icon('heroicon-m-ellipsis-vertical')
             ->color('info')
             ->button(),
+            Action::make('uploadReceipts')
+                ->label('CARICA RICEVUTE')
+                ->color('info')
+                ->modalSubmitActionLabel('Carica')
+                // ->visible(fn($record) => !$record->is_email)
+                ->form([
+                    FileUpload::make('receipts')
+                        ->label('Seleziona File')
+                        ->multiple()
+                        ->directory(fn ($record) => $record->attachment_path . '/receipts')
+                        ->preserveFilenames()
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    Notification::make()
+                        ->title('Caricamento completato')
+                        ->success()
+                        ->send();
+                }),
         ];
     }
 
@@ -340,7 +359,7 @@ class EditRegistry extends EditRecord
                 Log::info("Elaborazione: {$registry->subject} → {$receiver->address}");
 
                 $subject = "[{$registry->protocol_number}] " . $registry->subject;
-                $this->processPecReceipts($imap, $receiver, $subject, $receiptsPath);
+                $this->processPecReceipts($imap, $sender, $receiver, $subject, $receiptsPath);
                 $receiver->save();
             }
 
@@ -394,7 +413,7 @@ class EditRegistry extends EditRecord
         return $imap;
     }
 
-    private function processPecReceipts($imap, &$receiver, $subject, $receiptsPath)
+    private function processPecReceipts($imap, $account, &$receiver, $subject, $receiptsPath)
     {
         imap_errors();
         $searchCriteria = 'SUBJECT "' . $subject . '"';
@@ -407,12 +426,14 @@ class EditRegistry extends EditRecord
         if (!$uids) { return; }
 
         foreach ($uids as $uid) {
-            $headerInfo = imap_headerinfo($imap, imap_msgno($imap, $uid));
+            // $headerInfo = imap_headerinfo($imap, imap_msgno($imap, $uid));
+            $overview = imap_fetch_overview($imap, $uid, 0);
+            $date = $overview[0]->udate;
             $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
             $body = imap_body($imap, $uid, FT_UID);
 
             // Recuperiamo gli header per fare il controllo noi "a mano"
-            $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
+            // $rawHeaders = imap_fetchheader($imap, $uid, FT_UID);
 
             if (!$this->isOfficialPecReceipt($rawHeaders)) continue;Log::info("Ricevuta");
             if($receiver->message_id){
@@ -460,7 +481,18 @@ class EditRegistry extends EditRecord
             }
 
             // Eliminazione ricevuta
-            imap_delete($imap, $uid, FT_UID);
+            if ($account->delete && $date) {                                                            // se è prevista la cancellazione dal server
+                if ($account->delete_after_days && $date){
+                    $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                    if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
+                        imap_delete($imap, $uid, FT_UID);
+                    }
+                }
+                else{                                                                                   // se non ho indicato i giorni da aspettare per cancellare
+                    imap_delete($imap, $uid, FT_UID);
+                }
+            }
+
         }
     }
 

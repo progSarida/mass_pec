@@ -24,11 +24,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Placeholder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\User\Resources\DownloadEmailResource\Pages;
-use App\Filament\User\Resources\DownloadEmailResource\RelationManagers;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
@@ -37,9 +34,9 @@ class DownloadEmailResource extends Resource
 {
     protected static ?string $model = DownloadEmail::class;
 
-    public static ?string $pluralModelLabel = 'Scarico posta ricevuta';
+    public static ?string $pluralModelLabel = 'Gestione posta ricevuta';
     protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20';
-    protected static ?string $navigationLabel = 'Scarico posta ricevuta';
+    protected static ?string $navigationLabel = 'Gestione posta ricevuta';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 2;
 

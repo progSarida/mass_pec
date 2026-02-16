@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\AdminTypeResource\Pages;
-use App\Filament\Resources\AdminTypeResource\RelationManagers;
 use App\Models\AdminType;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
@@ -13,15 +12,14 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class AdminTypeResource extends Resource
 {
     protected static ?string $model = AdminType::class;
-    public static ?string $pluralModelLabel = 'Tipi ente';
+    public static ?string $pluralModelLabel = 'Tipi Ente';
     public static ?string $modelLabel = 'Tipo ente';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationLabel = 'Tipi ente';
+    protected static ?string $navigationLabel = 'Tipi Ente';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 2;
 

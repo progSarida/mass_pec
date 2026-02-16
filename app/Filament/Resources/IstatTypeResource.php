@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\IstatTypeResource\Pages;
-use App\Filament\Resources\IstatTypeResource\RelationManagers;
 use App\Models\IstatType;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
@@ -13,15 +12,14 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class IstatTypeResource extends Resource
 {
     protected static ?string $model = IstatType::class;
-    public static ?string $pluralModelLabel = 'Tipi Istat';
-    public static ?string $modelLabel = 'Tipo Istat';
+    public static ?string $pluralModelLabel = 'Classificazione Istat';
+    public static ?string $modelLabel = 'Classificazione Istat';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationLabel = 'Tipi Istat';
+    protected static ?string $navigationLabel = 'Classificazione Istat';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 3;
 

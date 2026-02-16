@@ -32,7 +32,7 @@ class SendShipmentEmailJob implements ShouldQueue
      * Numero di tentativi in caso di fallimento
      */
     // public $tries = 3;
-    public $tries = 1;
+    public $tries = 50;
 
     /**
      * Secondi di attesa tra un tentativo e l'altro

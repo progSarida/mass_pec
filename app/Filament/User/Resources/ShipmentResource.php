@@ -34,8 +34,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -152,28 +150,28 @@ class ShipmentResource extends Resource
                     ->collapsed()
                     ->columns(24)
                     ->schema([
-                        TextInput::make('total_no_mails ')
+                        TextInput::make('total_no_mails')
                             ->label('Totali')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('no_mails_to_send ')
+                        TextInput::make('no_mails_to_send')
                             ->label('Da inviare')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('no_mails_sended ')
+                        TextInput::make('no_mails_sended')
                             ->label('Inviate')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('no_send_receipt ')
+                        TextInput::make('no_send_receipt')
                             ->label('Ricevute')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('no_missed_send_receipt ')
+                        TextInput::make('no_missed_send_receipt')
                             ->label('Non ricevute')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('no_delivery_receipt ')
+                        TextInput::make('no_delivery_receipt')
                             ->label('Consegnate')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('no_missed_delivery_receipt')
                             ->label('Non consegnate')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('no_anomaly_receipt ')
+                        TextInput::make('no_anomaly_receipt')
                             ->label('Anomalie')
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ])

@@ -41,6 +41,98 @@ class RecipientResource extends Resource
             ->schema([
                 TextInput::make('description')->label('Descrizione')
                     ->required()
+                    ->live(debounce: 500)
+                    ->afterStateUpdated(function ($state, $record, $livewire) {
+                        if (blank($state)) {
+                            // Se svuota il campo, chiudiamo l'eventuale notifica aperta
+                            \Filament\Notifications\Notification::make('duplicate-alert')
+                                ->duration(1)
+                                ->send();
+                            return;
+                        }
+
+                        $normalized = str($state)->trim()->squish()->lower()->toString();
+
+                        $existing = \App\Models\Recipient::where('description_search', $normalized)
+                            ->when($record, fn($q) => $q->where('id', '!=', $record->id))
+                            ->first();
+
+                        if ($existing) {
+                            $allMails = collect(range(1, 5)) // Rimesso a 5 per coerenza col DB
+                                ->map(function($i) use ($existing) {
+                                    $mail = $existing->{"mail_$i"};
+                                    $type = $existing->{"mail_type_$i"};
+                                    if (blank($mail)) return null;
+                                    $typeName = $type ? $type->getLabel() : 'Email';
+                                    return "• {$typeName}: {$mail}";
+                                })
+                                ->filter()
+                                ->implode('<br>');
+
+                            // Recupero il nome dell'AdminType in modo più sicuro
+                            $adminTypeName = $existing->adminType?->name ?? 'Tipo ente non specificato';
+                            $mailList = filled($allMails) ? $allMails : 'Nessuna mail registrata';
+
+                            \Filament\Notifications\Notification::make('duplicate-alert') // ID statico importante!
+                                ->warning()
+                                ->title('Possibile Duplicato Rilevato')
+                                ->body("
+                                    <b>{$existing->description}</b><br>
+                                    {$adminTypeName}<br>
+                                    <b>Città:</b> {$existing->city?->name}<br>
+                                    <b>Email:</b><br>
+                                    {$mailList}
+                                ")
+                                ->duration(10000)
+                                ->actions([
+                                    \Filament\Notifications\Actions\Action::make('view')
+                                        ->label('Vedi scheda')
+                                        ->url(RecipientResource::getUrl('view', ['record' => $existing->id]))
+                                        ->openUrlInNewTab(),
+                                ])
+                                ->send();
+                        } else {
+                            \Filament\Notifications\Notification::make('duplicate-alert') // ID statico importante!
+                                ->duration(1)
+                                ->send();
+                        }
+                    })
+                    // ->hint(function ($state, $record) {
+                    //     if (blank($state)) return null;
+
+                    //     $normalized = str($state)->trim()->squish()->lower()->toString();
+                    //     $existing = \App\Models\Recipient::where('description_search', $normalized)
+                    //         ->when($record, fn($q) => $q->where('id', '!=', $record->id))
+                    //         ->first();
+
+                    //     if ($existing) {
+                    //         $description = $existing->description;
+                    //         $comune = $existing->city?->name;
+                    //         $pec = $existing->mail_type_1 == MailType::PEC ? $existing->mail_1
+                    //                 : ($existing->mail_type_2 == MailType::PEC ? $existing->mail_2
+                    //                 : ($existing->mail_type_3 == MailType::PEC ? $existing->mail_3
+                    //                 : ($existing->mail_type_4 == MailType::PEC ? $existing->mail_4
+                    //                 : ($existing->mail_type_5 == MailType::PEC ? $existing->mail_5 : ''))));
+                    //         return "$description già presente, $comune, PEC: $pec";
+                    //     }
+
+                    //     return null;
+                    // })
+                    // ->hintColor('danger')
+                    // ->hintIcon(function ($state, $record) {
+                    //     if (blank($state)) return null;
+
+                    //     $normalized = str($state)->trim()->squish()->lower()->toString();
+                    //     $existing = \App\Models\Recipient::where('description_search', $normalized)
+                    //         ->when($record, fn($q) => $q->where('id', '!=', $record->id))
+                    //         ->first();
+
+                    //     if ($existing) {
+                    //         return 'heroicon-m-exclamation-triangle';
+                    //     }
+
+                    //     return null;
+                    // })
                     ->rules([
                         fn ($get, $record) => function (string $attribute, $value, $fail) use ($record) {
                             // 1. Normalizziamo l'input attuale
