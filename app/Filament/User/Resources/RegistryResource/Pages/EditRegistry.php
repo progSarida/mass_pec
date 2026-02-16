@@ -258,15 +258,14 @@ class EditRegistry extends EditRecord
             ->color('info')
             ->button(),
             Action::make('uploadReceipts')
-                ->label('CARICA RICEVUTE')
+                ->label('CARICA')
                 ->color('info')
                 ->modalSubmitActionLabel('Carica')
-                // ->visible(fn($record) => !$record->is_email)
                 ->form([
                     FileUpload::make('receipts')
                         ->label('Seleziona File')
                         ->multiple()
-                        ->directory(fn ($record) => $record->attachment_path . '/receipts')
+                        ->directory(fn ($record) => $record->attachment_path)
                         ->preserveFilenames()
                         ->required(),
                 ])
