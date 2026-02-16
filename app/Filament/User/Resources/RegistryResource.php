@@ -263,7 +263,8 @@ class RegistryResource extends Resource
 
                 TextColumn::make('scopeType.name')
                     ->label('Ambito')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('from')
                     ->label('Mittente')
@@ -272,10 +273,27 @@ class RegistryResource extends Resource
                     ->tooltip(fn ($record) => $record->from)
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('receivers')
+                    ->label('Destinatari')
+                    ->state(fn ($record) => $record->registryReceivers?->count() ?? 0)
+                    ->formatStateUsing(function ($state) {
+                        if ($state === 0) return '0 destinatari';
+                        return $state . ' ' . ($state === 1 ? 'destinatario' : 'destinatari');
+                    })
+                    ->tooltip(function ($record) {
+                        $receivers = $record->registryReceivers;
+
+                        if (! $receivers || $receivers->isEmpty()) {
+                            return 'Nessun destinatario';
+                        }
+
+                        return $receivers->pluck('address')->implode(', ');
+                    }),
+
                 TextColumn::make('subject')
                     ->label('Oggetto')
                     ->searchable()
-                    ->limit(50)
+                    ->limit(100)
                     ->tooltip(fn ($record) => $record->subject),
 
                 TextColumn::make('body')
@@ -322,12 +340,12 @@ class RegistryResource extends Resource
                     ->label('Registrato il')
                     ->date('d/m/Y')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: false),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('registerUser.name')
                     ->label('Registrato da')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: false),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 // Tables\Columns\TextColumn::make('attachments')
                 //     ->label('Allegati')
