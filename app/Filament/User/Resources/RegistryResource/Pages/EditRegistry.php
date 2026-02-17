@@ -254,6 +254,7 @@ class EditRegistry extends EditRecord
                 }),
             Action::make('uploadReceipts')
                 ->label('Carica Ricevute')
+                ->visible(fn() => $this->getRecord()->registry_origin_type === RegistryOriginType::SEND_EMAIL)
                 ->icon('fluentui-receipt-20-o')
                 ->color('info')
                 ->modalSubmitActionLabel('Carica')
@@ -297,6 +298,53 @@ class EditRegistry extends EditRecord
             ->icon('heroicon-m-ellipsis-vertical')
             ->color('info')
             ->button(),
+
+            Action::make('deleteFile')
+                ->label('Elimina allegati')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
+                ->form([
+                    Select::make('file_to_delete')
+                        ->label('Seleziona il file da eliminare')
+                        ->options(function ($record) {
+                            if (!$record || !$record->attachment_path) {
+                                return [];
+                            }
+
+                            $files = Storage::files($record->attachment_path);
+
+                            return collect($files)->mapWithKeys(function ($file) {
+                                return [$file => basename($file)];
+                            })->toArray();
+                        })
+                        ->required()
+                        ->native(false)
+                        ->searchable(),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Elimina allegato')
+                ->modalDescription('Questa azione non può essere annullata.')
+                ->modalSubmitActionLabel('Elimina')
+                ->modalCancelActionLabel('Annulla')
+                ->action(function (array $data) {
+                    $file = $data['file_to_delete'];
+
+                    if (Storage::exists($file)) {
+                        Storage::delete($file);
+
+                        Notification::make()
+                            ->title('File eliminato con successo')
+                            ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                            ->success()
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->title('File non trovato')
+                            ->warning()
+                            ->send();
+                    }
+                }),
         ];
     }
 
