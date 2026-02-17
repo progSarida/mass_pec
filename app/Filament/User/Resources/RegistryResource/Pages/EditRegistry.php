@@ -300,7 +300,7 @@ class EditRegistry extends EditRecord
             ->button(),
 
             // Action::make('deleteFile')
-            //     ->label('Elimina allegati')
+            //     ->label('Elimina file')
             //     ->icon('heroicon-o-trash')
             //     ->color('danger')
             //     ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
@@ -312,7 +312,7 @@ class EditRegistry extends EditRecord
             //                     return [];
             //                 }
 
-            //                 $files = Storage::files($record->attachment_path);
+            //                 $files = Storage::allfiles($record->attachment_path);
 
             //                 return collect($files)->mapWithKeys(function ($file) {
             //                     return [$file => basename($file)];
