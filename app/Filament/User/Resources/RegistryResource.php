@@ -240,6 +240,62 @@ class RegistryResource extends Resource
                             })
                             ->columnSpan('full'),
                     ]),
+
+                Section::make('Documenti correlati')
+                    ->collapsed(fn($record) => $record)
+                    ->visible(function ($record) {
+                        $files = Storage::files($record->attachment_path . '/related');
+                        if (empty($files)) { return false; }
+                        return true;
+                    })
+                    ->headerActions([
+                        Action::make('downloadAll')
+                            ->label('Scarica tutto (.zip)')
+                            ->icon('heroicon-m-arrow-down-tray')
+                            ->color('gray')
+                            ->size('sm')
+                            ->visible(function ($record) {
+                                if (!$record || !$record->attachment_path) return false;
+                                // Il pulsante appare solo se ci sono almeno 2 file
+                                $files = Storage::files($record->attachment_path . '/related');
+                                return count($files) > 1;
+                            })
+                            ->url(fn ($record) => route('related.zip', [
+                                'id' => $record->id
+                            ]))
+                            ->openUrlInNewTab(),
+                    ])
+                    ->schema([
+                        Placeholder::make('related')
+                            ->label('')
+                            ->content(function ($record) {
+                                if (!$record || !$record->attachment_path) {
+                                    return 'Nessuna cartella documenti correlati trovata.';
+                                }
+
+                                $files = Storage::files($record->attachment_path . '/related');
+
+                                if (empty($files)) {
+                                    return 'Nessun allegato.';
+                                }
+
+                                return new HtmlString(
+                                    collect($files)->map(function ($file) {
+                                        $name = basename($file);
+                                        $url = Storage::temporaryUrl($file, now()->addMinutes(15));
+                                        return <<<HTML
+                                        <div class="flex items-center gap-2 py-1">
+                                            <span class="text-gray-400 text-xs">📎</span>
+                                            <a href="{$url}" target="_blank" class="text-sm text-blue-600 hover:underline hover:text-blue-800 transition">
+                                                {$name}
+                                            </a>
+                                        </div>
+                                        HTML;
+                                    })->implode('')
+                                );
+                            })
+                            ->columnSpan('full'),
+                    ]),
             ]);
     }
 

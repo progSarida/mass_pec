@@ -252,20 +252,17 @@ class EditRegistry extends EditRecord
                             ->send();
                     }
                 }),
-            ])
-            ->label('Operazioni')
-            ->icon('heroicon-m-ellipsis-vertical')
-            ->color('info')
-            ->button(),
             Action::make('uploadReceipts')
-                ->label('CARICA')
+                ->label('Carica Ricevute')
+                ->icon('fluentui-receipt-20-o')
                 ->color('info')
                 ->modalSubmitActionLabel('Carica')
+                // ->visible(fn($record) => !$record->is_email)
                 ->form([
                     FileUpload::make('receipts')
                         ->label('Seleziona File')
                         ->multiple()
-                        ->directory(fn ($record) => $record->attachment_path)
+                        ->directory(fn () => $this->getRecord()->attachment_path . '/receipts')
                         ->preserveFilenames()
                         ->required(),
                 ])
@@ -275,6 +272,31 @@ class EditRegistry extends EditRecord
                         ->success()
                         ->send();
                 }),
+            Action::make('uploadRelated')
+                ->label('Carica documenti')
+                ->visible(fn() => $this->getRecord()->registry_origin_type !== RegistryOriginType::SHIPMENT)
+                ->icon('fluentui-document-link-20-o')
+                ->color('info')
+                ->modalSubmitActionLabel('Carica')
+                ->form([
+                    FileUpload::make('receipts')
+                        ->label('Seleziona File')
+                        ->multiple()
+                        ->directory(fn () => $this->getRecord()->attachment_path . '/related')
+                        ->preserveFilenames()
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    Notification::make()
+                        ->title('Caricamento completato')
+                        ->success()
+                        ->send();
+                }),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
 

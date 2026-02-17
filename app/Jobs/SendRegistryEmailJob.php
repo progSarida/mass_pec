@@ -79,14 +79,30 @@ class SendRegistryEmailJob implements ShouldQueue
             Log::info("Email Registry inviata", ['recipient' => $this->recipientEmail, 'message_id' => $messageId]);
 
         } catch (Exception $e) {
+            $errorMessage = $e->getMessage();
+
+            // Verifichiamo se l'errore contiene il codice di blocco IP (554 o 5.7.1)
+            $isIpBlocked = str_contains($errorMessage, '554') || str_contains($errorMessage, '5.7.1');
+
             Log::error("Errore invio email Registry", [
                 'registry_id' => $this->registryId,
                 'protocol_number' => $registry->protocol_number ?? 'N/A',
                 'recipient' => $this->recipientEmail,
-                'error' => $e->getMessage(),
+                'error' => $errorMessage,
                 'attempt' => $this->attempts(),
+                'is_blocked' => $isIpBlocked
             ]);
 
+            if ($isIpBlocked) {
+                // Opzionale: segna il destinatario o l'invio come "fallito per blocco" nel DB
+                // RegistryReceiver::where('id', $this->registryReceiverId)->update(['status' => 'blocked']);
+
+                // Interrompiamo immediatamente i tentativi (fail) senza fare retry
+                $this->fail($e);
+                return;
+            }
+
+            // Se non è un blocco IP, rilancia l'eccezione per permettere i retry standard
             throw $e;
         }
     }

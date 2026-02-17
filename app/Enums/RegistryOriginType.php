@@ -17,7 +17,7 @@ enum RegistryOriginType: string implements HasLabel
         return match($this) {
             self::SHIPMENT => 'Spedizioni',
             self::IN_MAIL => 'Pec Massiva',
-            self::DOWNLOAD_EMAIL => 'Accounts',
+            self::DOWNLOAD_EMAIL => 'Posta in arrivo',
             self::SEND_EMAIL => 'Posta inviata',
             self::MANUAL => 'Manuale',
         };
