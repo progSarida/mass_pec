@@ -847,7 +847,25 @@ class EditShipment extends EditRecord
             $xlsLocalPath = $tempDir . '/' . $xlsFilename;
             $writer->save($xlsLocalPath);
 
+            // 6. Generazione CSV
+            $csvFilename = str_replace('.xlsx', '.csv', $xlsFilename);
+            $csvLocalPath = $tempDir . '/' . $csvFilename;
+            $csvFile = fopen($csvLocalPath, 'w');
+
+            // Scrittura BOM per compatibilità Excel (UTF-8)
+            fprintf($csvFile, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            // Scrittura Header
+            fputcsv($csvFile, $header, ';'); // Usiamo il punto e virgola, standard italiano per Excel
+
+            // Scrittura Dati
+            foreach ($dataExcel as $row) {
+                fputcsv($csvFile, $row, ';');
+            }
+            fclose($csvFile);
+
             $toZip[$xlsFilename] = $xlsLocalPath;
+            $toZip[$csvFilename] = $csvLocalPath;
 
             // 6. Aggiunta allegato originale della spedizione
             if ($shipment->attachment) {
