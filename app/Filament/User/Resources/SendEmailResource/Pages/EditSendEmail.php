@@ -348,11 +348,6 @@ class EditSendEmail extends EditRecord
                 ]);
             }
 
-            // Elimino la mail in uscita
-            Model::withoutEvents(function () use ($record) {
-                $record->delete();
-            });
-
             $disk = config('filesystems.default');
             $storage = Storage::disk($disk);
 
@@ -380,11 +375,16 @@ class EditSendEmail extends EditRecord
                     }
                 }
 
-                // Elimina solo se hai effettivamente trovato dei file o se vuoi pulire comunque
-                $storage->deleteDirectory($oldPath);
             } else {
                 Log::warning("Percorso non trovato o vuoto: " . ($oldPath ?? 'NULL'));
             }
+
+            // Elimino la mail in uscita
+            // Model::withoutEvents(function () use ($record) {
+                $record->delete();
+            // });
+            // Elimina solo se hai effettivamente trovato dei file o se vuoi pulire comunque
+            // $storage->deleteDirectory($oldPath);
 
             DB::commit();
         } catch (\Throwable $e) {
