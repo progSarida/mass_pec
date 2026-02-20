@@ -80,6 +80,7 @@ class AccountResource extends Resource
                         TextInput::make('delete_after_days')->label('dopo (gg)')->columnSpan(1)
                             ->numeric()
                             ->minValue(10)
+                            ->extraInputAttributes(['class' => 'text-right'])
                             ->required(fn(Get $get) => $get('delete'))
                             ->validationMessages([
                                 'min' => 'Valore minore di 10 giorni.'
