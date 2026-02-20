@@ -311,7 +311,7 @@ class EditSendEmail extends EditRecord
         try {
             DB::beginTransaction();
 
-            $oldPath = $record->shipment_path;
+            $oldPath = $record->attachment_path;
             $protocolNumber = static::newProtocol();
 
             $newPath = 'registry/' . $protocolNumber;
