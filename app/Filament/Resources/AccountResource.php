@@ -77,7 +77,7 @@ class AccountResource extends Resource
                             ->required(),
                         Checkbox::make('delete')->label('Cancella mail')->columnSpan(2)
                             ->live(),
-                        TextInput::make('deleta_after_days')->label('dopo (gg)')->columnSpan(1)
+                        TextInput::make('delete_after_days')->label('dopo (gg)')->columnSpan(1)
                             ->numeric()
                             ->minValue(10)
                             ->required(fn(Get $get) => $get('delete'))
