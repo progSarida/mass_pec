@@ -72,12 +72,12 @@ class Registry extends Model
         return $this->hasMany(RegistryReceiver::class);
     }
 
-    public function pendingReceipts(){
-        $pending = true;
+    public function checkReceipts(){
+        $allDone = true;
         foreach($this->registryReceivers as $receiver){
-            if($receiver->pec_status == PecStatus::WAITING) $pending = false;
+            if($receiver->pec_status == PecStatus::WAITING) $allDone = false;
         }
-        return $pending;
+        return $allDone;
     }
 
     protected static function booted()

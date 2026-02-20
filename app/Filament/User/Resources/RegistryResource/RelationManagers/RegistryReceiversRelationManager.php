@@ -153,7 +153,7 @@ class RegistryReceiversRelationManager extends RelationManager
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => !$this->getOwnerRecord()->pendingReceipts()),
+                        ->visible(fn () => $this->getOwnerRecord()->checkReceipts()),
                 ]),
             ]);
     }

@@ -188,35 +188,35 @@ class SendEmailResource extends Resource
                     ->required()
                     ->columnSpanFull(),
 
-                FileUpload::make('attachments')
-                    ->label('Carica allegati')
-                    ->multiple()
-                    ->directory('send_email/0')
-                    ->preserveFilenames()
-                    ->visible(fn($record) => !$record)
-                    ->getUploadedFileNameForStorageUsing(function ($file) {
-                        $disk = config('filesystems.default');
-                        $directory = 'send_email/0';
-                        // creo cartella temporanea se non esiste
-                        if (!Storage::disk($disk)->exists('send_email/0')) {
-                            Storage::disk($disk)->makeDirectory('send_email/0');
-                        }
-                        // Estraiamo nome e estensione originali
-                        $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $extension = $file->getClientOriginalExtension();
+                // FileUpload::make('attachments')
+                //     ->label('Carica allegati')
+                //     ->multiple()
+                //     ->directory('send_email/0')
+                //     ->preserveFilenames()
+                //     ->visible(fn($record) => !$record)
+                //     ->getUploadedFileNameForStorageUsing(function ($file) {
+                //         $disk = config('filesystems.default');
+                //         $directory = 'send_email/0';
+                //         // creo cartella temporanea se non esiste
+                //         if (!Storage::disk($disk)->exists('send_email/0')) {
+                //             Storage::disk($disk)->makeDirectory('send_email/0');
+                //         }
+                //         // Estraiamo nome e estensione originali
+                //         $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                //         $extension = $file->getClientOriginalExtension();
 
-                        $finalName = $filename . '.' . $extension;
-                        $counter = 1;
+                //         $finalName = $filename . '.' . $extension;
+                //         $counter = 1;
 
-                        // Finché esiste un file con questo nome, incrementiamo il suffisso
-                        while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
-                            $finalName = $filename . '_' . $counter . '.' . $extension;
-                            $counter++;
-                        }
+                //         // Finché esiste un file con questo nome, incrementiamo il suffisso
+                //         while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                //             $finalName = $filename . '_' . $counter . '.' . $extension;
+                //             $counter++;
+                //         }
 
-                        return $finalName;
-                    })
-                    ->columnSpanFull(),
+                //         return $finalName;
+                //     })
+                //     ->columnSpanFull(),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)
@@ -493,31 +493,31 @@ class SendEmailResource extends Resource
 
             if ($oldPath && $storage->exists($oldPath)) {
 
-                // 1. Assicuriamoci che la nuova directory esista
                 if (!$storage->exists($newPath)) {
                     $storage->makeDirectory($newPath);
                 }
+                $files = $storage->allFiles($oldPath);
 
-                // 2. Recuperiamo i file presenti nella vecchia cartella
-                $files = $storage->files($oldPath);
+                // DEBUG: Logga quanti file hai trovato
+                Log::info("File trovati in $oldPath: " . count($files));
 
                 foreach ($files as $file) {
-                    // basename($file) è fondamentale: estrae solo "documento.pdf" da "vecchia/cartella/documento.pdf"
                     $fileName = basename($file);
-
-                    // Costruiamo il nuovo nome file
                     $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
-
-                    // Percorso finale pulito
                     $finalPath = $newPath . '/' . $newFileName;
 
-                    // 3. Copia del file (metodo performante)
-                    $storage->copy($file, $finalPath);
+                    // Log per tracciamento
+                    Log::info("Copia file da $file a $finalPath");
+
+                    if (!$storage->copy($file, $finalPath)) {
+                        throw new \Exception("Impossibile copiare il file: $file");
+                    }
                 }
 
-                // 4. Una volta finita la copia di tutti i file, eliminiamo la vecchia cartella
-                // La cartella verrà eliminata solo se il processo sopra è andato a buon fine
+                // Elimina solo se hai effettivamente trovato dei file o se vuoi pulire comunque
                 $storage->deleteDirectory($oldPath);
+            } else {
+                Log::warning("Percorso non trovato o vuoto: " . ($oldPath ?? 'NULL'));
             }
 
             DB::commit();

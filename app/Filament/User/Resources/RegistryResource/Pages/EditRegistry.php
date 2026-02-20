@@ -127,7 +127,17 @@ class EditRegistry extends EditRecord
                     ->label('Elimina File')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)) && $record->flow_type == FlowType::INTERNAL)
+                    ->visible(function($record) {
+                            $allDone = $record->checkReceipts();
+                            return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                                    && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
+                                    && !empty(Storage::files($record->attachment_path))                                 // la cartella dei file non è vuota
+                                    && !$record->send_date                                                              // non è stata inviata
+                                    && $record->account_id                                                              // ha un mittente
+                                    && $record->registryReceivers;                                                      // ha dei destinatari
+                        }
+                    )
+                    // ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)) && $record->flow_type == FlowType::INTERNAL)
                     ->form([
                         Select::make('file_to_delete')
                             ->label('Seleziona il file da eliminare')
@@ -217,12 +227,12 @@ class EditRegistry extends EditRecord
                 ->icon('hugeicons-mail-receive-01')
                 ->color('primary')
                 ->visible(function($record) {
-                        $pending = $record->pendingReceipts();
+                        $allDone = $record->checkReceipts();
                         return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
                                 && $record->send_date                                                               // è stata inviata
                                 && $record->account_id                                                              // ha un mittente
                                 && $record->registryReceivers                                                       // ha dei destinatari
-                                && !$pending;                                                                       // non ci sono destinatari senza ricevute
+                                && !$allDone;                                                                       // ci sono destinatari senza ricevuta
                     }
                 )
                 ->requiresConfirmation()
@@ -252,9 +262,18 @@ class EditRegistry extends EditRecord
                             ->send();
                     }
                 }),
+
             Action::make('uploadReceipts')
                 ->label('Carica Ricevute')
-                ->visible(fn() => $this->getRecord()->registry_origin_type === RegistryOriginType::SEND_EMAIL)
+                ->visible(function($record) {
+                        $allDone = $record->checkReceipts();
+                        return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                                && $record->send_date                                                               // è stata inviata
+                                && $record->account_id                                                              // ha un mittente
+                                && $record->registryReceivers                                                       // ha dei destinatari
+                                && !$allDone;                                                                       // ci sono destinatari senza ricevuta
+                    }
+                )
                 ->icon('fluentui-receipt-20-o')
                 ->color('info')
                 ->modalSubmitActionLabel('Carica')
@@ -273,6 +292,59 @@ class EditRegistry extends EditRecord
                         ->success()
                         ->send();
                 }),
+
+            Action::make('uploadFile')
+                    ->label('Carica allegati')
+                    ->icon('heroicon-o-document-arrow-up')
+                    ->color('info')
+                    ->modalSubmitActionLabel('Carica')
+                    ->visible(function($record) {
+                            $allDone = $record->checkReceipts();
+                            return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                                    && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
+                                    && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
+                                    && !$record->send_date                                                              // non è stata inviata
+                                    && $record->account_id                                                              // ha un mittente
+                                    && $record->registryReceivers;                                                      // ha dei destinatari
+                        }
+                    )
+                    ->form([
+                        FileUpload::make('attachments')
+                            ->label('Seleziona File')
+                            ->multiple()
+                            ->directory(fn ($record) => $record->attachment_path)
+                            ->preserveFilenames()
+                            ->getUploadedFileNameForStorageUsing(function ($file, $record) {
+                                $disk = config('filesystems.default');
+                                $directory = $record->attachment_path;
+
+                                // Estraiamo nome e estensione originali
+                                $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                                $extension = $file->getClientOriginalExtension();
+
+                                $finalName = $filename . '.' . $extension;
+                                $counter = 1;
+
+                                // Finché esiste un file con questo nome, incrementiamo il suffisso
+                                while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                                    $finalName = $filename . '_' . $counter . '.' . $extension;
+                                    $counter++;
+                                }
+
+                                return $finalName;
+                            })
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        // I file vengono caricati automaticamente nella cartella
+                        // configurata nel metodo ->directory() sopra.
+
+                        Notification::make()
+                            ->title('Caricamento completato')
+                            ->success()
+                            ->send();
+                    }),
+
             Action::make('uploadRelated')
                 ->label('Carica documenti')
                 ->visible(fn() => $this->getRecord()->registry_origin_type !== RegistryOriginType::SHIPMENT)
@@ -293,58 +365,67 @@ class EditRegistry extends EditRecord
                         ->success()
                         ->send();
                 }),
+
+            Action::make('deleteFile')
+                ->label('Elimina file')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->visible(function($record) {
+                        $allDone = $record->checkReceipts();
+                        return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                                && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
+                                && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
+                                && !$record->send_date                                                              // non è stata inviata
+                                && $record->account_id                                                              // ha un mittente
+                                && $record->registryReceivers;                                                      // ha dei destinatari
+                    }
+                )
+                ->form([
+                    Select::make('file_to_delete')
+                        ->label('Seleziona il file da eliminare')
+                        ->options(function ($record) {
+                            if (!$record || !$record->attachment_path) {
+                                return [];
+                            }
+
+                            $files = Storage::allfiles($record->attachment_path);
+
+                            return collect($files)->mapWithKeys(function ($file) {
+                                return [$file => basename($file)];
+                            })->toArray();
+                        })
+                        ->required()
+                        ->native(false)
+                        ->searchable(),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Elimina allegato')
+                ->modalDescription('Questa azione non può essere annullata.')
+                ->modalSubmitActionLabel('Elimina')
+                ->modalCancelActionLabel('Annulla')
+                ->action(function (array $data) {
+                    $file = $data['file_to_delete'];
+
+                    if (Storage::exists($file)) {
+                        Storage::delete($file);
+
+                        Notification::make()
+                            ->title('File eliminato con successo')
+                            ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                            ->success()
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->title('File non trovato')
+                            ->warning()
+                            ->send();
+                    }
+                }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')
             ->color('info')
             ->button(),
-
-            // Action::make('deleteFile')
-            //     ->label('Elimina file')
-            //     ->icon('heroicon-o-trash')
-            //     ->color('danger')
-            //     ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
-            //     ->form([
-            //         Select::make('file_to_delete')
-            //             ->label('Seleziona il file da eliminare')
-            //             ->options(function ($record) {
-            //                 if (!$record || !$record->attachment_path) {
-            //                     return [];
-            //                 }
-
-            //                 $files = Storage::allfiles($record->attachment_path);
-
-            //                 return collect($files)->mapWithKeys(function ($file) {
-            //                     return [$file => basename($file)];
-            //                 })->toArray();
-            //             })
-            //             ->required()
-            //             ->native(false)
-            //             ->searchable(),
-            //     ])
-            //     ->requiresConfirmation()
-            //     ->modalHeading('Elimina allegato')
-            //     ->modalDescription('Questa azione non può essere annullata.')
-            //     ->modalSubmitActionLabel('Elimina')
-            //     ->modalCancelActionLabel('Annulla')
-            //     ->action(function (array $data) {
-            //         $file = $data['file_to_delete'];
-
-            //         if (Storage::exists($file)) {
-            //             Storage::delete($file);
-
-            //             Notification::make()
-            //                 ->title('File eliminato con successo')
-            //                 ->body('Il file ' . basename($file) . ' è stato eliminato.')
-            //                 ->success()
-            //                 ->send();
-            //         } else {
-            //             Notification::make()
-            //                 ->title('File non trovato')
-            //                 ->warning()
-            //                 ->send();
-            //         }
-            //     }),
         ];
     }
 

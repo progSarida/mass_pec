@@ -358,31 +358,32 @@ class EditSendEmail extends EditRecord
 
             if ($oldPath && $storage->exists($oldPath)) {
 
-                // 1. Assicuriamoci che la nuova directory esista
                 if (!$storage->exists($newPath)) {
                     $storage->makeDirectory($newPath);
                 }
 
-                // 2. Recuperiamo i file presenti nella vecchia cartella
-                $files = $storage->files($oldPath);
+                $files = $storage->allFiles($oldPath);
+
+                // DEBUG: Logga quanti file hai trovato
+                Log::info("File trovati in $oldPath: " . count($files));
 
                 foreach ($files as $file) {
-                    // basename($file) è fondamentale: estrae solo "documento.pdf" da "vecchia/cartella/documento.pdf"
                     $fileName = basename($file);
-
-                    // Costruiamo il nuovo nome file
                     $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
-
-                    // Percorso finale pulito
                     $finalPath = $newPath . '/' . $newFileName;
 
-                    // 3. Copia del file (metodo performante)
-                    $storage->copy($file, $finalPath);
+                    // Log per tracciamento
+                    Log::info("Copia file da $file a $finalPath");
+
+                    if (!$storage->copy($file, $finalPath)) {
+                        throw new \Exception("Impossibile copiare il file: $file");
+                    }
                 }
 
-                // 4. Una volta finita la copia di tutti i file, eliminiamo la vecchia cartella
-                // La cartella verrà eliminata solo se il processo sopra è andato a buon fine
+                // Elimina solo se hai effettivamente trovato dei file o se vuoi pulire comunque
                 $storage->deleteDirectory($oldPath);
+            } else {
+                Log::warning("Percorso non trovato o vuoto: " . ($oldPath ?? 'NULL'));
             }
 
             DB::commit();
