@@ -151,6 +151,8 @@ class RegistryResource extends Resource
 
                 DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
+                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::IN_MAIL
+                                            || $record->registry_origin_type == RegistryOriginType::DOWNLOAD_EMAIL)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -158,21 +160,52 @@ class RegistryResource extends Resource
 
                 DatePicker::make('download_date')
                     ->label('Scaricato il')
+                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::IN_MAIL
+                                            || $record->registry_origin_type == RegistryOriginType::DOWNLOAD_EMAIL)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
-                    ->visible(fn(Get $get) => $get('is_email'))
+                    // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
+                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::IN_MAIL
+                                            || $record->registry_origin_type == RegistryOriginType::DOWNLOAD_EMAIL)
+                    ->relationship('downloadUser', 'name')
+                    // ->visible(fn(Get $get) => $get('is_email'))
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+
+                DatePicker::make('send_date')
+                    ->label('Inviato il')
+                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::SEND_EMAIL
+                                            || $record->registry_origin_type == RegistryOriginType::SHIPMENT)
+                    ->extraInputAttributes(['class' => 'text-center'])
+                    ->date('d/m/Y')
+                    // ->visible(fn(Get $get) => $get('is_email'))
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
+
+                Forms\Components\Select::make('send_user_id')
+                    ->label('Inviato da')
+                    ->visible(fn ($record) => $record->registry_origin_type != RegistryOriginType::SEND_EMAIL
+                                            || $record->registry_origin_type != RegistryOriginType::SHIPMENT)
                     ->relationship('downloadUser', 'name')
                     ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
-                Placeholder::make('not_email')
+                Placeholder::make('not_in')
                     ->label('')
-                    ->visible(fn(Get $get) => !$get('is_email'))
+                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::SEND_EMAIL
+                                            || $record->registry_origin_type == RegistryOriginType::SHIPMENT
+                                            || $record->registry_origin_type == RegistryOriginType::MANUAL)
+                    // ->visible(fn(Get $get) => !$get('is_email'))
+                    ->columnSpan(['sm' => '0', 'md' => 3]),
+
+                Placeholder::make('manual')
+                    ->label('')
+                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::MANUAL)
+                    // ->visible(fn(Get $get) => !$get('is_email'))
                     ->columnSpan(['sm' => '0', 'md' => 6]),
 
                 DateTimePicker::make('created_at')
