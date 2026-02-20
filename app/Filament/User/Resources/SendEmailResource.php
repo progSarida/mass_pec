@@ -496,16 +496,52 @@ class SendEmailResource extends Resource
                 // DEBUG: Logga quanti file hai trovato
                 Log::info("File trovati in $oldPath: " . count($files));
 
+                // foreach ($files as $file) {
+                //     $fileName = basename($file);
+                //     $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
+                //     $finalPath = $newPath . '/' . $newFileName;
+
+                //     // Log per tracciamento
+                //     Log::info("Copia file da $file a $finalPath");
+
+                //     if (!$storage->copy($file, $finalPath)) {
+                //         throw new \Exception("Impossibile copiare il file: $file");
+                //     }
+                // }
+
                 foreach ($files as $file) {
                     $fileName = basename($file);
                     $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
                     $finalPath = $newPath . '/' . $newFileName;
 
-                    // Log per tracciamento
-                    Log::info("Copia file da $file a $finalPath");
+                    try {
+                        // Usiamo lo Stream per bypassare i limiti del comando COPY di S3
+                        $stream = $storage->readStream($file);
 
-                    if (!$storage->copy($file, $finalPath)) {
-                        throw new \Exception("Impossibile copiare il file: $file");
+                        if ($stream === null) {
+                            throw new \Exception("Impossibile leggere il file sorgente: $file");
+                        }
+
+                        // Scriviamo il file nella nuova posizione
+                        // Il terzo parametro 'visibility' assicura che il nuovo file sia scrivibile
+                        $result = $storage->writeStream($finalPath, $stream, [
+                            'visibility' => 'private'
+                        ]);
+
+                        if (is_resource($stream)) {
+                            fclose($stream);
+                        }
+
+                        if (!$result) {
+                            throw new \Exception("Scrittura fallita per: $finalPath");
+                        }
+
+                        Log::info("File copiato con successo: $finalPath");
+
+                    } catch (\Exception $e) {
+                        Log::error("Errore durante la copia stream: " . $e->getMessage());
+                        // Fallback estremo se lo stream fallisce (usa più RAM)
+                        $storage->put($finalPath, $storage->get($file));
                     }
                 }
 
