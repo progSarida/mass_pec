@@ -195,7 +195,7 @@ class EditRegistry extends EditRecord
                 ->modalHeading('Conferma invio email')
                 ->modalDescription(function ($record) {
                     $count = count($record->registryReceivers ?? []);
-                    return "L'email sarà inviata in background a {$count} destinatari. Riceverai una notifica al termine.";
+                    return "L'email sarà inviata in background a {$count} destinatari. Riceverai una notifica al termine dell'invio.";
                 })
                 ->modalSubmitActionLabel('Sì, invia')
                 ->modalCancelActionLabel('Annulla')

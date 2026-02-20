@@ -34,9 +34,9 @@ class DownloadEmailResource extends Resource
 {
     protected static ?string $model = DownloadEmail::class;
 
-    public static ?string $pluralModelLabel = 'Gestione posta ricevuta';
+    public static ?string $pluralModelLabel = 'Gestione posta in arrivo';
     protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20';
-    protected static ?string $navigationLabel = 'Gestione posta ricevuta';
+    protected static ?string $navigationLabel = 'Gestione posta in arrivo';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 2;
 
