@@ -275,7 +275,7 @@ class RegistryResource extends Resource
                             ->columnSpan('full'),
                     ]),
 
-                Section::make('Documenti correlati')
+                Section::make('Documenti integrativi')
                     ->collapsed(fn($record) => $record)
                     ->visible(function ($record) {
                         $files = Storage::files($record->attachment_path . '/related');
@@ -304,7 +304,7 @@ class RegistryResource extends Resource
                             ->label('')
                             ->content(function ($record) {
                                 if (!$record || !$record->attachment_path) {
-                                    return 'Nessuna cartella documenti correlati trovata.';
+                                    return 'Nessuna cartella documenti integrativi trovata.';
                                 }
 
                                 $files = Storage::files($record->attachment_path . '/related');

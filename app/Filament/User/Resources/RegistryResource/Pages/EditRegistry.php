@@ -194,7 +194,7 @@ class EditRegistry extends EditRecord
                 ->requiresConfirmation()
                 ->modalHeading('Conferma invio email')
                 ->modalDescription(function ($record) {
-                    $count = count($record->recipients ?? []);
+                    $count = count($record->registryReceivers ?? []);
                     return "L'email sarà inviata in background a {$count} destinatari. Riceverai una notifica al termine.";
                 })
                 ->modalSubmitActionLabel('Sì, invia')
@@ -346,7 +346,7 @@ class EditRegistry extends EditRecord
                     }),
 
             Action::make('uploadRelated')
-                ->label('Carica documenti')
+                ->label('Carica integrazioni')
                 ->visible(fn() => $this->getRecord()->registry_origin_type !== RegistryOriginType::SHIPMENT)
                 ->icon('fluentui-document-link-20-o')
                 ->color('info')
