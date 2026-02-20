@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\FlowType;
+use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
@@ -352,6 +353,30 @@ class RegistryResource extends Resource
                     ->limit(100)
                     ->tooltip(fn ($record) => $record->subject),
 
+                TextColumn::make('esito_report') // Usa un nome che NON esiste nel database
+                    ->label('Esito')
+                    ->state(function ($record) {
+                        // Qui eseguiamo il calcolo e restituiamo l'array
+                        return static::checkReceipts($record);
+                    })
+                    ->formatStateUsing(function ($state) {
+                        // Se per qualche motivo checkReceipts fallisce o non è un array, evitiamo il crash
+                        if(!$state) return '';
+                        $report = explode(', ', $state);
+                        return $report[0] . " ( " . $report[1] . " )";
+                    })
+                    ->tooltip(function ($state) {
+                        if (! is_array($state)) return null;
+
+                        $sent = $state['sent'];
+                        $delivered = $state['delivered'];
+
+                        $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
+                        $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
+
+                        return $tooltip;
+                    }),
+
                 TextColumn::make('body')
                     ->label('Messaggio')
                     ->limit(100)
@@ -560,6 +585,25 @@ class RegistryResource extends Resource
         }
 
         return $email;
+    }
+
+    private static function checkReceipts($registry)
+    {
+
+        if($registry->registry_origin_type != RegistryOriginType::SEND_EMAIL) { return null; }
+        $sent = 0;
+        $delivered = 0;
+        foreach($registry->registryReceivers as $receiver){
+            if($receiver->pec_status == PecStatus::ACCEPTED) { $sent = ++$sent; }
+            if($receiver->pec_status == PecStatus::NOT_ACCEPTED) {  }
+            if($receiver->pec_status == PecStatus::DELIVERED) { $sent = ++$sent; $delivered = ++$delivered; }
+            if($receiver->pec_status == PecStatus::NOT_DELIVERED) { $sent = ++$sent; }
+        }
+        $report = [
+            'sent' => $sent,
+            'delivered' => $delivered,
+        ];
+        return $report;
     }
 
     public static function getEloquentQuery(): Builder
