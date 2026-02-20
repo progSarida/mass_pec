@@ -97,7 +97,7 @@ class RegistryResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 2]),
 
                         Select::make('scope_type_id')
-                            ->label('Ambito')
+                            ->label('Settore interno')
                             ->required()
                             ->relationship('scopeType', 'name')
                             ->columnSpan(['sm' => 'full', 'md' => 5]),
@@ -352,7 +352,7 @@ class RegistryResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('scopeType.name')
-                    ->label('Ambito')
+                    ->label('Settore interno')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
