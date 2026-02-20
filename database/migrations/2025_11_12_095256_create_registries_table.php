@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('scope_types', function (Blueprint $table) {                                             // tabella ambiti protocollo
             $table->id();
-            $table->string('name');                                                                             // nome ambito
-            $table->string('description');                                                                      // descrizione ambito
+            $table->string('name');                                                                             // nome settore interno
+            $table->string('description');                                                                      // descrizione settore interno
             $table->integer('position');                                                                        // posizione in selezione
             $table->timestamps();
         });
@@ -22,7 +22,7 @@ return new class extends Migration
         Schema::create('registries', function (Blueprint $table) {
             $table->id();
             $table->string('protocol_number')->unique();                                                        // numero di protocollo
-            $table->foreignId('scope_type_id')->nullable()->constrained('scope_types')->onUpdate('cascade');    // id ambito mail
+            $table->foreignId('scope_type_id')->nullable()->constrained('scope_types')->onUpdate('cascade');    // id settore interno mail
             // se uid è una cifra è una voce del protocollo derivante da una email scaricata (degli account o della pec massiva)
             // se uid contiene '#' è una voce del protocollo derivante da una spedizione
             // se uid è uguale al numero di protocollo è una voce del protocollo derivante da un inserimento manuale

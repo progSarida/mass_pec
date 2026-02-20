@@ -206,10 +206,10 @@ class InMailResource extends Resource
                     ->modalSubmitActionLabel('Protocolla')
                     ->form([
                         Select::make('scope_type_id')
-                            ->label('Ambito')
+                            ->label('Settore interno')
                             ->options(ScopeType::pluck('name', 'id'))
                             ->searchable()
-                            ->placeholder('Seleziona l\'ambito della registrazione')
+                            ->placeholder('Seleziona il settore interno della registrazione')
                     ])
                     ->action(function ($record, array $data) {
                         try {
