@@ -298,16 +298,16 @@ class EditRegistry extends EditRecord
                     ->icon('heroicon-o-document-arrow-up')
                     ->color('info')
                     ->modalSubmitActionLabel('Carica')
-                    ->visible(function($record) {
-                            $allDone = $record->checkReceipts();
-                            return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
-                                    && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
-                                    && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
-                                    && !$record->send_date                                                              // non è stata inviata
-                                    && $record->account_id                                                              // ha un mittente
-                                    && $record->registryReceivers;                                                      // ha dei destinatari
-                        }
-                    )
+                    // ->visible(function($record) {
+                    //         $allDone = $record->checkReceipts();
+                    //         return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                    //                 && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
+                    //                 && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
+                    //                 && !$record->send_date                                                              // non è stata inviata
+                    //                 && $record->account_id                                                              // ha un mittente
+                    //                 && $record->registryReceivers;                                                      // ha dei destinatari
+                    //     }
+                    // )
                     ->form([
                         FileUpload::make('attachments')
                             ->label('Seleziona File')
