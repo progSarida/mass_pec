@@ -339,7 +339,7 @@ class EditSendEmail extends EditRecord
                 'register_user_id' => Auth::user()->id,
             ]);
 
-            foreach($record->recipients as $receiver){
+            foreach(($record->recipients ?? []) as $receiver){
                 RegistryReceiver::create([
                     'registry_id' => $registry->id,
                     'protocol_number' => $protocolNumber,

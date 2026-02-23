@@ -474,7 +474,7 @@ class SendEmailResource extends Resource
                 'register_user_id' => Auth::user()->id,
             ]);
 
-            foreach($record->recipients as $receiver){
+            foreach(($record->recipients ?? []) as $receiver){
                 RegistryReceiver::create([
                     'registry_id' => $registry->id,
                     'protocol_number' => $protocolNumber,
@@ -493,7 +493,7 @@ class SendEmailResource extends Resource
                 }
                 $files = $storage->allFiles($oldPath);
 
-                // DEBUG: Logga quanti file hai trovato
+                // DEBUG: Log quanti file h0 trovato
                 Log::info("File trovati in $oldPath: " . count($files));
 
                 // foreach ($files as $file) {

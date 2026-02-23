@@ -192,15 +192,83 @@ class EditDownloadEmail extends EditRecord
                 'register_user_id' => Auth::id(),
             ]);
 
-            // Sposta l'intera cartella degli allegati
-            if ($oldPath && Storage::exists($oldPath)) {
-                Storage::move($oldPath, $newPath);
+            // Elimino la mail
+            // Model::withoutEvents(function () use ($record) {
+            //     $record->delete();
+            // });
+
+            $disk = config('filesystems.default');
+            $storage = Storage::disk($disk);
+
+            // Copio cartella allegati
+            if ($oldPath && $storage->exists($oldPath)) {
+                // Storage::disk($disk)->makeDirectory($newPath);
+
+                if (!$storage->exists($newPath)) {
+                    $storage->makeDirectory($newPath);
+                }
+                $files = $storage->allFiles($oldPath);
+
+                // DEBUG: Log quanti file h0 trovato
+                Log::info("File trovati in $oldPath: " . count($files));
+
+                // foreach ($files as $file) {
+                //     $relativePath = str_replace($oldPath . '/', '', $file);
+                //     $newFilePath = $newPath . '/' . today()->format('d-m-Y') . '_' . $registry->protocol_number . '_RIC_' . $relativePath;
+
+                //     $directory = dirname($newFilePath);
+                //     if (!Storage::disk($disk)->exists($directory)) {
+                //         Storage::disk($disk)->makeDirectory($directory);
+                //     }
+
+                //     Storage::disk($disk)->put($newFilePath, Storage::disk($disk)->get($file));
+                // }
+
+                foreach ($files as $file) {
+                    $fileName = basename($file);
+                    $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
+                    $finalPath = $newPath . '/' . $newFileName;
+
+                    try {
+                        // Usiamo lo Stream per bypassare i limiti del comando COPY di S3
+                        $stream = $storage->readStream($file);
+
+                        if ($stream === null) {
+                            throw new \Exception("Impossibile leggere il file sorgente: $file");
+                        }
+
+                        // Scriviamo il file nella nuova posizione
+                        // Il terzo parametro 'visibility' assicura che il nuovo file sia scrivibile
+                        $result = $storage->writeStream($finalPath, $stream, [
+                            'visibility' => 'private'
+                        ]);
+
+                        if (is_resource($stream)) {
+                            fclose($stream);
+                        }
+
+                        if (!$result) {
+                            throw new \Exception("Scrittura fallita per: $finalPath");
+                        }
+
+                        Log::info("File copiato con successo: $finalPath");
+
+                    } catch (\Exception $e) {
+                        Log::error("Errore durante la copia stream: " . $e->getMessage());
+                        // Fallback estremo se lo stream fallisce (usa più RAM)
+                        $storage->put($finalPath, $storage->get($file));
+                    }
+                }
+            } else {
+                Log::warning("Percorso non trovato o vuoto: " . ($oldPath ?? 'NULL'));
             }
 
-            // Elimina il record originale
-            Model::withoutEvents(function () use ($record) {
+            // Elimino la mail in uscita
+            // Model::withoutEvents(function () use ($record) {
                 $record->delete();
-            });
+            // });
+            // Elimina solo se hai effettivamente trovato dei file o se vuoi pulire comunque
+            // $storage->deleteDirectory($oldPath);
 
             DB::commit();
 
