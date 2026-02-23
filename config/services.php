@@ -36,19 +36,23 @@ return [
     ],
 
     'sso' => [
-        'slo_key'  => env('SSO_SLO_SECRET'),
+        'slo_key'       => env('SSO_SLO_SECRET'),
         'client_id'     => env('SSO_CLIENT_ID'),
         'client_secret' => env('SSO_CLIENT_SECRET'),
-        
+        'scope'         => env('SSO_SCOPE'),
+
         // Endpoint del Server IdP
         'redirect_uri'  => env('SSO_REDIRECT_URI'),
 
         // Server SSO Endpoints
-        'dashboard'     => env('SSO_DASHBOARD'),
-        'auth_url'      => env('SSO_AUTH_URL'), // Ora config('services.sso.auth_url') funzionerà
-        'token_url'     => env('SSO_TOKEN_URL'),
-        'userinfo_url'  => env('SSO_USERINFO_URL'),
-        'scope'         => env('SSO_SCOPE'),
+        'auth_url'      => env('SSO_URL') . '/oauth/authorize',
+        'token_url'     => env('SSO_URL') . '/oauth/token',
+        'userinfo_url'  => env('SSO_URL') . '/api/user',
+
+        // UI endpoints
+        'dashboard'     => env('SSO_URL') . '/dashboard',
+        'user_dashboard' => env('SSO_URL') . '/user',
+        'ticket_create' => env('SSO_URL') . '/user/tickets/create',
     ],
 
 ];
