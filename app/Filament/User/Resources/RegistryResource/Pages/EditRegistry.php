@@ -185,7 +185,7 @@ class EditRegistry extends EditRecord
                 ->icon('hugeicons-mail-send-01')
                 ->color('success')
                 ->visible(fn($record) =>
-                    $record->registry_origin_type == RegistryOriginType::SEND_EMAIL
+                    $record->isOutgoingEmail()
                     && !$record->send_date
                     && $record->account_id
                     // && !empty($record->recipients)
@@ -228,7 +228,7 @@ class EditRegistry extends EditRecord
                 ->color('primary')
                 ->visible(function($record) {
                         $allDone = $record->checkReceipts();
-                        return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                        return $record->isOutgoingEmail()                                                           // è una email in uscita
                                 && $record->send_date                                                               // è stata inviata
                                 && $record->account_id                                                              // ha un mittente
                                 && $record->registryReceivers                                                       // ha dei destinatari
@@ -267,7 +267,7 @@ class EditRegistry extends EditRecord
                 ->label('Carica Ricevute')
                 ->visible(function($record) {
                         $allDone = $record->checkReceipts();
-                        return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                        return $record->isOutgoingEmail()                                                           // è una email in uscita
                                 && $record->send_date                                                               // è stata inviata
                                 && $record->account_id                                                              // ha un mittente
                                 && $record->registryReceivers                                                       // ha dei destinatari
@@ -300,7 +300,7 @@ class EditRegistry extends EditRecord
                     ->modalSubmitActionLabel('Carica')
                     ->visible(function($record) {
                             $allDone = $record->checkReceipts();
-                            return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                            return $record->isOutgoingEmail()                                                           // è una email in uscita
                                     && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
                                     && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
                                     && !$record->send_date                                                              // non è stata inviata
@@ -372,10 +372,10 @@ class EditRegistry extends EditRecord
                 ->color('danger')
                 ->visible(function($record) {
                         $allDone = $record->checkReceipts();
-                        return $record->registry_origin_type == RegistryOriginType::SEND_EMAIL                      // è una email in uscita
+                        return $record->isOutgoingEmail()                                                           // è una email in uscita
                                 && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
                                 && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
-                                && !empty(Storage::allfiles($record->attachment_path))                                 // la cartella dei file non è vuota
+                                && !empty(Storage::allfiles($record->attachment_path))                              // la cartella dei file non è vuota
                                 && !$record->send_date                                                              // non è stata inviata
                                 && $record->account_id                                                              // ha un mittente
                                 && $record->registryReceivers;                                                      // ha dei destinatari
@@ -421,6 +421,123 @@ class EditRegistry extends EditRecord
                             ->warning()
                             ->send();
                     }
+                }),
+
+            Action::make('reply')
+                ->label('Rispondi')
+                ->visible(fn($record) => $record->isIngoingEmail())                                                          // solo per email in entrata
+                ->icon('fluentui-arrow-reply-20-o')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('Crea risposta')
+                ->modalDescription('Creare risposta a questa email?')
+                ->modalSubmitActionLabel('Crea')
+                ->modalCancelActionLabel('Annulla')
+                ->form([
+                    Select::make('account_id')
+                        ->label('Account')
+                        ->required()
+                        // ->extraInputAttributes(['class' => 'text-center'])
+                        ->relationship(
+                            name: 'account',
+                            titleAttribute: 'public_name',
+                            modifyQueryUsing: fn ($query) => $query
+                                ->where('send', true)
+                                ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                        )
+                        ->preload(),
+                ])
+                ->action(function ($record, array $data) {
+                    $protocolNumber = static::newProtocol();
+                    $newPath = 'registry/' . $protocolNumber;
+                    $account = Account::find($data['account_id']);
+
+                    $newRegistry = Registry::create([
+                        'protocol_number' => $protocolNumber,
+                        'flow_type' => 'issued',
+                        'flow_index' => static::newIndex('issued'),
+                        'registry_origin_type' => 'reply',
+                        'parent_id' => $record->id,
+                        'is_email' => true,
+                        'scope_type_id' => $record->scope_type_id,
+                        'uid' => '#reply' . $protocolNumber,
+                        'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+                        'from' => $account->public_name,
+                        'subject' => "Re: " . $record->subject,
+                        'body' => null,
+                        'receive_date' => null,
+                        'account_id' => $data['account_id'],
+                        'send_date' => null,
+                        'send_user_id' => null,
+                        'shipment_id' => null,
+                        'attachment_path' => $newPath,
+                        'download_date' => null,
+                        'download_user_id' => null,
+                        'register_user_id' => Auth::user()->id,
+                    ]);
+
+                    RegistryReceiver::create([
+                        'registry_id' => $newRegistry->id,
+                        'protocol_number' => $protocolNumber,
+                        'address' => $record->from,
+                        'pec_status' => PecStatus::WAITING,
+                    ]);
+
+                    $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+                }),
+
+            Action::make('forward')
+                ->label('Inoltra')
+                ->visible(fn($record) => $record->isIngoingEmail())                                                          // solo per email in entrata
+                ->icon('fluentui-arrow-forward-20-o')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('Inoltra email')
+                ->modalDescription('Creare copia in uscita di questa email?')
+                ->modalSubmitActionLabel('Crea')
+                ->modalCancelActionLabel('Annulla')
+                ->form([
+                    Select::make('account_id')
+                        ->label('Account')
+                        ->required()
+                        // ->extraInputAttributes(['class' => 'text-center'])
+                        ->relationship(
+                            name: 'account',
+                            titleAttribute: 'public_name',
+                            modifyQueryUsing: fn ($query) => $query
+                                ->where('send', true)
+                                ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                        )
+                        ->preload(),])
+                ->action(function ($record, array $data) {
+                    $protocolNumber = static::newProtocol();
+                    $newPath = 'registry/' . $protocolNumber;
+                    $account = Account::find($data['account_id']);
+
+                    $newRegistry = Registry::create([
+                        'protocol_number' => $protocolNumber,
+                        'flow_type' => 'issued',
+                        'flow_index' => static::newIndex('issued'),
+                        'registry_origin_type' => 'forward',
+                        'parent_id' => $record->id,
+                        'is_email' => true,
+                        'scope_type_id' => $record->scope_type_id,
+                        'uid' => '#forward' . $protocolNumber,
+                        'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+                        'from' => $account->public_name,
+                        'subject' => $record->subject,
+                        'body' => $record->body,
+                        'receive_date' => null,
+                        'account_id' => $record->account_id,
+                        'send_date' => $record->send_date,
+                        'send_user_id' => $record->send_user_id,
+                        'shipment_id' => null,
+                        'attachment_path' => $newPath,
+                        'download_date' => null,
+                        'download_user_id' => null,
+                        'register_user_id' => Auth::user()->id,
+                    ]);
+                    $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
                 }),
             ])
             ->label('Operazioni')
@@ -748,5 +865,40 @@ class EditRegistry extends EditRecord
         }
 
         return $type; // Restituisce la stringa (es. "ACCETTAZIONE") o null
+    }
+
+    private static function newProtocol(): string
+    {
+        $lastRegistry = Registry::orderBy('created_at', 'desc')->first();
+
+        if ($lastRegistry) {
+            $parts = explode('-', $lastRegistry->protocol_number);
+
+            if (count($parts) !== 3 || $parts[0] !== 'P') {
+                return 'P-' . today()->year . '-00001';
+            }
+
+            $lastYear = (int) $parts[1];
+            $lastNumber = (int) $parts[2];
+            $currentYear = today()->year;
+
+            if ($lastYear === $currentYear) {
+                $newNumber = $lastNumber + 1;
+                return 'P-' . $currentYear . '-' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
+            } else {
+                return 'P-' . $currentYear . '-00001';
+            }
+        }
+        return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newIndex($flow_type): int
+    {
+        $lastIndex = Registry::where('flow_type', $flow_type)->max('flow_index');
+        if ($lastIndex) {
+            $newIndex = $lastIndex+1;
+            return $newIndex;
+        }
+        return 1;
     }
 }

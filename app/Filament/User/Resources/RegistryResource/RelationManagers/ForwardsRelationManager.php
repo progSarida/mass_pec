@@ -1,20 +1,12 @@
 <?php
 
-namespace App\Filament\User\Resources;
+namespace App\Filament\User\Resources\RegistryResource\RelationManagers;
 
 use App\Enums\FlowType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
-use App\Filament\User\Resources\RegistryResource\Pages;
-use App\Filament\User\Resources\RegistryResource\RelationManagers;
-use App\Filament\User\Resources\RegistryResource\RelationManagers\ForwardsRelationManager;
-use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
-use App\Filament\User\Resources\RegistryResource\RelationManagers\RepliesRelationManager;
-use App\Models\Province;
-use App\Models\Recipient;
-use App\Models\Region;
+use App\Filament\User\Resources\RegistryResource;
 use App\Models\Registry;
-use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Checkbox;
@@ -24,45 +16,37 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Resources\Resource;
+use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
-class RegistryResource extends Resource
+class ForwardsRelationManager extends RelationManager
 {
-    protected static ?string $model = Registry::class;
+    protected static string $relationship = 'forwards';
 
-    public static ?string $pluralModelLabel = 'Protocollo';
-    protected static ?string $navigationIcon = 'fluentui-book-20';
-    protected static ?string $navigationLabel = 'Protocollo';
-    protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 1;
+    protected static ?string $title = 'Inoltri';
 
-    public static function form(Form $form): Form
+    protected static ?string $modelLabel = 'Inoltro';
+
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        return $ownerRecord->isIngoingEmail();                                                         // mostrata solo se email protocollata in uscita
+    }
+
+    public function form(Form $form): Form
     {
         return $form
             ->columns(15)
-            ->disabled(function ($record, $livewire) {
-                $operation = $livewire instanceof \Filament\Resources\Pages\ViewRecord
-                                ? 'view'
-                                : 'create';
-                if ($operation === 'view') { return true; }                                             // disabilito in view
-                if (!$record) { return false; }                                                         // non disabilito in create
-                return !$record->isOutgoingEmail()                                                      // disabilito in edit se non è una mail in uscita o
-                    || ($record->isOutgoingEmail() && $record->send_date);                              // disabilito in edit se è una mail in uscita ed è stata inviata
-            })
             ->schema([
                 Section::make('Informazioni Principali')
                     ->columns(15)
@@ -118,19 +102,7 @@ class RegistryResource extends Resource
                                     $parent = $record->registry;
                                     return "[{$parent?->from}] $record->subject";
                                 })
-                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
-                            ->suffixAction(
-                                Action::make('goToParent')
-                                    ->icon('heroicon-m-arrow-top-right-on-square')
-                                    ->tooltip('Vai alla mail originale')
-                                    ->url(function ($record) {
-                                        $parent = $record->registry;
-                                        return $parent
-                                            ? RegistryResource::getUrl('edit', ['record' => $parent])
-                                            : null;
-                                    })
-                                    ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
-                            ),
+                            ->columnSpan(['sm' => 'full', 'md' => 'full']),
 
                         TextInput::make('forward_reply')
                             ->label('Inoltro di')
@@ -140,24 +112,12 @@ class RegistryResource extends Resource
                                     $parent = $record->registry;
                                     return "[{$parent?->from}] $record->subject";
                                 })
-                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
-                            ->suffixAction(
-                                Action::make('goToParent')
-                                    ->icon('heroicon-m-arrow-top-right-on-square')
-                                    ->tooltip('Vai alla mail originale')
-                                    ->url(function ($record) {
-                                        $parent = $record->registry;
-                                        return $parent
-                                            ? RegistryResource::getUrl('edit', ['record' => $parent])
-                                            : null;
-                                    })
-                                    ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
-                            ),
+                            ->columnSpan(['sm' => 'full', 'md' => 'full']),
 
                         TextInput::make('from')
                             ->label('Mittente')
-                            ->required()
                             ->disabled()
+                            ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('subject')
@@ -377,10 +337,10 @@ class RegistryResource extends Resource
             ]);
     }
 
-    public static function table(Table $table): Table
+    public function table(Table $table): Table
     {
         return $table
-            ->defaultSort('created_at', 'desc')
+            ->recordTitleAttribute('protocol_number')
             ->columns([
                 TextColumn::make('flow_type')
                     ->label('Corrispondenza')
@@ -403,7 +363,7 @@ class RegistryResource extends Resource
                 TextColumn::make('from')
                     ->label('Mittente')
                     ->searchable()
-                    ->limit(250)
+                    ->limit(50)
                     ->tooltip(fn ($record) => $record->from)
                     ->sortable(),
 
@@ -427,7 +387,7 @@ class RegistryResource extends Resource
                 TextColumn::make('subject')
                     ->label('Oggetto')
                     ->searchable()
-                    ->limit(100)
+                    ->limit(50)
                     ->tooltip(fn ($record) => $record->subject),
 
                 TextColumn::make('esito_report') // Usa un nome che NON esiste nel database
@@ -504,121 +464,28 @@ class RegistryResource extends Resource
                     ->label('Registrato da')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
-                // Tables\Columns\TextColumn::make('attachments')
-                //     ->label('Allegati')
-                //     ->formatStateUsing(fn ($state) => $state ? 'Apri cartella' : '—')
-                //     ->url(fn ($record) => $record->attachment_path ? asset('storage/' . $record->attachment_path) : null)
-                //     ->openUrlInNewTab()
-                //     ->icon('heroicon-o-folder-open')
-                //     ->color('primary'),
             ])
-            ->filtersFormWidth('lg')
-            ->filtersFormColumns(2)
             ->filters([
-                SelectFilter::make('flow_type')
-                    ->label('Tipo')
-                    ->options(FlowType::class)
-                    ->searchable(),
-                SelectFilter::make('is_email')
-                    ->label('Posta elettronica')
-                    ->options([
-                        'si' => 'Si',
-                        'no' => 'No',
-                    ])
-                    ->placeholder('Entrambi')
-                    ->query(function (Builder $query, array $data): Builder {
-                        // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
-                        $value = $data['value'] ?? null;
-
-                        // Se non è selezionato nulla, non applichiamo filtri alla query
-                        if (blank($value)) {
-                            return $query;
-                        }
-
-                        if ($value === 'si') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta elettronica
-                            return $query->where('is_email', true);
-                        }
-
-                        if ($value === 'no') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
-                            return $query->where('is_email', false);
-                        }
-
-                        return $query;
-                    }),
-                Filter::make('registration_date_range')
-                    ->columns(2)
-                    ->form([
-                        DatePicker::make('registration_from_date')
-                            ->label('Registrazione dal')
-                            ->columnSpan(1),
-                        DatePicker::make('registration_to_date')
-                            ->label('Registrazione al')
-                            ->columnSpan(1),
-                    ])
-                    ->query(function (Builder $query, array $data) {
-                        if (! empty($data['registration_from_date'])) {
-                            $query->whereDate('created_at', '>=', $data['registration_from_date']);
-                        }
-                        if (! empty($data['registration_to_date'])) {
-                            $query->whereDate('created_at', '<=', $data['registration_to_date']);
-                        }
-                    })
-                    ->indicateUsing(function (array $data): ?string {
-                        if ($data['registration_from_date'] && $data['registration_to_date']) {
-                            return "Registrazione dal {$data['registration_from_date']} al {$data['registration_to_date']}";
-                        }
-                        if ($data['registration_from_date']) {
-                            return "Registrazione dal {$data['registration_from_date']}";
-                        }
-                        if ($data['registration_to_date']) {
-                            return "Registrazione al {$data['registration_to_date']}";
-                        }
-                        return null;
-                    })
-                    ->columnSpan(2),
-                SelectFilter::make('registry_origin_type')
-                    ->label('Origine')
-                    ->options(RegistryOriginType::class)
-                    ->searchable()
-                    ->columnSpan(1),
-                SelectFilter::make('register_user_id')
-                    ->label('Registrato da')
-                    ->options(fn () => User::pluck('name', 'id')->toArray())
-                    ->searchable()
-                    ->columnSpan(1),
+                //
+            ])
+            ->headerActions([
+                // Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Tables\Actions\ViewAction::make()->modalWidth('7xl'),
+                Tables\Actions\Action::make('openFullRecord')
+                    ->label('Vai all\'inoltro')
+                    ->icon('heroicon-m-arrow-top-right-on-square')
+                    ->color('info')
+                    ->url(fn (Registry $record): string => RegistryResource::getUrl('view', ['record' => $record])),
                 // Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            RegistryReceiversRelationManager::class,
-            ForwardsRelationManager::class,
-            RepliesRelationManager::class,
-        ];
-    }
-
-    public static function getPages(): array
-    {
-        return [
-            'index' => Pages\ListRegistries::route('/'),
-            'create' => Pages\CreateRegistry::route('/create'),
-            'edit' => Pages\EditRegistry::route('/{record}/edit'),
-            'view' => Pages\ViewRegistry::route('/{record}'),
-        ];
     }
 
     private static function newProtocol(): string
@@ -646,26 +513,6 @@ class RegistryResource extends Resource
         return 'P-' . today()->year . '-00001';
     }
 
-    private static function labelRecipient($email): string
-    {
-        $rec = Recipient::where(function ($query) use ($email) {
-            $query->where('mail_1', $email)
-                ->orWhere('mail_2', $email)
-                ->orWhere('mail_3', $email)
-                ->orWhere('mail_4', $email)
-                ->orWhere('mail_5', $email);
-        })
-        ->select('description', 'resp_surname', 'resp_name')
-        ->first();
-
-        if ($rec) {
-            // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
-            return "{$rec->description} <{$email}>";
-        }
-
-        return $email;
-    }
-
     private static function checkReceipts($registry)
     {
 
@@ -683,10 +530,5 @@ class RegistryResource extends Resource
             'delivered' => $delivered,
         ];
         return $report;
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()->with('shipment');
     }
 }

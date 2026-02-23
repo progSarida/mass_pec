@@ -11,6 +11,8 @@ enum RegistryOriginType: string implements HasLabel
     case DOWNLOAD_EMAIL = "download_email";
     case SEND_EMAIL = "send_email";
     case MANUAL = "manual";
+    case REPLY = "reply";
+    case FORWARD = "forward";
 
     public function getLabel(): string
     {
@@ -20,6 +22,8 @@ enum RegistryOriginType: string implements HasLabel
             self::DOWNLOAD_EMAIL => 'Posta in arrivo',
             self::SEND_EMAIL => 'Posta inviata',
             self::MANUAL => 'Manuale',
+            self::FORWARD => 'Inoltro',
+            self::REPLY => 'Risposta',
         };
     }
 }

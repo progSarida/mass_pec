@@ -33,7 +33,7 @@ class RegistryReceiversRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        return $ownerRecord->registry_origin_type == RegistryOriginType::SEND_EMAIL;                    // mostrata solo se email protocollata in uscita
+        return $ownerRecord->isOutgoingEmail();                                                         // mostrata solo se email protocollata in uscita
     }
 
     public function form(Form $form): Form
@@ -156,5 +156,24 @@ class RegistryReceiversRelationManager extends RelationManager
                         ->visible(fn () => $this->getOwnerRecord()->checkReceipts()),
                 ]),
             ]);
+    }
+
+    private static function checkReceipts($registry)
+    {
+
+        if(!$registry->isOutgoingEmail()) { return null; }
+        $sent = 0;
+        $delivered = 0;
+        foreach($registry->registryReceivers as $receiver){
+            if($receiver->pec_status == PecStatus::ACCEPTED) { $sent = ++$sent; }
+            if($receiver->pec_status == PecStatus::NOT_ACCEPTED) {  }
+            if($receiver->pec_status == PecStatus::DELIVERED) { $sent = ++$sent; $delivered = ++$delivered; }
+            if($receiver->pec_status == PecStatus::NOT_DELIVERED) { $sent = ++$sent; }
+        }
+        $report = [
+            'sent' => $sent,
+            'delivered' => $delivered,
+        ];
+        return $report;
     }
 }

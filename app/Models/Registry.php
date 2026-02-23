@@ -17,6 +17,7 @@ class Registry extends Model
         'flow_type',
         'flow_index',
         'registry_origin_type',
+        'parent_id',
         'is_email',
         'scope_type_id',
         'uid',
@@ -64,12 +65,28 @@ class Registry extends Model
         return $this->belongsTo(Shipment::class);
     }
 
+    public function registryReceivers(){
+        return $this->hasMany(RegistryReceiver::class);
+    }
+
     public function account(){
         return $this->belongsTo(Account::class);
     }
 
-    public function registryReceivers(){
-        return $this->hasMany(RegistryReceiver::class);
+    public function registry(){
+        return $this->belongsTo(Registry::class,'parent_id');
+    }
+
+    public function replies()
+    {
+        return $this->hasMany(Registry::class, 'parent_id', 'id')
+                    ->where('registry_origin_type', RegistryOriginType::REPLY);
+    }
+
+    public function forwards()
+    {
+        return $this->hasMany(Registry::class, 'parent_id', 'id')
+                    ->where('registry_origin_type', RegistryOriginType::FORWARD);
     }
 
     public function checkReceipts(){
@@ -78,6 +95,33 @@ class Registry extends Model
             if($receiver->pec_status == PecStatus::WAITING) $allDone = false;
         }
         return $allDone;
+    }
+
+    public function isIngoingEmail()
+    {
+        switch($this->registry_origin_type){
+            case RegistryOriginType::IN_MAIL:
+            case RegistryOriginType::DOWNLOAD_EMAIL:
+                return true;
+                break;
+            default:
+                return false;
+                break;
+        }
+    }
+
+    public function isOutgoingEmail()
+    {
+        switch($this->registry_origin_type){
+            case RegistryOriginType::SEND_EMAIL:
+            case RegistryOriginType::REPLY:
+            case RegistryOriginType::FORWARD:
+                return true;
+                break;
+            default:
+                return false;
+                break;
+        }
     }
 
     protected static function booted()
