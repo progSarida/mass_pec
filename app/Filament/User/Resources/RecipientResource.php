@@ -70,7 +70,7 @@ class RecipientResource extends Resource
                                 ->implode('<br>');
 
                             // Recupero il nome dell'AdminType in modo più sicuro
-                            $adminTypeName = $existing->adminType?->name ?? 'Tipo ente non specificato';
+                            $adminTypeName = $existing->adminType?->name ?? 'Tipo interlocutore non specificato';
                             $mailList = filled($allMails) ? $allMails : 'Nessuna mail registrata';
 
                             \Filament\Notifications\Notification::make('duplicate-alert') // ID statico importante!
@@ -149,7 +149,7 @@ class RecipientResource extends Resource
                         },
                     ])
                     ->columnSpan('full'),
-                Select::make('admin_type_id')->label('Tipo ente')
+                Select::make('admin_type_id')->label('Tipo interlocutore')
                     // ->required()
                     ->relationship(name: 'adminType', titleAttribute: 'name')
                     ->searchable()
@@ -183,7 +183,7 @@ class RecipientResource extends Resource
                         if($record){
                             $city = City::find($state);
                             $set('city_code', $city->code);
-                            $set('city_cap', $city->zip_code);
+                            // $set('city_cap', $city->zip_code);
                             $set('city_province', $city->province->code);
                             $set('city_region', $city->province->region->name);
                         }
@@ -194,7 +194,8 @@ class RecipientResource extends Resource
                     ->columnSpan('full'),
                 Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
-                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))
+                    ->default(fn ($record) => $record->city_cap ?? $record->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
                 Section::make('Responsabile')
@@ -310,7 +311,7 @@ class RecipientResource extends Resource
                     ->label('Descrizione')
                     ->searchable(),
                 TextColumn::make('adminType.name')
-                    ->label('Tipo ente'),
+                    ->label('Tipo interlocutore'),
                 TextColumn::make('istatType.name')
                     ->label('Tipo Istat'),
                 TextColumn::make('city.name')
@@ -373,7 +374,7 @@ class RecipientResource extends Resource
                     ->preload(false),
 
                 SelectFilter::make('admin_type_id')
-                    ->label('Tipo ente')
+                    ->label('Tipo interlocutore')
                     ->options(fn () => AdminType::pluck('name', 'id')->toArray())
                     ->query(function (Builder $query, array $data) {
                         $value = $data['value'] ?? null;

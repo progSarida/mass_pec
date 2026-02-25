@@ -15,6 +15,7 @@ class Recipient extends Model
         'acronym',
         'city_id',
         'address',
+        'city_cap',
         'resp_title',
         'resp_surname',
         'resp_name',

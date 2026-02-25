@@ -16,10 +16,10 @@ use Illuminate\Database\Eloquent\Builder;
 class AdminTypeResource extends Resource
 {
     protected static ?string $model = AdminType::class;
-    public static ?string $pluralModelLabel = 'Tipi Ente';
-    public static ?string $modelLabel = 'Tipo ente';
+    public static ?string $pluralModelLabel = 'Tipi interlocutore';
+    public static ?string $modelLabel = 'Tipo interlocutore';
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationLabel = 'Tipi Ente';
+    protected static ?string $navigationLabel = 'Tipi interlocutore';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 2;
 

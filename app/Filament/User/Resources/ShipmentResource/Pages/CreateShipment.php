@@ -222,7 +222,7 @@ class CreateShipment extends CreateRecord
                                 })
                                 ->columnSpan(2),
                             Select::make('admin_types')
-                                ->label('Tipo ente')
+                                ->label('Tipo interlocutore')
                                 ->options(AdminType::pluck('name', 'id'))
                                 ->required(fn(Get $get) => !$get('region_id'))
                                 ->multiple()
