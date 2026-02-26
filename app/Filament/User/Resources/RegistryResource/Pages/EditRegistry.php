@@ -705,9 +705,37 @@ class EditRegistry extends EditRecord
 
             if (!$this->isOfficialPecReceipt($rawHeaders)) continue;Log::info("Ricevuta");
             if($receiver->message_id){
-                if (!$this->isRightReceiptId($rawHeaders, $receiver->message_id)) continue;Log::info("Destinatario corretto (message_id)");
+                if (!$this->isRightReceiptId($rawHeaders, $receiver->message_id)) {
+                    // Eliminazione ricevuta
+                    if ($account->delete && $date) {                                                            // se è prevista la cancellazione dal server
+                        if ($account->delete_after_days && $date){
+                            $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                            if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
+                                imap_delete($imap, $uid, FT_UID);
+                            }
+                        }
+                        else if($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
+                            imap_delete($imap, $uid, FT_UID);
+                        }
+                    }
+                    continue;Log::info("Destinatario corretto (message_id)");
+                }
             } else {
-                if (!$this->isRightReceipt($body, $receiver->address)) continue;Log::info("Destinatario corretto (address)");
+                if (!$this->isRightReceipt($body, $receiver->address)) {
+                    // Eliminazione ricevuta
+                    if ($account->delete && $date) {                                                            // se è prevista la cancellazione dal server
+                        if ($account->delete_after_days && $date){
+                            $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                            if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
+                                imap_delete($imap, $uid, FT_UID);
+                            }
+                        }
+                        else if($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
+                            imap_delete($imap, $uid, FT_UID);
+                        }
+                    }
+                    continue;Log::info("Destinatario corretto (address)");
+                }
             }
 
             $type = $this->getReceiptInfo($rawHeaders, imap_headerinfo($imap, imap_msgno($imap, $uid))->subject ?? '');
@@ -756,7 +784,7 @@ class EditRegistry extends EditRecord
                         imap_delete($imap, $uid, FT_UID);
                     }
                 }
-                else{                                                                                   // se non ho indicato i giorni da aspettare per cancellare
+                else if($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
                     imap_delete($imap, $uid, FT_UID);
                 }
             }
