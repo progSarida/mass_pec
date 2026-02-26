@@ -93,6 +93,7 @@ class RegistryResource extends Resource
 
                         TextInput::make('flow_index')
                             ->label('Indice')
+                            ->extraInputAttributes(['class' => 'text-right'])
                             ->required()
                             ->disabled()
                             ->dehydrated()
@@ -157,7 +158,6 @@ class RegistryResource extends Resource
                         TextInput::make('from')
                             ->label('Mittente')
                             ->required()
-                            ->disabled()
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('subject')
@@ -517,16 +517,16 @@ class RegistryResource extends Resource
             ->filtersFormColumns(2)
             ->filters([
                 SelectFilter::make('flow_type')
-                    ->label('Tipo')
+                    ->label('Corrispondenza')
                     ->options(FlowType::class)
                     ->searchable(),
                 SelectFilter::make('is_email')
-                    ->label('Posta elettronica')
+                    ->label('Tipo')
                     ->options([
-                        'si' => 'Si',
-                        'no' => 'No',
+                        'si' => 'Posta elettronica',
+                        'no' => 'Posta ordinaria',
                     ])
-                    ->placeholder('Entrambi')
+                    ->placeholder('Tutta')
                     ->query(function (Builder $query, array $data): Builder {
                         // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
                         $value = $data['value'] ?? null;

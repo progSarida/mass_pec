@@ -54,7 +54,7 @@ class RecipientResource extends Resource
                         $normalized = str($state)->trim()->squish()->lower()->toString();
 
                         $existing = \App\Models\Recipient::where('description_search', $normalized)
-                            ->when($record, fn($q) => $q->where('id', '!=', $record->id))
+                            ->when($record, fn($q) => $q->where('id', '!=', $record?->id))
                             ->first();
 
                         if ($existing) {
@@ -140,7 +140,7 @@ class RecipientResource extends Resource
 
                             // 2. Query personalizzata sulla colonna description_search
                             $exists = \App\Models\Recipient::where('description_search', $normalized)
-                                ->when($record, fn($q) => $q->where('id', '!=', $record->id)) // Ignora il record attuale in edit
+                                ->when($record, fn($q) => $q->where('id', '!=', $record?->id)) // Ignora il record attuale in edit
                                 ->exists();
 
                             if ($exists) {
@@ -195,7 +195,7 @@ class RecipientResource extends Resource
                 Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))
-                    ->default(fn ($record) => $record->city_cap ?? $record->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
+                    ->default(fn ($record) => $record?->city_cap ?? $record?->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
                 Section::make('Responsabile')
@@ -220,11 +220,11 @@ class RecipientResource extends Resource
                 Section::make('Email')
                     ->heading(function ($get, $record) {
                         $mails = [
-                            $get('mail_1') ?? ($record->mail_1 ?? ''),
-                            $get('mail_2') ?? ($record->mail_2 ?? ''),
-                            $get('mail_3') ?? ($record->mail_3 ?? ''),
-                            $get('mail_4') ?? ($record->mail_4 ?? ''),
-                            $get('mail_5') ?? ($record->mail_5 ?? ''),
+                            $get('mail_1') ?? ($record?->mail_1 ?? ''),
+                            $get('mail_2') ?? ($record?->mail_2 ?? ''),
+                            $get('mail_3') ?? ($record?->mail_3 ?? ''),
+                            $get('mail_4') ?? ($record?->mail_4 ?? ''),
+                            $get('mail_5') ?? ($record?->mail_5 ?? ''),
                         ];
 
                         $filled = collect($mails)->filter(fn ($mail) => filled($mail))->count();
