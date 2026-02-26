@@ -112,11 +112,11 @@ class RegistryResource extends Resource
 
                         TextInput::make('parent_reply')
                             ->label('Risposta a')
-                            ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::REPLY)
+                            ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::REPLY)
                             ->disabled()
                             ->formatStateUsing(function ($record) {
-                                    $parent = $record->registry;
-                                    return "[{$parent?->from}] $record->subject";
+                                    $parent = $record?->registry;
+                                    return "[{$parent?->from}] $record?->subject";
                                 })
                             ->columnSpan(['sm' => 'full', 'md' => 'full'])
                             ->suffixAction(
@@ -124,7 +124,7 @@ class RegistryResource extends Resource
                                     ->icon('heroicon-m-arrow-top-right-on-square')
                                     ->tooltip('Vai alla mail originale')
                                     ->url(function ($record) {
-                                        $parent = $record->registry;
+                                        $parent = $record?->registry;
                                         return $parent
                                             ? RegistryResource::getUrl('edit', ['record' => $parent])
                                             : null;
@@ -134,11 +134,11 @@ class RegistryResource extends Resource
 
                         TextInput::make('forward_reply')
                             ->label('Inoltro di')
-                            ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::FORWARD)
+                            ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::FORWARD)
                             ->disabled()
                             ->formatStateUsing(function ($record) {
-                                    $parent = $record->registry;
-                                    return "[{$parent?->from}] $record->subject";
+                                    $parent = $record?->registry;
+                                    return "[{$parent?->from}] $record?->subject";
                                 })
                             ->columnSpan(['sm' => 'full', 'md' => 'full'])
                             ->suffixAction(
@@ -146,7 +146,7 @@ class RegistryResource extends Resource
                                     ->icon('heroicon-m-arrow-top-right-on-square')
                                     ->tooltip('Vai alla mail originale')
                                     ->url(function ($record) {
-                                        $parent = $record->registry;
+                                        $parent = $record?->registry;
                                         return $parent
                                             ? RegistryResource::getUrl('edit', ['record' => $parent])
                                             : null;
@@ -198,7 +198,7 @@ class RegistryResource extends Resource
 
                 DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
-                    ->visible(fn ($record) => $record->isIngoingEmail())
+                    ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -206,7 +206,7 @@ class RegistryResource extends Resource
 
                 DatePicker::make('download_date')
                     ->label('Scaricato il')
-                    ->visible(fn ($record) => $record->isIngoingEmail())
+                    ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     // ->visible(fn(Get $get) => $get('is_email'))
@@ -215,15 +215,15 @@ class RegistryResource extends Resource
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
-                    ->visible(fn ($record) => $record->isIngoingEmail())
+                    ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->relationship('downloadUser', 'name')
                     // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 DatePicker::make('send_date')
                     ->label('Inviato il')
-                    ->visible(fn ($record) => $record->isOutgoingEmail()
-                                            || $record->registry_origin_type == RegistryOriginType::SHIPMENT)
+                    ->visible(fn ($record) => $record?->isOutgoingEmail()
+                                            || $record?->registry_origin_type == RegistryOriginType::SHIPMENT)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
                     // ->visible(fn(Get $get) => $get('is_email'))
@@ -232,23 +232,23 @@ class RegistryResource extends Resource
 
                 Forms\Components\Select::make('send_user_id')
                     ->label('Inviato da')
-                    ->visible(fn ($record) => $record->isOutgoingEmail()
-                                            || $record->registry_origin_type == RegistryOriginType::SHIPMENT)
+                    ->visible(fn ($record) => $record?->isOutgoingEmail()
+                                            || $record?->registry_origin_type == RegistryOriginType::SHIPMENT)
                     ->relationship('downloadUser', 'name')
                     // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 Placeholder::make('not_in')
                     ->label('')
-                    ->visible(fn ($record) => $record->isOutgoingEmail()
-                                            || $record->registry_origin_type == RegistryOriginType::SHIPMENT
-                                            || $record->registry_origin_type == RegistryOriginType::MANUAL)
+                    ->visible(fn ($record) => $record?->isOutgoingEmail()
+                                            || $record?->registry_origin_type == RegistryOriginType::SHIPMENT
+                                            || $record?->registry_origin_type == RegistryOriginType::MANUAL)
                     // ->visible(fn(Get $get) => !$get('is_email'))
                     ->columnSpan(['sm' => '0', 'md' => 3]),
 
                 Placeholder::make('manual')
                     ->label('')
-                    ->visible(fn ($record) => $record->registry_origin_type == RegistryOriginType::MANUAL)
+                    ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::MANUAL)
                     // ->visible(fn(Get $get) => !$get('is_email'))
                     ->columnSpan(['sm' => '0', 'md' => 6]),
 
@@ -276,14 +276,14 @@ class RegistryResource extends Resource
                             ->color('gray')
                             ->size('sm')
                             ->visible(function ($record) {
-                                if (!$record || !$record->attachment_path) return false;
+                                if (!$record || !$record?->attachment_path) return false;
                                 // Il pulsante appare solo se ci sono almeno 2 file
-                                $files = Storage::files($record->attachment_path);
+                                $files = Storage::files($record?->attachment_path);
                                 return count($files) > 1;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
-                                'type' => $record->getMorphClass(),
-                                'id' => $record->id
+                                'type' => $record?->getMorphClass(),
+                                'id' => $record?->id
                             ]))
                             ->openUrlInNewTab(),
                     ])
@@ -291,11 +291,11 @@ class RegistryResource extends Resource
                         Placeholder::make('attachments')
                             ->label('')
                             ->content(function ($record) {
-                                if (!$record || !$record->attachment_path) {
+                                if (!$record || !$record?->attachment_path) {
                                     return 'Nessuna cartella allegati trovata.';
                                 }
 
-                                $files = Storage::files($record->attachment_path);
+                                $files = Storage::files($record?->attachment_path);
 
                                 if (empty($files)) {
                                     return 'Nessun allegato.';
@@ -322,7 +322,7 @@ class RegistryResource extends Resource
                 Section::make('Documenti integrativi')
                     ->collapsed(fn($record) => $record)
                     ->visible(function ($record) {
-                        $files = Storage::files($record->attachment_path . '/related');
+                        $files = Storage::files($record?->attachment_path . '/related');
                         if (empty($files)) { return false; }
                         return true;
                     })
@@ -333,13 +333,13 @@ class RegistryResource extends Resource
                             ->color('gray')
                             ->size('sm')
                             ->visible(function ($record) {
-                                if (!$record || !$record->attachment_path) return false;
+                                if (!$record || !$record?->attachment_path) return false;
                                 // Il pulsante appare solo se ci sono almeno 2 file
-                                $files = Storage::files($record->attachment_path . '/related');
+                                $files = Storage::files($record?->attachment_path . '/related');
                                 return count($files) > 1;
                             })
                             ->url(fn ($record) => route('related.zip', [
-                                'id' => $record->id
+                                'id' => $record?->id
                             ]))
                             ->openUrlInNewTab(),
                     ])
@@ -347,11 +347,11 @@ class RegistryResource extends Resource
                         Placeholder::make('related')
                             ->label('')
                             ->content(function ($record) {
-                                if (!$record || !$record->attachment_path) {
+                                if (!$record || !$record?->attachment_path) {
                                     return 'Nessuna cartella documenti integrativi trovata.';
                                 }
 
-                                $files = Storage::files($record->attachment_path . '/related');
+                                $files = Storage::files($record?->attachment_path . '/related');
 
                                 if (empty($files)) {
                                     return 'Nessun allegato.';
@@ -404,18 +404,18 @@ class RegistryResource extends Resource
                     ->label('Mittente')
                     ->searchable()
                     ->limit(250)
-                    ->tooltip(fn ($record) => $record->from)
+                    ->tooltip(fn ($record) => $record?->from)
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('receivers')
                     ->label('Destinatari')
-                    ->state(fn ($record) => $record->registryReceivers?->count() ?? 0)
+                    ->state(fn ($record) => $record?->registryReceivers?->count() ?? 0)
                     ->formatStateUsing(function ($state) {
                         if ($state === 0) return '0 destinatari';
                         return $state . ' ' . ($state === 1 ? 'destinatario' : 'destinatari');
                     })
                     ->tooltip(function ($record) {
-                        $receivers = $record->registryReceivers;
+                        $receivers = $record?->registryReceivers;
 
                         if (! $receivers || $receivers->isEmpty()) {
                             return 'Nessun destinatario';
@@ -428,7 +428,7 @@ class RegistryResource extends Resource
                     ->label('Oggetto')
                     ->searchable()
                     ->limit(100)
-                    ->tooltip(fn ($record) => $record->subject),
+                    ->tooltip(fn ($record) => $record?->subject),
 
                 TextColumn::make('esito_report') // Usa un nome che NON esiste nel database
                     ->label('Esito')
@@ -460,8 +460,8 @@ class RegistryResource extends Resource
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? Str::limit(strip_tags($state), 50) : '—')
                     ->tooltip(function ($record) {
-                        if (!$record->body_preview) return 'Nessun contenuto';
-                        $preview = strip_tags($record->body_preview);
+                        if (!$record?->body_preview) return 'Nessun contenuto';
+                        $preview = strip_tags($record?->body_preview);
                         return Str::limit($preview, 500);
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
