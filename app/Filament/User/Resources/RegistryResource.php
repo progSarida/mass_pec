@@ -31,11 +31,13 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
@@ -49,6 +51,8 @@ class RegistryResource extends Resource
     protected static ?string $navigationLabel = 'Protocollo';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 1;
+
+    private static $receiptsCache = [];
 
     public static function form(Form $form): Form
     {
@@ -430,29 +434,67 @@ class RegistryResource extends Resource
                     ->limit(100)
                     ->tooltip(fn ($record) => $record?->subject),
 
-                TextColumn::make('esito_report') // Usa un nome che NON esiste nel database
-                    ->label('Esito')
-                    ->state(function ($record) {
-                        // Qui eseguiamo il calcolo e restituiamo l'array
-                        return static::checkReceipts($record);
-                    })
-                    ->formatStateUsing(function ($state) {
-                        // Se per qualche motivo checkReceipts fallisce o non è un array, evitiamo il crash
-                        if(!$state) return '';
-                        $report = explode(', ', $state);
-                        return $report[0] . " ( " . $report[1] . " )";
-                    })
-                    ->tooltip(function ($state) {
-                        if (! is_array($state)) return null;
+                // TextColumn::make('old_esito_report')
+                //     ->label('Esito')
+                //     ->state(function ($record) {
+                //         // Qui eseguiamo il calcolo e restituiamo l'array
+                //         return static::checkReceipts($record);
+                //     })
+                //     ->formatStateUsing(function ($state) {
+                //         // Se per qualche motivo checkReceipts fallisce o non è un array, evitiamo il crash
+                //         if(!$state) return '';
+                //         $report = explode(', ', $state);
+                //         return $report[0] . " ( " . $report[1] . " )";
+                //     })
+                //     ->tooltip(function ($state) {
+                //         if (! is_array($state)) return null;
 
-                        $sent = $state['sent'];
-                        $delivered = $state['delivered'];
+                //         $sent = $state['sent'];
+                //         $delivered = $state['delivered'];
 
-                        $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
-                        $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
+                //         $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
+                //         $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
 
-                        return $tooltip;
-                    }),
+                //         return $tooltip;
+                //     }),
+
+                    IconColumn::make('esito_report')
+                        ->label('Esito')
+                        ->getStateUsing(function ($record) {
+                            return static::checkReceipts($record);
+                        })
+                        ->icon(function ($state) {
+                            if(!$state) {
+                                return null;
+                            }
+
+                            [$sent, $delivered] = explode(',', $state);
+
+                            if($sent == 0) return 'heroicon-o-envelope';
+
+                            return $sent == $delivered ? 'heroicon-o-check-circle' : 'heroicon-o-exclamation-triangle';
+                        })
+                        ->color(function ($state) {
+                            if(!$state) return 'gray';
+
+                            [$sent, $delivered] = explode(',', $state);
+
+                            if($sent == 0) return 'gray';
+
+                            return $sent == $delivered ? 'success' : 'warning';
+                        })
+                        ->tooltip(function ($state) {
+                            if (!$state) return null;
+
+                            [$sent, $delivered] = explode(',', $state);
+
+                            if($sent == 0) return 'Non inviato';
+
+                            $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
+                            $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
+
+                            return $tooltip;
+                        }),
 
                 TextColumn::make('body')
                     ->label('Messaggio')
@@ -589,6 +631,56 @@ class RegistryResource extends Resource
                     ->options(fn () => User::pluck('name', 'id')->toArray())
                     ->searchable()
                     ->columnSpan(1),
+                SelectFilter::make('esito_invio')
+                    ->label('Esito invio')
+                    ->options([
+                        'non_inviato' => 'Non inviato',
+                        'consegnato' => 'Tutto consegnato',
+                        'parziale' => 'Consegnato parzialmente',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        // Filtriamo solo le email in uscita
+                        $query->where('is_email', true);
+
+                        if ($value === 'non_inviato') {
+                            // Email in uscita non ancora inviate
+                            return $query->whereIn('registry_origin_type', [RegistryOriginType::SEND_EMAIL, RegistryOriginType::REPLY, RegistryOriginType::FORWARD])
+                                        ->whereNull('send_date');
+                        }
+
+                        if ($value === 'consegnato') {
+                            // Tutte le email sono state consegnate
+                            return $query->whereNotNull('send_date')
+                                ->whereHas('registryReceivers')
+                                ->whereDoesntHave('registryReceivers', function ($q) {
+                                    $q->whereIn('pec_status', [
+                                        PecStatus::ACCEPTED,
+                                        PecStatus::NOT_DELIVERED,
+                                        PecStatus::NOT_ACCEPTED
+                                    ]);
+                                });
+                        }
+
+                        if ($value === 'parziale') {
+                            // Almeno una email non è stata consegnata
+                            return $query->whereNotNull('send_date')
+                                ->whereHas('registryReceivers', function ($q) {
+                                    $q->whereIn('pec_status', [
+                                        PecStatus::ACCEPTED,
+                                        PecStatus::NOT_DELIVERED,
+                                        PecStatus::NOT_ACCEPTED
+                                    ]);
+                                });
+                        }
+
+                        return $query;
+                    })
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -666,22 +758,66 @@ class RegistryResource extends Resource
         return $email;
     }
 
-    private static function checkReceipts($registry)
+    private static function checkReceiptsOld($registry)
     {
-
+Log::info("{$registry->protocol_number} -----------------------------------------------------");
         if(!$registry->isOutgoingEmail()) { return null; }
         $sent = 0;
         $delivered = 0;
         foreach($registry->registryReceivers as $receiver){
+Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
             if($receiver->pec_status == PecStatus::ACCEPTED) { $sent = ++$sent; }
             if($receiver->pec_status == PecStatus::NOT_ACCEPTED) {  }
             if($receiver->pec_status == PecStatus::DELIVERED) { $sent = ++$sent; $delivered = ++$delivered; }
             if($receiver->pec_status == PecStatus::NOT_DELIVERED) { $sent = ++$sent; }
         }
+Log::info("Inviati: {$sent} - Consegnati: {$delivered} ---------------------------------------");
         $report = [
             'sent' => $sent,
             'delivered' => $delivered,
         ];
+        return $report;
+    }
+
+    private static function checkReceipts($registry)
+    {
+        $cacheKey = $registry->id;
+
+        if (isset(self::$receiptsCache[$cacheKey])) {
+            return self::$receiptsCache[$cacheKey];
+        }
+
+        Log::info("{$registry->protocol_number} -----------------------------------------------------");
+
+        if(!$registry->isOutgoingEmail()) {
+            self::$receiptsCache[$cacheKey] = null;
+            return null;
+        }
+
+        $sent = 0;
+        $delivered = 0;
+
+        foreach($registry->registryReceivers as $receiver){
+            Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
+
+            if($receiver->pec_status == PecStatus::ACCEPTED) {
+                $sent++;
+            }
+            if($receiver->pec_status == PecStatus::DELIVERED) {
+                $sent++;
+                $delivered++;
+            }
+            if($receiver->pec_status == PecStatus::NOT_DELIVERED) {
+                $sent++;
+            }
+        }
+
+        Log::info("Inviati: {$sent} - Consegnati: {$delivered} ---------------------------------------");
+
+        // Restituisci una stringa invece di un array
+        $report = "{$sent},{$delivered}";
+
+        self::$receiptsCache[$cacheKey] = $report;
         return $report;
     }
 
