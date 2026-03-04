@@ -192,15 +192,16 @@ class RegistryResource extends Resource
 
                         Select::make('sender_id')
                             ->label('Mittente')
-                            ->hintAction(
-                                Action::make('Nuovo')
-                                    ->icon('ri-user-2-line')
-                                    ->form(fn(Form $form) => RecipientResource::modalForm($form))
-                                    ->modalWidth('7xl')
-                                    ->modalHeading('')
-                                    ->action(fn (array $data, Recipient $recipient, Set $set) => RegistryResource::saveRecipient($data, $recipient, $set))
-                                    ->hidden(fn ($livewire) => !$livewire instanceof \App\Filament\User\Resources\RegistryResource\Pages\CreateRegistry)
-                            )
+                            // ->hintAction(
+                            //     Action::make('Nuovo')
+                            //         ->icon('ri-user-2-line')
+                            //         ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                            //         ->modalWidth('7xl')
+                            //         ->modalHeading('')
+                            //         ->modalSubmitActionLabel('Salva')
+                            //         ->action(fn (array $data, Recipient $recipient, Set $set) => RegistryResource::saveRecipient($data, $recipient, $set))
+                            //         ->hidden(fn ($livewire) => !$livewire instanceof \App\Filament\User\Resources\RegistryResource\Pages\CreateRegistry)
+                            // )
                             ->disabled(fn ($record) => $record?->isIngoingEmail() && $record->sender_id)
                             ->relationship(name: 'sender', titleAttribute: 'description')
                             ->required()
@@ -1025,66 +1026,66 @@ Log::info("Inviati: {$sent} - Consegnati: {$delivered} -------------------------
         return $report;
     }
 
-    public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
-    {
-        for($i = 1; $i <= 5; $i++){
-            $address = $data["mail_{$i}"];
-            if(!$address || $address == '') {
-                Log::info("Mail_{$i} è vuoto o nullo");
-                continue;
-            }
-Log::info("Mail {$i}: {$address}");
-            $recipient = static::getRecipient($address);
-            if ($recipient) {
-                Notification::make()
-                    ->title("Indirizzo {$address} presente in archivio")
-                    ->body("L'indirizzo {$address} è già associato a {$recipient->description}")
-                    ->danger()
-                    ->persistent()
-                    ->send();
+//     public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
+//     {
+//         for($i = 1; $i <= 5; $i++){
+//             $address = $data["mail_{$i}"];
+//             if(!$address || $address == '') {
+//                 Log::info("Mail_{$i} è vuoto o nullo");
+//                 continue;
+//             }
+// Log::info("Mail {$i}: {$address}");
+//             $rec = static::getRecipient($address);
+//             if ($rec) {
+//                 Notification::make()
+//                     ->title("Indirizzo {$address} presente in archivio")
+//                     ->body("L'indirizzo {$address} è già associato a {$rec->description}")
+//                     ->danger()
+//                     ->persistent()
+//                     ->send();
 
-                return;
-            }
-        }
-        $recipient->description = $data['description'] ?? null;
-        $recipient->admin_type_id = $data['admin_type_id'] ?? null;
-        $recipient->istat_type_id = $data['istat_type_id'] ?? null;
-        $recipient->code_ipa = $data['code_ipa'] ?? null;
-        $recipient->acronym = $data['acronym'] ?? null;
-        $recipient->city_id = $data['city_id'] ?? null;
-        $recipient->address = $data['address'] ?? null;
-        $recipient->city_cap = $data['city_cap'] ?? null;
-        $recipient->resp_title = $data['resp_title'] ?? null;
-        $recipient->resp_surname = $data['resp_surname'] ?? null;
-        $recipient->resp_name = $data['resp_name'] ?? null;
-        $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
-        $recipient->mail_1 = $data['mail_1'] ?? null;
-        $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
-        $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
-        $recipient->mail_2 = $data['mail_2'] ?? null;
-        $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
-        $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
-        $recipient->mail_3 = $data['mail_3'] ?? null;
-        $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
-        $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
-        $recipient->mail_4 = $data['mail_4'] ?? null;
-        $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
-        $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
-        $recipient->mail_5 = $data['mail_5'] ?? null;
-        $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
-        $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
-        $recipient->site = $data['site'] ?? null;
-        $recipient->url_facebook = $data['url_facebook'] ?? null;
-        $recipient->url_twitter = $data['url_twitter'] ?? null;
-        $recipient->url_googleplus = $data['url_googleplus'] ?? null;
-        $recipient->url_youtube = $data['url_youtube'] ?? null;
-        $recipient->save();
+//                 return;
+//             }
+//         }
+//         $recipient->description = $data['description'] ?? null;
+//         $recipient->admin_type_id = $data['admin_type_id'] ?? null;
+//         $recipient->istat_type_id = $data['istat_type_id'] ?? null;
+//         $recipient->code_ipa = $data['code_ipa'] ?? null;
+//         $recipient->acronym = $data['acronym'] ?? null;
+//         $recipient->city_id = $data['city_id'] ?? null;
+//         $recipient->address = $data['address'] ?? null;
+//         $recipient->city_cap = $data['city_cap'] ?? null;
+//         $recipient->resp_title = $data['resp_title'] ?? null;
+//         $recipient->resp_surname = $data['resp_surname'] ?? null;
+//         $recipient->resp_name = $data['resp_name'] ?? null;
+//         $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
+//         $recipient->mail_1 = $data['mail_1'] ?? null;
+//         $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
+//         $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
+//         $recipient->mail_2 = $data['mail_2'] ?? null;
+//         $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
+//         $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
+//         $recipient->mail_3 = $data['mail_3'] ?? null;
+//         $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
+//         $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
+//         $recipient->mail_4 = $data['mail_4'] ?? null;
+//         $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
+//         $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
+//         $recipient->mail_5 = $data['mail_5'] ?? null;
+//         $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
+//         $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
+//         $recipient->site = $data['site'] ?? null;
+//         $recipient->url_facebook = $data['url_facebook'] ?? null;
+//         $recipient->url_twitter = $data['url_twitter'] ?? null;
+//         $recipient->url_googleplus = $data['url_googleplus'] ?? null;
+//         $recipient->url_youtube = $data['url_youtube'] ?? null;
+//         $recipient->save();
 
-        Notification::make()
-            ->title('Interlocutore salvato con successo')
-            ->success()
-            ->send();
-    }
+//         Notification::make()
+//             ->title('Interlocutore salvato con successo')
+//             ->success()
+//             ->send();
+//     }
 
     private static function getRecipient($from): Recipient|null
     {

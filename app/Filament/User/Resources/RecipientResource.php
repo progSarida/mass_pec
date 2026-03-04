@@ -525,7 +525,7 @@ class RecipientResource extends Resource
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('city_id')->label('Comune')
-                    // ->required()
+                    ->required()
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
@@ -559,7 +559,6 @@ class RecipientResource extends Resource
                 Section::make('Responsabile')
                     // ->description('')
                     ->heading(fn ($record) => $record ? "Responsabile: {$record->resp_title} {$record->resp_surname} {$record->resp_name} - CF: {$record->resp_tax_code}" : 'Responsabile')
-                    ->collapsed(fn ($record) => $record)
                     ->collapsed()
                     ->columns(12)
                     ->schema([
@@ -595,7 +594,7 @@ class RecipientResource extends Resource
                     // ->collapsed(fn ($record) => $record && ( filled($record->mail_1) || filled($record->mail_2) ||
                     //     filled($record->mail_3) || filled($record->mail_4) || filled($record->mail_5) )
                     // )
-                    ->collapsed()
+                    ->collapsed(false)
                     ->columns(12)
                     ->schema([
                         TextInput::make('mail_1')->label('Mail 1')
@@ -649,8 +648,10 @@ class RecipientResource extends Resource
                     ->collapsed()
                     ->columns(12)
                     ->schema([
+                        TextInput::make(name: 'phone')->label('Telefono')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('site')->label('Sito istituzionale')
-                            ->columnSpan('full'),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_facebook')->label('Facebook')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_twitter')->label('Twitter')

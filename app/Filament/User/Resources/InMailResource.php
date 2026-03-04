@@ -68,6 +68,7 @@ class InMailResource extends Resource
                                     ->hidden(fn ($record) => $record->sender_id)
                                     ->hidden(fn ($livewire, $record) => $livewire instanceof \App\Filament\User\Resources\DownloadEmailResource\Pages\ViewDownloadEmail || $record->sender_id)
                             )
+                            ->live()
                             ->searchable()
                             ->relationship(name: 'sender', titleAttribute: 'description')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
@@ -495,11 +496,11 @@ class InMailResource extends Resource
                 continue;
             }
 Log::info("Mail {$i}: {$address}");
-            $recipient = static::getRecipient($address);
-            if ($recipient) {
+            $rec = static::getRecipient($address);
+            if ($rec) {
                 Notification::make()
                     ->title("Indirizzo {$address} presente in archivio")
-                    ->body("L'indirizzo {$address} è già associato a {$recipient->description}")
+                    ->body("L'indirizzo {$address} è già associato a {$rec->description}")
                     ->danger()
                     ->persistent()
                     ->send();
@@ -507,6 +508,7 @@ Log::info("Mail {$i}: {$address}");
                 return;
             }
         }
+
         $recipient->description = $data['description'] ?? null;
         $recipient->admin_type_id = $data['admin_type_id'] ?? null;
         $recipient->istat_type_id = $data['istat_type_id'] ?? null;

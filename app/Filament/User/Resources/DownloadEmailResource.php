@@ -500,11 +500,11 @@ class DownloadEmailResource extends Resource
                 continue;
             }
 Log::info("Mail {$i}: {$address}");
-            $recipient = static::getRecipient($address);
-            if ($recipient) {
+            $rec = static::getRecipient($address);
+            if ($rec) {
                 Notification::make()
                     ->title("Indirizzo {$address} presente in archivio")
-                    ->body("L'indirizzo {$address} è già associato a {$recipient->description}")
+                    ->body("L'indirizzo {$address} è già associato a {$rec->description}")
                     ->danger()
                     ->persistent()
                     ->send();
