@@ -288,8 +288,10 @@ class RecipientResource extends Resource
                     ->collapsed(fn ($record) => $record)
                     ->columns(12)
                     ->schema([
+                        TextInput::make(name: 'phone')->label('Telefono')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('site')->label('Sito istituzionale')
-                            ->columnSpan('full'),
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_facebook')->label('Facebook')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
                         TextInput::make('url_twitter')->label('Twitter')

@@ -504,7 +504,7 @@ Log::info("Mail {$i}: {$address}");
         $recipient->description = $data['description'] ?? null;
         $recipient->admin_type_id = $data['admin_type_id'] ?? null;
         $recipient->istat_type_id = $data['istat_type_id'] ?? null;
-        $recipient->codfe_ipa = $data['code_ipa'] ?? null;
+        $recipient->code_ipa = $data['code_ipa'] ?? null;
         $recipient->acronym = $data['acronym'] ?? null;
         $recipient->city_id = $data['city_id'] ?? null;
         $recipient->address = $data['address'] ?? null;

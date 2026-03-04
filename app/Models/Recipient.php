@@ -35,6 +35,7 @@ class Recipient extends Model
         'mail_5',
         'mail_type_5',
         'office_type_id_5',
+        'phone',
         'site',
         'url_facebook',
         'url_twitter',
