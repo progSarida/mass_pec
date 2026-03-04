@@ -27,10 +27,10 @@ use Illuminate\Database\Eloquent\Builder;
 class RecipientResource extends Resource
 {
     protected static ?string $model = Recipient::class;
-    public static ?string $pluralModelLabel = 'Indirizzi interlocutori';
+    public static ?string $pluralModelLabel = 'Interlocutori';
     public static ?string $modelLabel = 'Interlocutore';
     protected static ?string $navigationIcon = 'fluentui-person-mail-20-o';
-    protected static ?string $navigationLabel = 'Indirizzi interlocutori';
+    protected static ?string $navigationLabel = 'Interlocutori';
     protected static ?string $navigationGroup = 'Tabelle';
     protected static ?int $navigationSort = 1;
 
@@ -39,7 +39,7 @@ class RecipientResource extends Resource
         return $form
             ->columns(12)
             ->schema([
-                TextInput::make('description')->label('Descrizione')
+                TextInput::make('description')->label('Nome e Cognome/Denominazione')
                     ->required()
                     ->live(debounce: 500)
                     ->afterStateUpdated(function ($state, $record, $livewire) {

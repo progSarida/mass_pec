@@ -541,14 +541,15 @@ class RegistryResource extends Resource
                     ->label('Destinatari')
                     ->state(fn ($record) => $record?->registryReceivers?->count() ?? 0)
                     ->formatStateUsing(function ($state) {
-                        if ($state === 0) return '0 destinatari';
+                        if ($state === 0) return '';
                         return $state . ' ' . ($state === 1 ? 'destinatario' : 'destinatari');
                     })
                     ->tooltip(function ($record) {
                         $receivers = $record?->registryReceivers;
 
                         if (! $receivers || $receivers->isEmpty()) {
-                            return 'Nessun destinatario';
+                            // return 'Nessun destinatario';
+                            return '';
                         }
 
                         return $receivers->pluck('address')->implode(', ');

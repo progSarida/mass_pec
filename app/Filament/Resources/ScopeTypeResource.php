@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ScopeTypeResource extends Resource
 {
@@ -40,12 +41,14 @@ class ScopeTypeResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('position'))
             ->columns([
                 TextColumn::make('position')->label('Posizione')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('name')->label('Nome')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('description')->label('Descrizione')
                     ->searchable(),
                 TextColumn::make('created_at')

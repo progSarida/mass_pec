@@ -41,9 +41,11 @@ class AdminTypeResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->orderBy('position'))
             ->columns([
                 TextColumn::make('position')
-                    ->label('Posizione'),
+                    ->label('Posizione')
+                    ->sortable(),
                 TextColumn::make('name')
-                    ->label('Nome tipo'),
+                    ->label('Nome tipo')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
