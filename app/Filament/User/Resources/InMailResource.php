@@ -66,7 +66,7 @@ class InMailResource extends Resource
                                     ->modalHeading('')
                                     ->action(fn (array $data, Recipient $recipient, Set $set) => InMailResource::saveRecipient($data, $recipient, $set))
                                     ->hidden(fn ($record) => $record->sender_id)
-                                    ->hidden(fn ($livewire, $record) => $livewire instanceof \App\Filament\User\Resources\DownloadEmailResource\Pages\ViewDownloadEmail || $record->sender_id)
+                                    ->hidden(fn ($livewire, $record) => $livewire instanceof \App\Filament\User\Resources\InMailResource\Pages\ViewInMail || $record->sender_id)
                             )
                             ->live()
                             ->searchable()
