@@ -223,7 +223,7 @@ class DownloadEmailResource extends Resource
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')
                     ->color('warning')
-                    ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+                    ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager') && $record)
                     ->requiresConfirmation()
                     ->modalHeading('Protocolla email')
                     ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
@@ -478,6 +478,17 @@ class DownloadEmailResource extends Resource
             return $newIndex;
         }
         return 1;
+    }
+
+    private static function getRecipient($from): Recipient|null
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient;
     }
 
     public static function saveRecipient(array $data, Recipient $recipient, Set $set): void

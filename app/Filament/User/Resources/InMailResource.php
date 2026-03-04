@@ -475,6 +475,17 @@ class InMailResource extends Resource
         return 1;
     }
 
+    private static function getRecipient($from): Recipient|null
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient;
+    }
+
     public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
     {
         for($i = 1; $i <= 5; $i++){
