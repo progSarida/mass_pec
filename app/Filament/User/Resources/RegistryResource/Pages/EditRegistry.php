@@ -7,6 +7,7 @@ use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource;
 use App\Models\Account;
+use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use Filament\Actions;
@@ -462,6 +463,7 @@ class EditRegistry extends EditRecord
                         'scope_type_id' => $record->scope_type_id,
                         'uid' => '#reply' . $protocolNumber,
                         'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+                        'sender_id' => null,
                         'from' => $account->public_name,
                         'subject' => "Re: " . $record->subject,
                         'body' => null,
@@ -479,6 +481,7 @@ class EditRegistry extends EditRecord
                     RegistryReceiver::create([
                         'registry_id' => $newRegistry->id,
                         'protocol_number' => $protocolNumber,
+                        'recipient_id' => static::getRecipientId($record->from),
                         'address' => $record->from,
                         'pec_status' => PecStatus::WAITING,
                     ]);
@@ -524,6 +527,7 @@ class EditRegistry extends EditRecord
                         'scope_type_id' => $record->scope_type_id,
                         'uid' => '#forward' . $protocolNumber,
                         'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+                        'sender_id' => null,
                         'from' => $account->public_name,
                         'subject' => $record->subject,
                         'body' => $record->body,
@@ -714,8 +718,8 @@ class EditRegistry extends EditRecord
                                 imap_delete($imap, $uid, FT_UID);
                             }
                         }
-                        else if($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
-                            imap_delete($imap, $uid, FT_UID);
+                        else if ($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
+                            // imap_delete($imap, $uid, FT_UID);
                         }
                     }
                     continue;Log::info("Destinatario corretto (message_id)");
@@ -730,8 +734,8 @@ class EditRegistry extends EditRecord
                                 imap_delete($imap, $uid, FT_UID);
                             }
                         }
-                        else if($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
-                            imap_delete($imap, $uid, FT_UID);
+                        else if ($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
+                            // imap_delete($imap, $uid, FT_UID);
                         }
                     }
                     continue;Log::info("Destinatario corretto (address)");
@@ -784,8 +788,8 @@ class EditRegistry extends EditRecord
                         imap_delete($imap, $uid, FT_UID);
                     }
                 }
-                else if($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
-                    imap_delete($imap, $uid, FT_UID);
+                else if ($date) {                                                                        // se non ho indicato i giorni da aspettare per cancellare
+                    // imap_delete($imap, $uid, FT_UID);
                 }
             }
 
@@ -928,5 +932,16 @@ class EditRegistry extends EditRecord
             return $newIndex;
         }
         return 1;
+    }
+
+    private static function getRecipientId($from)
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient?->id;
     }
 }

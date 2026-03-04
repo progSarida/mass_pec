@@ -5,6 +5,7 @@ namespace App\Filament\User\Resources\DownloadEmailResource\Pages;
 use App\Filament\User\Resources\DownloadEmailResource;
 use App\Models\Account;
 use App\Models\DownloadEmail;
+use App\Models\Recipient;
 use App\Models\Registry;
 use Ddeboer\Imap\Server;
 use Filament\Actions;
@@ -92,7 +93,7 @@ class ListDownloadEmails extends ListRecords
 
                 $mailbox = $connection->getMailbox('INBOX');
                 $messages = $mailbox->getMessages();
-
+// $index = 0;
                 foreach ($messages as $message) {
                     $uid = $message->getNumber();
 
@@ -105,6 +106,7 @@ class ListDownloadEmails extends ListRecords
 
                     // --- DATA ---
                     $date = $message->getDate()?->format('Y-m-d H:i:s');
+Log::info("Data ricezione: {$date}");
 
                     // SKIP GIA' SCARICATA
                     $message_id = $message->getId();
@@ -123,29 +125,37 @@ class ListDownloadEmails extends ListRecords
                                     ->exists();
                     }
 
-                    if ($skip) {
-                        Log::info("Ignorata mail già scaricata/protocollata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
-                        if ($account->delete && $date) {                                                        // se è prevista la cancellazione dal server
-                            if ($account->delete_after_days && $date){
-                                $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
-                                if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                            // se ho indicato i giorni da aspettare per cancellare
-                                    $message->delete();
-                                }
-                            }
-                            else{                                                                               // se non ho indicato i giorni da aspettare per cancellare
-                                $message->delete();
-                            }
-                        }
-                        continue;
-                    }
-
                     // --- MITTENTE REALE ---
                     $from = $message->getFrom()?->getName() ?? 'Sconosciuto';
                     if (str_contains($from, 'Per conto di:')) {
                         preg_match('/Per conto di:?\s*([^\s<"\']+)/i', $from, $m);
                         $from = $m[1] ?? $from;
                     }
+Log::info('Scarico mail da ' . $from);
 
+                    if ($skip) {
+                        Log::info("Ignorata mail già scaricata/protocollata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
+                        if ($account->delete && $date) {                                                        // se è prevista la cancellazione dal server
+                            if ($account->delete_after_days && $date && $from != 'Sconosciuto'){
+                                $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                                if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                            // se ho indicato i giorni da aspettare per cancellare
+                                    $message->delete();
+                                }
+                            }
+                            else if ($date) {                                                                               // se non ho indicato i giorni da aspettare per cancellare
+                                // $message->delete();
+                            }
+                        }
+                        continue;
+                    }
+// if($index > 0) continue; $index++;
+                    // --- MITTENTE REALE ---
+//                     $from = $message->getFrom()?->getName() ?? 'Sconosciuto';
+//                     if (str_contains($from, 'Per conto di:')) {
+//                         preg_match('/Per conto di:?\s*([^\s<"\']+)/i', $from, $m);
+//                         $from = $m[1] ?? $from;
+//                     }
+// Log::info('Scarico mail da ' . $from);
                     // --- OGGETTO ---
                     $subject = $message->getSubject() ?? '(senza oggetto)';
                     $subject = preg_replace('/^POSTA CERTIFICATA:\s*/i', '', $subject);
@@ -159,13 +169,14 @@ class ListDownloadEmails extends ListRecords
                     $inMail = DownloadEmail::create([
                         'uid' => $uid,
                         'message_id' => $message_id,
+                        'sender_id' => $this->getSenderId($from),
                         'from' => $this->sanitizeUtf8($from),
                         'subject' => $this->sanitizeUtf8($subject),
                         'body' => substr($this->sanitizeUtf8($body), 0, 5000),
                         'receive_date' => $date,
                         'download_user_id' => Auth::id(),
                     ]);
-
+// dd($inMail);
                     // --- SALVA ALLEGATI ---
                     // $folderPath = storage_path("app/public/download_email/{$inMail->id}");
                     $folderPath = "download_email/{$inMail->id}";
@@ -192,14 +203,14 @@ class ListDownloadEmails extends ListRecords
                     Log::info("PEC salvata: UID {$uid}, ID {$inMail->id}, corpo: " . strlen($body) . " byte");
 
                     if ($account->delete && $date) {                                                            // se è prevista la cancellazione dal server
-                        if ($account->delete_after_days && $date){
+                        if ($account->delete_after_days && $date && $from != 'Sconosciuto'){
                             $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
-                            if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                // se ho indicato i giorni da aspettare per cancellare
+                            if (\Carbon\Carbon::parse($date)->lt($deleteDate) && $from != 'Sconosciuto') {      // se ho indicato i giorni da aspettare per cancellare
                                 $message->delete();
                             }
                         }
-                        else{                                                                                   // se non ho indicato i giorni da aspettare per cancellare
-                            $message->delete();
+                        else if ($date) {                                                                                   // se non ho indicato i giorni da aspettare per cancellare
+                            // $message->delete();
                         }
                     }
                 }
@@ -225,16 +236,28 @@ class ListDownloadEmails extends ListRecords
 
     private function isOfficialPecReceipt($rawHeaders)
     {
+// Log::info($rawHeaders);
         // Aruba: X-Ricevuta
-        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia)/mi', $rawHeaders)) {
+        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia|errore-consegna)/mi', $rawHeaders)) {
             return true;
         }
 
         // Poste, LegalMail, Namirial, Register, ecc.: X-TipoRicevuta
-        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia)/mi', $rawHeaders)) {
+        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia|errore-consegna)/mi', $rawHeaders)) {
             return true;
         }
 
         return false;
+    }
+
+    private function getSenderId($from)
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient?->id;
     }
 }

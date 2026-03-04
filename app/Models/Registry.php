@@ -22,6 +22,8 @@ class Registry extends Model
         'scope_type_id',
         'uid',
         'message_id',
+        'sender_id',                // id tabella recipients
+        'other_senders',            // array con id della tabella recipients
         'from',
         'subject',
         'body',
@@ -43,6 +45,7 @@ class Registry extends Model
         'registry_origin_type' => RegistryOriginType::class,
         'recipients' => 'array',
         'send_date' => 'datetime',
+        'other_senders' => 'array',
     ];
 
     public function downloadUser(){
@@ -67,6 +70,10 @@ class Registry extends Model
 
     public function registryReceivers(){
         return $this->hasMany(RegistryReceiver::class);
+    }
+
+    public function sender(){
+        return $this->belongsTo(Recipient::class,'sender_id');
     }
 
     public function account(){

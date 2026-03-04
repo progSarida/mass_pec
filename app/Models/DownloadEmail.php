@@ -12,6 +12,7 @@ class DownloadEmail extends Model
      protected $fillable = [
         'uid',
         'message_id',
+        'sender_id',
         'from',
         'subject',
         'body',
@@ -26,6 +27,10 @@ class DownloadEmail extends Model
 
     public function downloadUser(){
         return $this->belongsTo(User::class,'download_user_id');
+    }
+
+    public function sender(){
+        return $this->belongsTo(Recipient::class,'sender_id');
     }
 
     protected static function booted()

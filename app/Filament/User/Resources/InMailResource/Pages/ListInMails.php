@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources\InMailResource\Pages;
 
 use App\Filament\User\Resources\InMailResource;
 use App\Models\InMail;
+use App\Models\Recipient;
 use App\Models\Sender;
 use Ddeboer\Imap\Server;
 use Filament\Actions;
@@ -90,7 +91,7 @@ class ListInMails extends ListRecords
 
             $mailbox = $connection->getMailbox('INBOX');
             $messages = $mailbox->getMessages();
-
+// $index = 0;
             foreach ($messages as $message) {
                 $uid = $message->getNumber();
 
@@ -109,6 +110,13 @@ class ListInMails extends ListRecords
                 // --- DATA ---
                 $date = $message->getDate()?->format('Y-m-d H:i:s');
 
+                // --- MITTENTE REALE ---
+                $from = $message->getFrom()?->getName() ?? 'Sconosciuto';
+                if (str_contains($from, 'Per conto di:')) {
+                    preg_match('/Per conto di:?\s*([^\s<"\']+)/i', $from, $m);
+                    $from = $m[1] ?? $from;
+                }
+
                 // SKIP GIA' SCARICATA
                 $message_id = $message->getId();
                 if (
@@ -116,21 +124,23 @@ class ListInMails extends ListRecords
                     InMail::where('uid', $uid)->where('receive_date', $date)->exists()
                 ) {
                     Log::info("Ignorata mail già scaricata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
-                    if ($sender->delete_after_days && $date) {
-                        $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
-                        if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
-                            $message->delete();
+                    if ($sender->delete && $date) {                                                        // se è prevista la cancellazione dal server
+                        if ($sender->delete_after_days && $date && $from != 'Sconosciuto') {
+                            $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
+                            if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
+                                $message->delete();
+                            }
                         }
                     }
                     continue;
                 }
-
+// if($index > 0) continue; $index++;
                 // --- MITTENTE REALE ---
-                $from = $message->getFrom()?->getName() ?? 'Sconosciuto';
-                if (str_contains($from, 'Per conto di:')) {
-                    preg_match('/Per conto di:?\s*([^\s<"\']+)/i', $from, $m);
-                    $from = $m[1] ?? $from;
-                }
+                // $from = $message->getFrom()?->getName() ?? 'Sconosciuto';
+                // if (str_contains($from, 'Per conto di:')) {
+                //     preg_match('/Per conto di:?\s*([^\s<"\']+)/i', $from, $m);
+                //     $from = $m[1] ?? $from;
+                // }
 
                 // --- OGGETTO ---
                 $subject = $message->getSubject() ?? '(senza oggetto)';
@@ -145,6 +155,7 @@ class ListInMails extends ListRecords
                 $inMail = InMail::create([
                     'uid' => $uid,
                     'message_id' => $message_id,
+                    'sender_id' => $this->getSenderId($from),
                     'from' => $this->sanitizeUtf8($from),
                     'subject' => $this->sanitizeUtf8($subject),
                     'body' => substr($this->sanitizeUtf8($body), 0, 5000),
@@ -175,10 +186,12 @@ class ListInMails extends ListRecords
 
                 Log::info("PEC salvata: UID {$uid}, ID {$inMail->id}, corpo: " . strlen($body) . " byte");
 
-                if ($sender->delete_after_days && $date) {
-                    $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
-                    if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
-                        $message->delete();
+                if ($sender->delete && $date) {                                                        // se è prevista la cancellazione dal server
+                    if ($sender->delete_after_days && $date) {
+                        $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
+                        if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
+                            $message->delete();
+                        }
                     }
                 }
             }
@@ -204,8 +217,19 @@ class ListInMails extends ListRecords
     private function isOfficialPecReceipt($rawHeaders)
     {
         return preg_match(
-            '/^X-(?:Ricevuta|TipoRicevuta):\s*(?:accettazione|(?:avvenuta-)?consegna?|(?:mancata-)?accettazione?|(?:non-)?accettazione|(?:mancata-)?consegna?|anomalia)/mi',
+            '/^X-(?:Ricevuta|TipoRicevuta):\s*(?:accettazione|(?:avvenuta-)?consegna?|(?:mancata-)?accettazione?|(?:non-)?accettazione|(?:mancata-)?consegna?|anomalia|(?:errore-)?consegna)/mi',
             $rawHeaders
         );
+    }
+
+    private function getSenderId($from)
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient?->id;
     }
 }

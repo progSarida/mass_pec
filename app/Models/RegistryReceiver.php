@@ -10,6 +10,7 @@ class RegistryReceiver extends Model
     protected $fillable = [
         'registry_id',
         'protocol_number',
+        'recipient_id',                         // id tabella recipients
         'address',
         'message_id',
         'pec_status',

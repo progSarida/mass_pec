@@ -15,6 +15,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
@@ -71,14 +72,25 @@ class SenderResource extends Resource
                     ->collapsed(fn ($record) => $record && $record->address != '')
                     ->columns(12)
                     ->schema([
-                        TextInput::make('in_mail_server')->label('Server')->columnSpan(6)
+                        TextInput::make('in_mail_server')->label('Server')->columnSpan(4)
                             ->required(),
-                        Select::make('in_mail_protocol_type')->label('Protocollo')->columnSpan(2)
+                        Select::make('in_mail_protocol_type')->label('Protocollo')->columnSpan(3)
                             ->required()
                             ->options(MailProtocolType::class),
                         TextInput::make('in_mail_port')->label('Porta')->columnSpan(2)
                             ->required(),
-                        TextInput::make('delete_after_days')->label('Cancellare dopo (giorni)')->columnSpan(2),
+                        Checkbox::make('delete')->label('Cancella mail')->columnSpan(2)
+                            ->live(),
+                        // TextInput::make('delete_after_days')->label('Cancellare dopo (giorni)')->columnSpan(2),
+                        TextInput::make('delete_after_days')->label('dopo (gg)')->columnSpan(1)
+                            ->numeric()
+                            ->minValue(10)
+                            ->extraInputAttributes(['class' => 'text-right'])
+                            ->required(fn(Get $get) => $get('delete'))
+                            ->validationMessages([
+                                'min' => 'Valore minore di 10 giorni.'
+                            ])
+                            ->disabled(fn(Get $get) => !$get('delete')),
                         TextInput::make('username')->label('Username')->columnSpan(6)
                             ->required(),
                         TextInput::make('password')->label('Password')->columnSpan(6)

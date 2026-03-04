@@ -29,6 +29,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -58,19 +59,40 @@ class RegistryResource extends Resource
     {
         return $form
             ->columns(15)
+            // ->disabled(function ($record, $livewire) {
+            //     $operation = $livewire instanceof \Filament\Resources\Pages\ViewRecord
+            //                     ? 'view'
+            //                     : 'create';
+            //     if ($operation === 'view') { return true; }                                             // disabilito in view
+            //     if (!$record) { return false; }                                                         // non disabilito in create
+            //     return !$record->isOutgoingEmail()                                                      // disabilito in edit se non è una mail in uscita o
+            //         || ($record->isOutgoingEmail() && $record->send_date);                              // disabilito in edit se è una mail in uscita ed è stata inviata
+            // })
             ->disabled(function ($record, $livewire) {
-                $operation = $livewire instanceof \Filament\Resources\Pages\ViewRecord
-                                ? 'view'
-                                : 'create';
-                if ($operation === 'view') { return true; }                                             // disabilito in view
-                if (!$record) { return false; }                                                         // non disabilito in create
-                return !$record->isOutgoingEmail()                                                      // disabilito in edit se non è una mail in uscita o
-                    || ($record->isOutgoingEmail() && $record->send_date);                              // disabilito in edit se è una mail in uscita ed è stata inviata
-            })
+                // 1. Sempre disabilitato in View
+                if ($livewire instanceof \Filament\Resources\Pages\ViewRecord) {
+                    return true;
+                }
+
+                // 2. Mai disabilitato in Create (il record non esiste ancora)
+                if (!$record) {
+                    return false;
+                }
+
+                // 3. Disabilita TUTTO se è in uscita ed è già stata inviata
+                if ($record->isOutgoingEmail() && $record->send_date) {
+                    return true;
+                }
+
+                // NOTA: Non mettiamo il blocco per le mail ricevute qui,
+                // altrimenti bloccheremmo anche 'other_senders'.
+                return false;
+        })
             ->schema([
                 Section::make('Informazioni Principali')
                     ->columns(15)
                     ->schema([
+
                         TextInput::make('protocol_number')
                             ->label('Protocollo')
                             ->required()
@@ -79,10 +101,18 @@ class RegistryResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 2])
                             ->default(static::newProtocol()),
 
+                        Checkbox::make('is_email')
+                            ->label('Posta elettronica')
+                            ->live()
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+
                         Select::make('flow_type')
                             ->label('Corrispondenza')
                             ->required()
                             ->live()
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->options(FlowType::class)
                             ->afterStateUpdated(function(Set $set, $state){
                                 $lastIndex = Registry::where('flow_type', $state)->max('flow_index');
@@ -106,14 +136,9 @@ class RegistryResource extends Resource
                         Select::make('scope_type_id')
                             ->label('Settore interno')
                             ->required()
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->relationship('scopeType', 'name')
                             ->columnSpan(['sm' => 'full', 'md' => 5]),
-
-                        Checkbox::make('is_email')
-                            ->label('Posta elettronica')
-                            ->live()
-                            // ->disabled()
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                         TextInput::make('parent_reply')
                             ->label('Risposta a')
@@ -160,14 +185,86 @@ class RegistryResource extends Resource
                             ),
 
                         TextInput::make('from')
-                            ->label('Mittente')
+                            ->label('Email mittente')
                             ->required()
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
+
+                        Select::make('sender_id')
+                            ->label('Mittente')
+                            ->hintAction(
+                                Action::make('Nuovo')
+                                    ->icon('ri-user-2-line')
+                                    ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    ->modalWidth('7xl')
+                                    ->modalHeading('')
+                                    ->action(fn (array $data, Recipient $recipient, Set $set) => RegistryResource::saveRecipient($data, $recipient, $set))
+                                    ->hidden(fn ($livewire) => !$livewire instanceof \App\Filament\User\Resources\RegistryResource\Pages\CreateRegistry)
+                            )
+                            ->disabled(fn ($record) => $record?->isIngoingEmail() && $record->sender_id)
+                            ->relationship(name: 'sender', titleAttribute: 'description')
+                            ->required()
+                            ->live()
+                            ->searchable()
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+
+                        Select::make('account_id')
+                            ->label('Mittente')
+                            ->relationship(name: 'account', titleAttribute: 'public_name')
+                            ->required()
+                            ->searchable()
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::ISSUED->value)
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+
+                        Select::make('other_senders')
+                            ->label('Altri mittenti')
+                            ->multiple()
+                            ->searchable()
+                            ->disabled(fn ($record) => $record?->other_senders != null)
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
+                            ->live()
+                            ->placeholder('Seleziona altri mittenti')
+                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
+                            ->getSearchResultsUsing(function (string $search) {
+                                if (strlen($search) < 3) {
+                                    return [];
+                                }
+                                // Divido la ricerca in parole
+                                $words = array_filter(explode(' ', $search));
+                                $query = Recipient::query();
+                                // Filtro per parole chiave
+                                if (!empty($words)) {
+                                    $query->where(function ($q) use ($words) {
+                                        foreach ($words as $word) {
+                                            $q->where(function ($subQuery) use ($word) {
+                                                $subQuery->where('description', 'like', "%{$word}%")
+                                                    ->orWhere('resp_surname', 'like', "%{$word}%")
+                                                    ->orWhere('resp_name', 'like', "%{$word}%");
+                                            });
+                                        }
+                                    });
+                                }
+                                return $query
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($item) {
+                                        // Qui decidi cosa salvare come valore (es. l'id o l'email)
+                                        // e cosa mostrare come testo
+                                        return [$item->id => "{$item->description}"];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelsUsing(function ($values) {
+                                // Quando il record è salvato, voglio vedere l'email nei tag
+                                return collect($values)->mapWithKeys(fn ($id) => [$id => static::labelRecipient($id)])->toArray();
+                            }),
 
                         TextInput::make('subject')
                             ->label('Oggetto')
                             ->required()
-                            ->columnSpan(['sm' => 'full', 'md' => 9]),
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->columnSpan(['sm' => 'full', 'md' => 15]),
 
                         // Textarea::make('body')
                         //     ->label('Messaggio')
@@ -196,13 +293,15 @@ class RegistryResource extends Resource
                         RichEditor::make('body')
                             ->label('Messaggio')
                             ->required()
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->default('') // Fondamentale per evitare l'errore "property not found"
                             ->columnSpanFull(),
                             ]),
 
                 DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
-                    ->visible(fn ($record) => $record?->isIngoingEmail())
+                    ->disabled(fn ($record) => $record?->isIngoingEmail())
+                    ->visible(fn (Get $get, $record) => $record?->isIngoingEmail() || $get('flow_type') == FlowType::RECEIVED->value)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -210,6 +309,7 @@ class RegistryResource extends Resource
 
                 DatePicker::make('download_date')
                     ->label('Scaricato il')
+                    ->disabled(fn ($record) => $record?->isIngoingEmail())
                     ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->date('d/m/Y')
@@ -219,6 +319,7 @@ class RegistryResource extends Resource
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
+                    ->disabled(fn ($record) => $record?->isIngoingEmail())
                     ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->relationship('downloadUser', 'name')
                     // ->visible(fn(Get $get) => $get('is_email'))
@@ -258,6 +359,7 @@ class RegistryResource extends Resource
 
                 DateTimePicker::make('created_at')
                     ->label('Registrato il')
+                    ->disabled()
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 3])
                     ->displayFormat('d/m/Y H:i:s')
@@ -266,6 +368,7 @@ class RegistryResource extends Resource
 
                 Forms\Components\Select::make('register_user_id')
                     ->label('Registrato da')
+                    ->disabled()
                     ->relationship('registerUser', 'name')
                     ->visible(fn($record) => $record)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -404,12 +507,35 @@ class RegistryResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('from')
+                // TextColumn::make('from')
+                //     ->label('Mittente')
+                //     ->searchable()
+                //     ->limit(250)
+                //     ->tooltip(fn ($record) => $record?->from)
+                //     ->sortable(),
+
+                TextColumn::make('sender_info') // Usa un nome descrittivo
                     ->label('Mittente')
-                    ->searchable()
-                    ->limit(250)
-                    ->tooltip(fn ($record) => $record?->from)
-                    ->sortable(),
+                    ->state(function ($record): string {
+                        // Usiamo state() invece di formatStateUsing se la colonna non esiste nel DB
+                        if ($record->sender_id && $record->sender) {
+                            return $record->sender->description ?? '';
+                        }
+
+                        if ($record->account_id && $record->account) {
+                            return $record->account->public_name ?? '';
+                        }
+
+                        return '';
+                    })
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        // Nota: searchable() su colonne calcolate richiede una logica custom
+                        return $query->whereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"))
+                                    ->orWhereHas('account', fn ($q) => $q->where('public_name', 'like', "%{$search}%"));
+                    })
+                    ->sortable()
+                    // ->tooltip(fn ($record) => $record?->from)
+                    ->limit(250),
 
                 Tables\Columns\TextColumn::make('receivers')
                     ->label('Destinatari')
@@ -681,6 +807,91 @@ class RegistryResource extends Resource
 
                         return $query;
                     })
+                    ->columnSpan(1),
+
+                SelectFilter::make('sender')
+                    ->label('Mittente')
+                    ->multiple()
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array =>
+                        Recipient::where('description', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->pluck('description', 'id')
+                            ->toArray()
+                    )
+                    ->getOptionLabelsUsing(fn (array $values): array =>
+                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        $senderIds = $data['values'] ?? [];
+
+                        if (empty($senderIds)) {
+                            return $query;
+                        }
+
+                        return $query->where(function ($q) use ($senderIds) {
+                            // Ricerca sul mittente principale (molto veloce se sender_id ha un indice)
+                            $q->whereIn('sender_id', $senderIds)
+                            // Ricerca nel campo JSON
+                            ->orWhere(function ($subQuery) use ($senderIds) {
+                                foreach ($senderIds as $id) {
+                                    // Usiamo orWhereJsonContains, ma limitato ai record necessari
+                                    $subQuery->orWhereJsonContains('other_senders', (string)$id)
+                                            ->orWhereJsonContains('other_senders', (int)$id);
+                                }
+                            });
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) return [];
+
+                        $labels = Recipient::whereIn('id', $data['values'])
+                            ->pluck('description')
+                            ->toArray();
+
+                        return ['Mittenti: ' . implode(', ', $labels)];
+                    })
+                    ->columnSpan(2),
+
+                SelectFilter::make('recipient')
+                    ->label('Destinatario')
+                    ->multiple()
+                    ->searchable()
+                    // 1. NON usare ->options() qui se hai molti record.
+                    // Usiamo getSearchResultsUsing per caricare solo i primi 50 che corrispondono alla ricerca.
+                    ->getSearchResultsUsing(fn (string $search): array =>
+                        Recipient::where('description', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->pluck('description', 'id')
+                            ->toArray()
+                    )
+                    // 2. Serve a Filament per visualizzare il nome corretto dei tag selezionati
+                    ->getOptionLabelsUsing(fn (array $values): array =>
+                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        $recipientIds = $data['values'] ?? [];
+
+                        if (empty($recipientIds)) {
+                            return $query;
+                        }
+
+                        // 3. whereHas è corretto se hai una relazione Many-to-Many o One-to-Many
+                        return $query->whereHas('registryReceivers', function ($q) use ($recipientIds) {
+                            $q->whereIn('recipient_id', $recipientIds);
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) return [];
+
+                        // 4. Ottimizzazione: ritorniamo un array per gli indicatori (Filament v3 style)
+                        $recipients = Recipient::whereIn('id', $data['values'])
+                            ->pluck('description')
+                            ->toArray();
+
+                        return ['Destinatari: ' . implode(', ', $recipients)];
+                    })
+                    ->columnSpan(2)
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -738,24 +949,16 @@ class RegistryResource extends Resource
         return 'P-' . today()->year . '-00001';
     }
 
-    private static function labelRecipient($email): string
+    private static function labelRecipient($id): string
     {
-        $rec = Recipient::where(function ($query) use ($email) {
-            $query->where('mail_1', $email)
-                ->orWhere('mail_2', $email)
-                ->orWhere('mail_3', $email)
-                ->orWhere('mail_4', $email)
-                ->orWhere('mail_5', $email);
-        })
-        ->select('description', 'resp_surname', 'resp_name')
-        ->first();
+        $rec = Recipient::find($id);
 
         if ($rec) {
             // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
-            return "{$rec->description} <{$email}>";
+            return "{$rec->description}";
         }
 
-        return $email;
+        return "[]";
     }
 
     private static function checkReceiptsOld($registry)
@@ -819,6 +1022,78 @@ Log::info("Inviati: {$sent} - Consegnati: {$delivered} -------------------------
 
         self::$receiptsCache[$cacheKey] = $report;
         return $report;
+    }
+
+    public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
+    {
+        for($i = 1; $i <= 5; $i++){
+            $address = $data["mail_{$i}"];
+            if(!$address || $address == '') {
+                Log::info("Mail_{$i} è vuoto o nullo");
+                continue;
+            }
+Log::info("Mail {$i}: {$address}");
+            $recipient = static::getRecipient($address);
+            if ($recipient) {
+                Notification::make()
+                    ->title("Indirizzo {$address} presente in archivio")
+                    ->body("L'indirizzo {$address} è già associato a {$recipient->description}")
+                    ->danger()
+                    ->persistent()
+                    ->send();
+
+                return;
+            }
+        }
+        $recipient->description = $data['description'] ?? null;
+        $recipient->admin_type_id = $data['admin_type_id'] ?? null;
+        $recipient->istat_type_id = $data['istat_type_id'] ?? null;
+        $recipient->codfe_ipa = $data['code_ipa'] ?? null;
+        $recipient->acronym = $data['acronym'] ?? null;
+        $recipient->city_id = $data['city_id'] ?? null;
+        $recipient->address = $data['address'] ?? null;
+        $recipient->city_cap = $data['city_cap'] ?? null;
+        $recipient->resp_title = $data['resp_title'] ?? null;
+        $recipient->resp_surname = $data['resp_surname'] ?? null;
+        $recipient->resp_name = $data['resp_name'] ?? null;
+        $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
+        $recipient->mail_1 = $data['mail_1'] ?? null;
+        $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
+        $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
+        $recipient->mail_2 = $data['mail_2'] ?? null;
+        $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
+        $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
+        $recipient->mail_3 = $data['mail_3'] ?? null;
+        $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
+        $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
+        $recipient->mail_4 = $data['mail_4'] ?? null;
+        $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
+        $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
+        $recipient->mail_5 = $data['mail_5'] ?? null;
+        $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
+        $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
+        $recipient->site = $data['site'] ?? null;
+        $recipient->url_facebook = $data['url_facebook'] ?? null;
+        $recipient->url_twitter = $data['url_twitter'] ?? null;
+        $recipient->url_googleplus = $data['url_googleplus'] ?? null;
+        $recipient->url_youtube = $data['url_youtube'] ?? null;
+        $recipient->save();
+
+        Notification::make()
+            ->title('Interlocutore salvato con successo')
+            ->success()
+            ->send();
+    }
+
+    private static function getRecipient($from): Recipient|null
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient;
     }
 
     public static function getEloquentQuery(): Builder

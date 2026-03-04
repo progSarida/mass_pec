@@ -182,6 +182,7 @@ class EditInMail extends EditRecord
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,
                 'message_id' => $record->message_id,
+                'sender_id' => $record->sender_id,
                 'from' => $record->from,
                 'subject' => $record->subject,
                 'body' => $record->body,

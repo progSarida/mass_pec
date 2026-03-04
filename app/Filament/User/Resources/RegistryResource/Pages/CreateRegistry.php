@@ -14,4 +14,10 @@ class CreateRegistry extends CreateRecord
     {
         return "Nuova registrazione";
     }
+
+    protected function beforeCreate(): void
+    {
+//         $formState = $this->form->getState();
+// dd($formState);
+    }
 }

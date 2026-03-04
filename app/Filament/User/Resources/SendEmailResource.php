@@ -460,6 +460,7 @@ class SendEmailResource extends Resource
                 'scope_type_id' => $scopeTypeId,
                 'uid' => '#send_email' . $record->id,
                 'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $record->id,
+                'sender_id' => null,
                 'from' => $record->account->public_name,
                 'subject' => $record->subject,
                 'body' => $record->body,
@@ -478,6 +479,7 @@ class SendEmailResource extends Resource
                 RegistryReceiver::create([
                     'registry_id' => $registry->id,
                     'protocol_number' => $protocolNumber,
+                    'recipient_id' => static::getRecipientId($receiver),
                     'address' => $receiver,
                     'pec_status' => PecStatus::WAITING,
                 ]);
@@ -597,5 +599,16 @@ class SendEmailResource extends Resource
             return $newIndex;
         }
         return 1;
+    }
+
+    private static function getRecipientId($from)
+    {
+        $recipient = Recipient::where('mail_1', $from)
+                        ->orWhere('mail_2', $from)
+                        ->orWhere('mail_3', $from)
+                        ->orWhere('mail_4', $from)
+                        ->orWhere('mail_5', $from)
+                        ->first();
+        return $recipient?->id;
     }
 }

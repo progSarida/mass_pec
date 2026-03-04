@@ -35,10 +35,30 @@ class ViewDownloadEmail extends ViewRecord
                                 ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
         $nextCDownloadEmail = DownloadEmail::where('created_at', '>=', $currentDownloadEmail->created_at)->where('id', '!=', $currentDownloadEmail->id)
                                 ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
-        $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
-                                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
-        $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
-                                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        // $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
+        //                         ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+        // $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
+        //                         ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        $previousRDownloadEmail = null;
+        $nextRDownloadEmail = null;
+        if (!empty($currentDownloadEmail->receive_date)) {
+
+            $previousRDownloadEmail = DownloadEmail::whereNotNull('receive_date')
+                ->where('receive_date', '<', $currentDownloadEmail->receive_date)
+                ->orWhere(function ($query) use ($currentDownloadEmail) {
+                    $query->where('receive_date', $currentDownloadEmail->receive_date)
+                        ->where('id', '<', $currentDownloadEmail->id);
+                })
+                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+
+            $nextRDownloadEmail = DownloadEmail::whereNotNull('receive_date')
+                ->where('receive_date', '>', $currentDownloadEmail->receive_date)
+                ->orWhere(function ($query) use ($currentDownloadEmail) {
+                    $query->where('receive_date', $currentDownloadEmail->receive_date)
+                        ->where('id', '>', $currentDownloadEmail->id);
+                })
+                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        }
         return [
             Actions\Action::make('back')
                 ->label('Indietro')

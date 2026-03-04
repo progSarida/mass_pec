@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources;
 
 use App\Filament\User\Resources\InMailResource\Pages;
 use App\Models\InMail;
+use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\ScopeType;
 use Filament\Forms;
@@ -16,6 +17,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -51,12 +53,28 @@ class InMailResource extends Resource
                     ->columns(12)
                     ->schema([
                         TextInput::make('from')
+                            ->label('Email mittente')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+
+                        Select::make('sender_id')
                             ->label('Mittente')
-                            ->columnSpan(['sm' => 'full', 'md' => 5]),
+                            ->hintAction(
+                                Action::make('Nuovo')
+                                    ->icon('ri-user-2-line')
+                                    ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    ->modalWidth('7xl')
+                                    ->modalHeading('')
+                                    ->action(fn (array $data, Recipient $recipient, Set $set) => InMailResource::saveRecipient($data, $recipient, $set))
+                                    ->hidden(fn ($record) => $record->sender_id)
+                                    ->hidden(fn ($livewire, $record) => $livewire instanceof \App\Filament\User\Resources\DownloadEmailResource\Pages\ViewDownloadEmail || $record->sender_id)
+                            )
+                            ->searchable()
+                            ->relationship(name: 'sender', titleAttribute: 'description')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('subject')
                             ->label('Oggetto')
-                            ->columnSpan(['sm' => 'full', 'md' => 7]),
+                            ->columnSpan(['sm' => 'full', 'md' => 12]),
 
                         Textarea::make('body')
                             ->label('Messaggio')
@@ -143,7 +161,13 @@ class InMailResource extends Resource
         return $table
             ->defaultSort('receive_date', 'desc')
             ->columns([
-                TextColumn::make('from')
+                // TextColumn::make('from')
+                //     ->label('Mittente')
+                //     ->searchable()
+                //     ->limit(25)
+                //     ->tooltip(fn ($record) => $record->from),
+
+                TextColumn::make('sender.description')
                     ->label('Mittente')
                     ->searchable()
                     ->limit(25)
@@ -318,6 +342,7 @@ class InMailResource extends Resource
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,
                 'message_id' => $record->message_id,
+                'sender_id' => $record->sender_id,
                 'from' => $record->from,
                 'subject' => $record->subject,
                 'body' => $record->body,
@@ -448,5 +473,67 @@ class InMailResource extends Resource
             return $newIndex;
         }
         return 1;
+    }
+
+    public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
+    {
+        for($i = 1; $i <= 5; $i++){
+            $address = $data["mail_{$i}"];
+            if(!$address || $address == '') {
+                Log::info("Mail_{$i} è vuoto o nullo");
+                continue;
+            }
+Log::info("Mail {$i}: {$address}");
+            $recipient = static::getRecipient($address);
+            if ($recipient) {
+                Notification::make()
+                    ->title("Indirizzo {$address} presente in archivio")
+                    ->body("L'indirizzo {$address} è già associato a {$recipient->description}")
+                    ->danger()
+                    ->persistent()
+                    ->send();
+
+                return;
+            }
+        }
+        $recipient->description = $data['description'] ?? null;
+        $recipient->admin_type_id = $data['admin_type_id'] ?? null;
+        $recipient->istat_type_id = $data['istat_type_id'] ?? null;
+        $recipient->codfe_ipa = $data['code_ipa'] ?? null;
+        $recipient->acronym = $data['acronym'] ?? null;
+        $recipient->city_id = $data['city_id'] ?? null;
+        $recipient->address = $data['address'] ?? null;
+        $recipient->city_cap = $data['city_cap'] ?? null;
+        $recipient->resp_title = $data['resp_title'] ?? null;
+        $recipient->resp_surname = $data['resp_surname'] ?? null;
+        $recipient->resp_name = $data['resp_name'] ?? null;
+        $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
+        $recipient->mail_1 = $data['mail_1'] ?? null;
+        $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
+        $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
+        $recipient->mail_2 = $data['mail_2'] ?? null;
+        $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
+        $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
+        $recipient->mail_3 = $data['mail_3'] ?? null;
+        $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
+        $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
+        $recipient->mail_4 = $data['mail_4'] ?? null;
+        $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
+        $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
+        $recipient->mail_5 = $data['mail_5'] ?? null;
+        $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
+        $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
+        $recipient->site = $data['site'] ?? null;
+        $recipient->url_facebook = $data['url_facebook'] ?? null;
+        $recipient->url_twitter = $data['url_twitter'] ?? null;
+        $recipient->url_googleplus = $data['url_googleplus'] ?? null;
+        $recipient->url_youtube = $data['url_youtube'] ?? null;
+        $recipient->save();
+
+        $set('sender_id', $recipient->id);
+        Notification::make()
+            ->title('Interlocutore salvato con successo')
+            ->success()
+            ->send();
     }
 }

@@ -167,7 +167,7 @@ class RecipientResource extends Resource
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('city_id')->label('Comune')
-                    // ->required()
+                    ->required()
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
@@ -180,7 +180,7 @@ class RecipientResource extends Resource
                         $set('city_region', $city->province->region->name);
                     })
                     ->afterStateHydrated(function (callable $set, $state, $record) {
-                        if($record){
+                        if($record && $state){
                             $city = City::find($state);
                             $set('city_code', $city->code);
                             // $set('city_cap', $city->zip_code);
@@ -424,5 +424,240 @@ class RecipientResource extends Resource
             'edit' => Pages\EditRecipient::route('/{record}/edit'),
             'view' => Pages\ViewRecipient::route('/{record}')
         ];
+    }
+
+    public static function modalForm(Form $form): Form
+    {
+        return $form
+            ->columns(12)
+            ->schema([
+                TextInput::make('description')->label('Descrizione')
+                    ->required()
+                    ->live(debounce: 500)
+                    ->afterStateUpdated(function ($state, $record, $livewire) {
+                        if (blank($state)) {
+                            // Se svuota il campo, chiudiamo l'eventuale notifica aperta
+                            \Filament\Notifications\Notification::make('duplicate-alert')
+                                ->duration(1)
+                                ->send();
+                            return;
+                        }
+
+                        $normalized = str($state)->trim()->squish()->lower()->toString();
+
+                        $existing = \App\Models\Recipient::where('description_search', $normalized)
+                            ->when($record, fn($q) => $q->where('id', '!=', $record?->id))
+                            ->first();
+
+                        if ($existing) {
+                            $allMails = collect(range(1, 5)) // Rimesso a 5 per coerenza col DB
+                                ->map(function($i) use ($existing) {
+                                    $mail = $existing->{"mail_$i"};
+                                    $type = $existing->{"mail_type_$i"};
+                                    if (blank($mail)) return null;
+                                    $typeName = $type ? $type->getLabel() : 'Email';
+                                    return "• {$typeName}: {$mail}";
+                                })
+                                ->filter()
+                                ->implode('<br>');
+
+                            // Recupero il nome dell'AdminType in modo più sicuro
+                            $adminTypeName = $existing->adminType?->name ?? 'Tipo interlocutore non specificato';
+                            $mailList = filled($allMails) ? $allMails : 'Nessuna mail registrata';
+
+                            \Filament\Notifications\Notification::make('duplicate-alert') // ID statico importante!
+                                ->warning()
+                                ->title('Possibile Duplicato Rilevato')
+                                ->body("
+                                    <b>{$existing->description}</b><br>
+                                    {$adminTypeName}<br>
+                                    <b>Città:</b> {$existing->city?->name}<br>
+                                    <b>Email:</b><br>
+                                    {$mailList}
+                                ")
+                                ->duration(10000)
+                                ->actions([
+                                    \Filament\Notifications\Actions\Action::make('view')
+                                        ->label('Vedi scheda')
+                                        ->url(RecipientResource::getUrl('view', ['record' => $existing->id]))
+                                        ->openUrlInNewTab(),
+                                ])
+                                ->send();
+                        } else {
+                            \Filament\Notifications\Notification::make('duplicate-alert') // ID statico importante!
+                                ->duration(1)
+                                ->send();
+                        }
+                    })
+                    ->rules([
+                        fn ($get, $record) => function (string $attribute, $value, $fail) use ($record) {
+                            // 1. Normalizziamo l'input attuale
+                            $normalized = str($value)->trim()->squish()->lower()->toString();
+
+                            // 2. Query personalizzata sulla colonna description_search
+                            $exists = \App\Models\Recipient::where('description_search', $normalized)
+                                ->when($record, fn($q) => $q->where('id', '!=', $record?->id)) // Ignora il record attuale in edit
+                                ->exists();
+
+                            if ($exists) {
+                                $fail('Esiste già un interlocutore con questa descrizione o simile.');
+                            }
+                        },
+                    ])
+                    ->columnSpan('full'),
+                Select::make('admin_type_id')->label('Tipo interlocutore')
+                    // ->required()
+                    ->relationship(name: 'adminType', titleAttribute: 'name')
+                    ->searchable()
+                    ->preload()
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                Select::make('istat_type_id')->label('Tipo Istat')
+                    // ->required()
+                    ->relationship(name: 'istatType', titleAttribute: 'name')
+                    ->searchable()
+                    ->preload()
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                TextInput::make('code_ipa')->label('Codice Ipa')
+                    // ->required()
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                TextInput::make('acronym')->label('Acronimo')
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                Select::make('city_id')->label('Comune')
+                    // ->required()
+                    ->relationship(name: 'city', titleAttribute: 'name')
+                    ->searchable()
+                    ->preload()
+                    ->live()
+                    ->afterStateUpdated(function (callable $set, $state) {
+                        $city = City::find($state);
+                        $set('city_code', $city->code);
+                        $set('city_cap', $city->zip_code);
+                        $set('city_province', $city->province->code);
+                        $set('city_region', $city->province->region->name);
+                    })
+                    ->afterStateHydrated(function (callable $set, $state, $record) {
+                        if($record){
+                            $city = City::find($state);
+                            $set('city_code', $city->code);
+                            // $set('city_cap', $city->zip_code);
+                            $set('city_province', $city->province->code);
+                            $set('city_region', $city->province->region->name);
+                        }
+                    })
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                TextInput::make('address')->label('Indirizzo')
+                    // ->required()
+                    ->columnSpan('full'),
+                Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))
+                    ->default(fn ($record) => $record?->city_cap ?? $record?->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
+                Section::make('Responsabile')
+                    // ->description('')
+                    ->heading(fn ($record) => $record ? "Responsabile: {$record->resp_title} {$record->resp_surname} {$record->resp_name} - CF: {$record->resp_tax_code}" : 'Responsabile')
+                    ->collapsed(fn ($record) => $record)
+                    ->collapsed()
+                    ->columns(12)
+                    ->schema([
+                        TextInput::make('resp_title')->label('Titolo')
+                            // ->required()
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('resp_surname')->label('Cognome')
+                            // ->required()
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('resp_name')->label('Nome')
+                            // ->required()
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('resp_tax_code')->label('Codice FIscale')
+                            // ->required()
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    ]),
+                Section::make('Email')
+                    ->heading(function ($get, $record) {
+                        $mails = [
+                            $get('mail_1') ?? ($record?->mail_1 ?? ''),
+                            $get('mail_2') ?? ($record?->mail_2 ?? ''),
+                            $get('mail_3') ?? ($record?->mail_3 ?? ''),
+                            $get('mail_4') ?? ($record?->mail_4 ?? ''),
+                            $get('mail_5') ?? ($record?->mail_5 ?? ''),
+                        ];
+
+                        $filled = collect($mails)->filter(fn ($mail) => filled($mail))->count();
+                        $total = 5;
+
+                        if($record) return "Email ($filled/$total)";
+                        else return "Email";
+                    })
+                    // ->collapsed(fn ($record) => $record && ( filled($record->mail_1) || filled($record->mail_2) ||
+                    //     filled($record->mail_3) || filled($record->mail_4) || filled($record->mail_5) )
+                    // )
+                    ->collapsed()
+                    ->columns(12)
+                    ->schema([
+                        TextInput::make('mail_1')->label('Mail 1')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        // Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        Select::make('mail_type_1')->label('Tipo')
+                            ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_1')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('mail_2')->label('Mail 2')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        // Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        Select::make('mail_type_2')->label('Tipo')
+                            ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_2')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('mail_3')->label('Mail 3')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        // Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        Select::make('mail_type_3')->label('Tipo')
+                            ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_3')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('mail_4')->label('Mail 4')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        // Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        Select::make('mail_type_4')->label('Tipo')
+                            ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_4')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('mail_5')->label('Mail 5')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        // Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        Select::make('mail_type_5')->label('Tipo')
+                            ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id_5')->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    ]),
+                Section::make('Altri recapiti')
+                    // ->collapsed(fn ($record) => $record)
+                    ->collapsed()
+                    ->columns(12)
+                    ->schema([
+                        TextInput::make('site')->label('Sito istituzionale')
+                            ->columnSpan('full'),
+                        TextInput::make('url_facebook')->label('Facebook')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        TextInput::make('url_twitter')->label('Twitter')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        TextInput::make('url_googleplus')->label('Google')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        TextInput::make('url_youtube')->label('Youtube')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                    ]),
+            ]);
     }
 }

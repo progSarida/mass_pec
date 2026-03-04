@@ -118,12 +118,26 @@ class ForwardsRelationManager extends RelationManager
                             ->label('Mittente')
                             ->disabled()
                             ->required()
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
+
+                        Select::make('sender_id')
+                            ->label('Mittente')
+                            ->relationship(name: 'sender', titleAttribute: 'description')
+                            ->required()
+                            ->visible(fn($record) => $record && $record->sender_id)
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+
+                        Select::make('account_id')
+                            ->label('Mittente')
+                            ->relationship(name: 'account', titleAttribute: 'public_name')
+                            ->required()
+                            ->visible(fn($record) => $record && $record->account_id)
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                         TextInput::make('subject')
                             ->label('Oggetto')
                             ->required()
-                            ->columnSpan(['sm' => 'full', 'md' => 9]),
+                            ->columnSpan(['sm' => 'full', 'md' => 15]),
 
                         // Textarea::make('body')
                         //     ->label('Messaggio')
@@ -360,12 +374,35 @@ class ForwardsRelationManager extends RelationManager
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('from')
+                // TextColumn::make('from')
+                //     ->label('Mittente')
+                //     ->searchable()
+                //     ->limit(50)
+                //     ->tooltip(fn ($record) => $record->from)
+                //     ->sortable(),
+
+                TextColumn::make('sender_info') // Usa un nome descrittivo
                     ->label('Mittente')
-                    ->searchable()
-                    ->limit(50)
-                    ->tooltip(fn ($record) => $record->from)
-                    ->sortable(),
+                    ->state(function ($record): string {
+                        // Usiamo state() invece di formatStateUsing se la colonna non esiste nel DB
+                        if ($record->sender_id && $record->sender) {
+                            return $record->sender->description ?? '';
+                        }
+
+                        if ($record->account_id && $record->account) {
+                            return $record->account->public_name ?? '';
+                        }
+
+                        return '';
+                    })
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        // Nota: searchable() su colonne calcolate richiede una logica custom
+                        return $query->whereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"))
+                                    ->orWhereHas('account', fn ($q) => $q->where('public_name', 'like', "%{$search}%"));
+                    })
+                    ->sortable()
+                    // ->tooltip(fn ($record) => $record?->from)
+                    ->limit(250),
 
                 Tables\Columns\TextColumn::make('receivers')
                     ->label('Destinatari')

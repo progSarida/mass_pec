@@ -121,8 +121,10 @@ class RegistryReceiversRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('address')
             ->columns([
-                Tables\Columns\TextColumn::make('address')
+                Tables\Columns\TextColumn::make('recipient.description')
                     ->label('Destinatario'),
+                Tables\Columns\TextColumn::make('address')
+                    ->label('Indirizzo'),
                 Tables\Columns\TextColumn::make('pec_status')
                     ->label('Ricevuta')
                     ->icon(fn ($state) => $state?->getIcon())

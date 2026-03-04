@@ -86,6 +86,18 @@ class Recipient extends Model
         return $this->hasMany(Receiver::class);
     }
 
+    public function inMails(){
+        return $this->hasMany(InMail::class);
+    }
+
+    public function downloadEmails(){
+        return $this->hasMany(DownloadEmail::class);
+    }
+
+    public function registries(){
+        return $this->hasMany(Registry::class);
+    }
+
     public function registryReceivers(){
         return $this->hasMany(RegistryReceiver::class);
     }

@@ -65,7 +65,7 @@ class AccountResource extends Resource
                     ->required()
                     ->options(ConnectionSafetyType::class),
                 Section::make('Configurazione ricezione')
-                    ->collapsed(fn ($record) => $record)
+                    ->collapsed(fn ($record) => $record && $record->address != '')
                     ->columns(12)
                     ->schema([
                         TextInput::make('in_mail_server')->label('Server')->columnSpan(4)

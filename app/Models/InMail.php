@@ -12,6 +12,7 @@ class InMail extends Model
     protected $fillable = [
         'uid',
         'message_id',
+        'sender_id',
         'from',
         'subject',
         'body',
@@ -23,6 +24,10 @@ class InMail extends Model
     protected $casts = [
         //
     ];
+
+    public function sender(){
+        return $this->belongsTo(Recipient::class,'sender_id');
+    }
 
     public function downloadUser(){
         return $this->belongsTo(User::class,'download_user_id');

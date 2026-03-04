@@ -1055,6 +1055,7 @@ class EditShipment extends EditRecord
                 'scope_type_id' => $scopeTypeId,
                 'uid' => '#shipment' . $record->id,
                 'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $record->id,
+                'sender_id' => null,
                 'from' => $record->sender->public_name,
                 'subject' => $record->mail_object,
                 'body' => $record->mail_body,
