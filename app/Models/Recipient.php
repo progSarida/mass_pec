@@ -118,11 +118,18 @@ class Recipient extends Model
         });
 
         static::saving(function ($recipient) {
-            // assegno la colonna per il controllo dei duplicati
             if ($recipient->description) {
                 $recipient->description_search = str($recipient->description)
-                    ->trim()
+                    // Converte le vocali accentate (e altri caratteri speciali) in ASCII
+                    ->ascii()
+                    // Rimuove i caratteri speciali richiesti (. " ' ( ) )
+                    ->replace(['.', '"', "'", '(', ')'], '')
+                    // Sostituisco '/' e '-' con spazio
+                    ->replace(['/', '-'], ' ')
+                    // Rimuove spazi doppi e spazi ai bordi
                     ->squish()
+                    ->trim()
+                    // Converte tutto in minuscolo
                     ->lower();
             }
         });
