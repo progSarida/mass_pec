@@ -19,32 +19,37 @@ class ListRecipients extends ListRecords
                 ->label('Pulizia description/description_search')
                 ->action(function () {
                     \App\Models\Recipient::all()->each(function ($recipient) {
-                         // Pattern corretto:
-                        // (?i) -> Case insensitive
-                        // (?<![a-z]) -> Negative Lookbehind: non deve esserci una lettera prima
-                        // (?!(?:de|ca)\') -> Controlla che NON stiamo per matchare "de'" o "ca'"
-                        // ([aeiou])\' -> Cattura vocale + apostrofo
-                        // Ma dobbiamo controllare TUTTA la parola prima della vocale
-
-                        // Soluzione migliore: usa negative lookbehind per escludere 'd' o 'c' prima della vocale
-                        $pattern = '/(?i)(?<![dc])([aeiou])\'/u';
+                        // Pattern che cattura: inizio parola + eventuali lettere + vocale + apostrofo
+                        // \b -> word boundary (inizio parola)
+                        // ([a-z]*?) -> cattura eventuali lettere prima della vocale (non greedy)
+                        // ([aeiou]) -> cattura la vocale
+                        // \' -> apostrofo letterale
+                        // (?=\s|$|[^\w]) -> lookahead: dopo l'apostrofo deve esserci spazio, fine stringa o non-word char
+                        $pattern = '/\b([a-z]*?)([aeiou])\'(?=\s|$|[^\w])/ui';
 
                         $newDescription = preg_replace_callback($pattern, function ($matches) {
-                            $vocaleOriginale = $matches[1];
-                            $vocaleLower = mb_strtolower($vocaleOriginale);
+                            $prefisso = mb_strtolower($matches[1]);
+                            $vocaleOriginale = $matches[2];
+                            $parolaCompleta = $prefisso . mb_strtolower($vocaleOriginale);
 
+                            // Se la parola è "de" o "ca", mantieni l'apostrofo
+                            if (in_array($parolaCompleta, ['de', 'ca'])) {
+                                return $matches[0]; // Ritorna "de'" o "ca'" invariato
+                            }
+
+                            // Altrimenti sostituisci con vocale accentata
+                            $vocaleLower = mb_strtolower($vocaleOriginale);
                             $mappa = [
                                 'a' => 'à', 'e' => 'è', 'i' => 'ì', 'o' => 'ò', 'u' => 'ù'
                             ];
+                            $sostituta = $mappa[$vocaleLower] ?? $vocaleOriginale;
 
-                            $sostituta = $mappa[$vocaleLower] ?? $matches[0];
-
-                            // Mantieni il case originale
+                            // Mantieni il case originale della vocale
                             if (mb_strtoupper($vocaleOriginale) === $vocaleOriginale && $vocaleOriginale !== $vocaleLower) {
-                                return mb_strtoupper($sostituta);
+                                $sostituta = mb_strtoupper($sostituta);
                             }
 
-                            return $sostituta;
+                            return $matches[1] . $sostituta;
                         }, $recipient->description);
 
                         $recipient->description = $newDescription;
@@ -57,35 +62,40 @@ class ListRecipients extends ListRecords
                         ->send();
                 }),
             // Actions\Action::make('fixSearch')
-            //     ->label('Pulizia description/description_search')
+            //     ->label('TEST')
             //     ->action(function () {
             //         \App\Models\Recipient::orderByDesc('id')->limit(1)->get()->each(function ($recipient) {
-            //             // Pattern corretto:
-            //             // (?i) -> Case insensitive
-            //             // (?<![a-z]) -> Negative Lookbehind: non deve esserci una lettera prima
-            //             // (?!(?:de|ca)\') -> Controlla che NON stiamo per matchare "de'" o "ca'"
-            //             // ([aeiou])\' -> Cattura vocale + apostrofo
-            //             // Ma dobbiamo controllare TUTTA la parola prima della vocale
-
-            //             // Soluzione migliore: usa negative lookbehind per escludere 'd' o 'c' prima della vocale
-            //             $pattern = '/(?i)(?<![dc])([aeiou])\'/u';
+            //             // Pattern che cattura: inizio parola + eventuali lettere + vocale + apostrofo
+            //             // \b -> word boundary (inizio parola)
+            //             // ([a-z]*?) -> cattura eventuali lettere prima della vocale (non greedy)
+            //             // ([aeiou]) -> cattura la vocale
+            //             // \' -> apostrofo letterale
+            //             // (?=\s|$|[^\w]) -> lookahead: dopo l'apostrofo deve esserci spazio, fine stringa o non-word char
+            //             $pattern = '/\b([a-z]*?)([aeiou])\'(?=\s|$|[^\w])/ui';
 
             //             $newDescription = preg_replace_callback($pattern, function ($matches) {
-            //                 $vocaleOriginale = $matches[1];
-            //                 $vocaleLower = mb_strtolower($vocaleOriginale);
+            //                 $prefisso = mb_strtolower($matches[1]);
+            //                 $vocaleOriginale = $matches[2];
+            //                 $parolaCompleta = $prefisso . mb_strtolower($vocaleOriginale);
 
+            //                 // Se la parola è "de" o "ca", mantieni l'apostrofo
+            //                 if (in_array($parolaCompleta, ['de', 'ca'])) {
+            //                     return $matches[0]; // Ritorna "de'" o "ca'" invariato
+            //                 }
+
+            //                 // Altrimenti sostituisci con vocale accentata
+            //                 $vocaleLower = mb_strtolower($vocaleOriginale);
             //                 $mappa = [
             //                     'a' => 'à', 'e' => 'è', 'i' => 'ì', 'o' => 'ò', 'u' => 'ù'
             //                 ];
+            //                 $sostituta = $mappa[$vocaleLower] ?? $vocaleOriginale;
 
-            //                 $sostituta = $mappa[$vocaleLower] ?? $matches[0];
-
-            //                 // Mantieni il case originale
+            //                 // Mantieni il case originale della vocale
             //                 if (mb_strtoupper($vocaleOriginale) === $vocaleOriginale && $vocaleOriginale !== $vocaleLower) {
-            //                     return mb_strtoupper($sostituta);
+            //                     $sostituta = mb_strtoupper($sostituta);
             //                 }
 
-            //                 return $sostituta;
+            //                 return $matches[1] . $sostituta;
             //             }, $recipient->description);
 
             //             $recipient->description = $newDescription;
