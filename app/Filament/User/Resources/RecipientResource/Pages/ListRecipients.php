@@ -16,22 +16,23 @@ class ListRecipients extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
-            Actions\Action::make('fixSearch')
-                ->label('Job Pulizia description/description_search')
-                ->requiresConfirmation()
-                ->modalHeading('Conferma operazione')
-                ->modalDescription('Questa operazione verrà eseguita in background. Riceverai una notifica al completamento.')
-                ->action(function () {
-                    // Dispatch del job in background
-                    \App\Jobs\FixRecipientDescriptionsJob::dispatch(auth()->id());
 
-                    // Notifica immediata che il job è stato avviato
-                    \Filament\Notifications\Notification::make()
-                        ->title('Operazione avviata')
-                        ->body('La pulizia delle descrizioni è stata avviata in background.')
-                        ->info()
-                        ->send();
-                }),
+            // Actions\Action::make('fixSearch')
+            //     ->label('Job Pulizia description/description_search')
+            //     ->requiresConfirmation()
+            //     ->modalHeading('Conferma operazione')
+            //     ->modalDescription('Questa operazione verrà eseguita in background. Riceverai una notifica al completamento.')
+            //     ->action(function () {
+            //         // Dispatch del job in background
+            //         \App\Jobs\FixRecipientDescriptionsJob::dispatch(auth()->id());
+
+            //         // Notifica immediata che il job è stato avviato
+            //         \Filament\Notifications\Notification::make()
+            //             ->title('Operazione avviata')
+            //             ->body('La pulizia delle descrizioni è stata avviata in background.')
+            //             ->info()
+            //             ->send();
+            //     }),
 
 //             Actions\Action::make('fixSearch')
 //                 ->label('Pulizia description/description_search')
