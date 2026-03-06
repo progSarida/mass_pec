@@ -52,9 +52,9 @@ Log::info("Id interlocutore: {$recipient->id} ----------------------------------
 
                             return $matches[1] . $sostituta;
                         }, $recipient->description);
-Log::inf("Descrizione: {$recipient->description}");
+Log::info("Descrizione: {$recipient->description}");
                         $recipient->description = $newDescription;
-Log::inf("Descrizione modificata: {$newDescription}");
+Log::info("Descrizione modificata: {$newDescription}");
                         $recipient->save();
                     });
 
