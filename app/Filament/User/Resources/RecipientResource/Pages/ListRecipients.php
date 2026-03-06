@@ -6,6 +6,7 @@ use App\Filament\User\Resources\RecipientResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Enums\MaxWidth;
+use Illuminate\Support\Facades\Log;
 
 class ListRecipients extends ListRecords
 {
@@ -26,7 +27,7 @@ class ListRecipients extends ListRecords
                         // \' -> apostrofo letterale
                         // (?=\s|$|[^\w]) -> lookahead: dopo l'apostrofo deve esserci spazio, fine stringa o non-word char
                         $pattern = '/\b([a-z]*?)([aeiou])\'(?=\s|$|[^\w])/ui';
-
+Log::info("Id interlocutore: {$recipient->id} -------------------------------------------------------------------");
                         $newDescription = preg_replace_callback($pattern, function ($matches) {
                             $prefisso = mb_strtolower($matches[1]);
                             $vocaleOriginale = $matches[2];
@@ -51,8 +52,9 @@ class ListRecipients extends ListRecords
 
                             return $matches[1] . $sostituta;
                         }, $recipient->description);
-
+Log::inf("Descrizione: {$recipient->description}");
                         $recipient->description = $newDescription;
+Log::inf("Descrizione modificata: {$newDescription}");
                         $recipient->save();
                     });
 

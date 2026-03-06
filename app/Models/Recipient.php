@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\MailType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Recipient extends Model
 {
@@ -119,7 +120,7 @@ class Recipient extends Model
 
         static::saving(function ($recipient) {
             if ($recipient->description) {
-                $recipient->description_search = str($recipient->description)
+                $search = str($recipient->description)
                     // Converte le vocali accentate (e altri caratteri speciali) in ASCII
                     ->ascii()
                     // Rimuove i caratteri speciali richiesti (. " ' ( ) )
@@ -131,6 +132,8 @@ class Recipient extends Model
                     ->trim()
                     // Converte tutto in minuscolo
                     ->lower();
+Log::info("Nuova colonna ricerca: {$search}");
+                $recipient->description_search = $search;
             }
         });
 
