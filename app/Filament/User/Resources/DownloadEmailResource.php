@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources;
 
 use App\Models\Recipient;
 use Filament\Forms;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Tables;
 use App\Models\Registry;
@@ -60,6 +61,11 @@ class DownloadEmailResource extends Resource
                                 Action::make('Nuovo')
                                     ->icon('ri-user-2-line')
                                     ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    ->fillForm(function (Get $get) {
+                                        return [
+                                            'mail_1' => $get('from'),
+                                        ];
+                                    })
                                     ->modalWidth('7xl')
                                     ->modalHeading('')
                                     ->action(fn (array $data, Recipient $recipient, Set $set) => DownloadEmailResource::saveRecipient($data, $recipient, $set))

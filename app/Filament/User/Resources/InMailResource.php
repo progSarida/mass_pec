@@ -17,6 +17,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -62,6 +63,11 @@ class InMailResource extends Resource
                                 Action::make('Nuovo')
                                     ->icon('ri-user-2-line')
                                     ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    ->fillForm(function (Get $get) {
+                                        return [
+                                            'mail_1' => $get('from'),
+                                        ];
+                                    })
                                     ->modalWidth('7xl')
                                     ->modalHeading('')
                                     ->action(fn (array $data, Recipient $recipient, Set $set) => InMailResource::saveRecipient($data, $recipient, $set))

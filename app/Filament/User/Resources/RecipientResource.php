@@ -311,7 +311,10 @@ class RecipientResource extends Resource
             ->columns([
                 TextColumn::make('description')
                     ->label('Descrizione')
-                    ->searchable(),
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where('description_search', 'like', "%{$search}%");
+                    }),
+                    // ->searchable(),
                 TextColumn::make('adminType.name')
                     ->label('Tipo interlocutore'),
                 TextColumn::make('istatType.name')
