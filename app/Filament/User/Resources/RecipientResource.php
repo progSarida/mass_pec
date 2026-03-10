@@ -13,6 +13,7 @@ use App\Models\Recipient;
 use App\Models\Region;
 use Filament\Forms;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -53,20 +54,27 @@ class RecipientResource extends Resource
 
                         $normalized = str($state)->trim()->squish()->lower()->toString();
 
-                        $existing = \App\Models\Recipient::where('description_search', $normalized)
+                        $existing = Recipient::where('description_search', $normalized)
                             ->when($record, fn($q) => $q->where('id', '!=', $record?->id))
                             ->first();
 
                         if ($existing) {
-                            $allMails = collect(range(1, 5)) // Rimesso a 5 per coerenza col DB
-                                ->map(function($i) use ($existing) {
-                                    $mail = $existing->{"mail_$i"};
-                                    $type = $existing->{"mail_type_$i"};
-                                    if (blank($mail)) return null;
-                                    $typeName = $type ? $type->getLabel() : 'Email';
-                                    return "• {$typeName}: {$mail}";
+                            // $allMails = collect(range(1, 5)) // Rimesso a 5 per coerenza col DB
+                            //     ->map(function($i) use ($existing) {
+                            //         $mail = $existing->{"mail_$i"};
+                            //         $type = $existing->{"mail_type_$i"};
+                            //         if (blank($mail)) return null;
+                            //         $typeName = $type ? $type->getLabel() : 'Email';
+                            //         return "• {$typeName}: {$mail}";
+                            //     })
+                            //     ->filter()
+                            //     ->implode('<br>');
+
+                            $allMails = $existing->emails
+                                ->map(function($email) {
+                                    $typeName = $email->mail_type ? $email->mail_type->getLabel() : 'Email';
+                                    return "• {$typeName}: {$email->email}";
                                 })
-                                ->filter()
                                 ->implode('<br>');
 
                             // Recupero il nome dell'AdminType in modo più sicuro
@@ -139,7 +147,7 @@ class RecipientResource extends Resource
                             $normalized = str($value)->trim()->squish()->lower()->toString();
 
                             // 2. Query personalizzata sulla colonna description_search
-                            $exists = \App\Models\Recipient::where('description_search', $normalized)
+                            $exists = Recipient::where('description_search', $normalized)
                                 ->when($record, fn($q) => $q->where('id', '!=', $record?->id)) // Ignora il record attuale in edit
                                 ->exists();
 
@@ -194,7 +202,8 @@ class RecipientResource extends Resource
                     ->columnSpan('full'),
                 Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
-                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))
+                TextInput::make('city_cap')->label('Cap')
+                    // ->disabled(fn ($state) => !str_contains($state, 'xx'))
                     ->default(fn ($record) => $record?->city_cap ?? $record?->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -217,72 +226,128 @@ class RecipientResource extends Resource
                             // ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ]),
+                // Section::make('Email')
+                //     ->heading(function ($get, $record) {
+                //         $mails = [
+                //             $get('mail_1') ?? ($record?->mail_1 ?? ''),
+                //             $get('mail_2') ?? ($record?->mail_2 ?? ''),
+                //             $get('mail_3') ?? ($record?->mail_3 ?? ''),
+                //             $get('mail_4') ?? ($record?->mail_4 ?? ''),
+                //             $get('mail_5') ?? ($record?->mail_5 ?? ''),
+                //         ];
+
+                //         $filled = collect($mails)->filter(fn ($mail) => filled($mail))->count();
+                //         $total = 5;
+
+                //         if($record) return "Email ($filled/$total)";
+                //         else return "Email";
+                //     })
+                //     ->collapsed(fn ($record) => $record && ( filled($record->mail_1) || filled($record->mail_2) ||
+                //         filled($record->mail_3) || filled($record->mail_4) || filled($record->mail_5) )
+                //     )
+                //     ->columns(12)
+                //     ->schema([
+                //         TextInput::make('mail_1')->label('Mail 1')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_1')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_1')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_2')->label('Mail 2')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_2')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_2')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_3')->label('Mail 3')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_3')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_3')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_4')->label('Mail 4')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_4')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_4')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_5')->label('Mail 5')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_5')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_5')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //     ]),
                 Section::make('Email')
-                    ->heading(function ($get, $record) {
-                        $mails = [
-                            $get('mail_1') ?? ($record?->mail_1 ?? ''),
-                            $get('mail_2') ?? ($record?->mail_2 ?? ''),
-                            $get('mail_3') ?? ($record?->mail_3 ?? ''),
-                            $get('mail_4') ?? ($record?->mail_4 ?? ''),
-                            $get('mail_5') ?? ($record?->mail_5 ?? ''),
-                        ];
+                    ->heading(function ($record) {
+                        if ($record) {
+                            $filled = $record->emails()->count();
+                            if ($filled > 0)
+                                return "Email ({$filled})";
+                            else
+                                return "Nessuna email inserita";
+                        }
 
-                        $filled = collect($mails)->filter(fn ($mail) => filled($mail))->count();
-                        $total = 5;
-
-                        if($record) return "Email ($filled/$total)";
-                        else return "Email";
+                        return "Email";
                     })
-                    ->collapsed(fn ($record) => $record && ( filled($record->mail_1) || filled($record->mail_2) ||
-                        filled($record->mail_3) || filled($record->mail_4) || filled($record->mail_5) )
-                    )
+                    ->collapsed(fn ($record) => $record && $record->emails()->count() > 0)
                     ->columns(12)
                     ->schema([
-                        TextInput::make('mail_1')->label('Mail 1')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_1')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_1')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_2')->label('Mail 2')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_2')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_2')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_3')->label('Mail 3')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_3')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_3')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_4')->label('Mail 4')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_4')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_4')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_5')->label('Mail 5')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_5')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_5')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Repeater::make('emails')
+                            ->relationship('emails')
+                            ->dehydrated(true)
+                            ->afterStateHydrated(function (Repeater $component, $state) {
+                                if (blank($state)) {
+                                    // Se lo stato è vuoto o null, inizializzalo con un array contenente
+                                    // un set di chiavi vuote corrispondenti ai tuoi input
+                                    $component->state([
+                                        'item1' => [
+                                            'email' => null,
+                                            'mail_type' => null,
+                                            'office_type_id' => null,
+                                        ],
+                                    ]);
+                                }
+                            })
+                            ->label('')
+                            ->schema([
+                                TextInput::make('email')
+                                    ->label('Email')
+                                    ->email()
+                                    ->required()
+                                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                                Select::make('mail_type')
+                                    ->label('Tipo')
+                                    ->options(MailType::class)
+                                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                                Select::make('office_type_id')
+                                    ->label('Ufficio')
+                                    ->options(OfficeType::pluck('name', 'id'))
+                                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                            ])
+                            ->columns(12)
+                            ->defaultItems(1)
+                            ->addActionLabel('Aggiungi Email')
+                            ->reorderable(true)
+                            ->orderColumn('order')
+                            ->collapsed(fn ($record) => $record && $record->email)
+                            ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
+                            ->columnSpan('full'),
                     ]),
                 Section::make('Altri recapiti')
                     ->collapsed(fn ($record) => $record)
@@ -431,7 +496,8 @@ class RecipientResource extends Resource
         ];
     }
 
-    public static function modalForm(Form $form): Form
+    // public static function modalForm(Form $form): Form
+    public static function modalForm(Form $form, $from): Form
     {
         return $form
             ->columns(12)
@@ -450,20 +516,27 @@ class RecipientResource extends Resource
 
                         $normalized = str($state)->trim()->squish()->lower()->toString();
 
-                        $existing = \App\Models\Recipient::where('description_search', $normalized)
+                        $existing = Recipient::where('description_search', $normalized)
                             ->when($record, fn($q) => $q->where('id', '!=', $record?->id))
                             ->first();
 
                         if ($existing) {
-                            $allMails = collect(range(1, 5)) // Rimesso a 5 per coerenza col DB
-                                ->map(function($i) use ($existing) {
-                                    $mail = $existing->{"mail_$i"};
-                                    $type = $existing->{"mail_type_$i"};
-                                    if (blank($mail)) return null;
-                                    $typeName = $type ? $type->getLabel() : 'Email';
-                                    return "• {$typeName}: {$mail}";
+                            // $allMails = collect(range(1, 5)) // Rimesso a 5 per coerenza col DB
+                            //     ->map(function($i) use ($existing) {
+                            //         $mail = $existing->{"mail_$i"};
+                            //         $type = $existing->{"mail_type_$i"};
+                            //         if (blank($mail)) return null;
+                            //         $typeName = $type ? $type->getLabel() : 'Email';
+                            //         return "• {$typeName}: {$mail}";
+                            //     })
+                            //     ->filter()
+                            //     ->implode('<br>');
+
+                            $allMails = $existing->emails
+                                ->map(function($email) {
+                                    $typeName = $email->mail_type ? $email->mail_type->getLabel() : 'Email';
+                                    return "• {$typeName}: {$email->email}";
                                 })
-                                ->filter()
                                 ->implode('<br>');
 
                             // Recupero il nome dell'AdminType in modo più sicuro
@@ -500,7 +573,7 @@ class RecipientResource extends Resource
                             $normalized = str($value)->trim()->squish()->lower()->toString();
 
                             // 2. Query personalizzata sulla colonna description_search
-                            $exists = \App\Models\Recipient::where('description_search', $normalized)
+                            $exists = Recipient::where('description_search', $normalized)
                                 ->when($record, fn($q) => $q->where('id', '!=', $record?->id)) // Ignora il record attuale in edit
                                 ->exists();
 
@@ -555,7 +628,8 @@ class RecipientResource extends Resource
                     ->columnSpan('full'),
                 Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
-                TextInput::make('city_cap')->label('Cap')->disabled(fn ($state) => !str_contains($state, 'xx'))
+                TextInput::make('city_cap')->label('Cap')
+                    // ->disabled(fn ($state) => !str_contains($state, 'xx'))
                     ->default(fn ($record) => $record?->city_cap ?? $record?->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -578,73 +652,129 @@ class RecipientResource extends Resource
                             // ->required()
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ]),
+                // Section::make('Email')
+                //     ->heading(function ($get, $record) {
+                //         $mails = [
+                //             $get('mail_1') ?? ($record?->mail_1 ?? ''),
+                //             $get('mail_2') ?? ($record?->mail_2 ?? ''),
+                //             $get('mail_3') ?? ($record?->mail_3 ?? ''),
+                //             $get('mail_4') ?? ($record?->mail_4 ?? ''),
+                //             $get('mail_5') ?? ($record?->mail_5 ?? ''),
+                //         ];
+
+                //         $filled = collect($mails)->filter(fn ($mail) => filled($mail))->count();
+                //         $total = 5;
+
+                //         if($record) return "Email ($filled/$total)";
+                //         else return "Email";
+                //     })
+                //     // ->collapsed(fn ($record) => $record && ( filled($record->mail_1) || filled($record->mail_2) ||
+                //     //     filled($record->mail_3) || filled($record->mail_4) || filled($record->mail_5) )
+                //     // )
+                //     ->collapsed(false)
+                //     ->columns(12)
+                //     ->schema([
+                //         TextInput::make('mail_1')->label('Mail 1')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_1')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_1')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_2')->label('Mail 2')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_2')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_2')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_3')->label('Mail 3')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_3')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_3')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_4')->label('Mail 4')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_4')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_4')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         TextInput::make('mail_5')->label('Mail 5')
+                //             ->columnSpan(['sm' => 'full', 'md' => 6]),
+                //         // Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                //         Select::make('mail_type_5')->label('Tipo')
+                //             ->options(MailType::class)
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //         Select::make('office_type_id_5')->label('Ufficio')
+                //             ->options(OfficeType::pluck('name', 'id'))
+                //             ->columnSpan(['sm' => 'full', 'md' => 3]),
+                //     ]),
                 Section::make('Email')
-                    ->heading(function ($get, $record) {
-                        $mails = [
-                            $get('mail_1') ?? ($record?->mail_1 ?? ''),
-                            $get('mail_2') ?? ($record?->mail_2 ?? ''),
-                            $get('mail_3') ?? ($record?->mail_3 ?? ''),
-                            $get('mail_4') ?? ($record?->mail_4 ?? ''),
-                            $get('mail_5') ?? ($record?->mail_5 ?? ''),
-                        ];
+                     ->heading(function ($record) {
+                        if ($record) {
+                            $filled = $record->emails()->count();
+                            if ($filled > 0)
+                                return "Email ({$filled})";
+                            else
+                                return "Nessuna email inserita";
+                        }
 
-                        $filled = collect($mails)->filter(fn ($mail) => filled($mail))->count();
-                        $total = 5;
-
-                        if($record) return "Email ($filled/$total)";
-                        else return "Email";
+                        return "Email";
                     })
-                    // ->collapsed(fn ($record) => $record && ( filled($record->mail_1) || filled($record->mail_2) ||
-                    //     filled($record->mail_3) || filled($record->mail_4) || filled($record->mail_5) )
-                    // )
-                    ->collapsed(false)
+                    ->collapsed(fn ($record) => $record && $record->emails()->count() > 0)
                     ->columns(12)
                     ->schema([
-                        TextInput::make('mail_1')->label('Mail 1')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_1')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_1')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_2')->label('Mail 2')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_2')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_2')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_2')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_3')->label('Mail 3')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_3')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_3')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_3')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_4')->label('Mail 4')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_4')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_4')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_4')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        TextInput::make('mail_5')->label('Mail 5')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        // Placeholder::make('place_mail_5')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                        Select::make('mail_type_5')->label('Tipo')
-                            ->options(MailType::class)
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-                        Select::make('office_type_id_5')->label('Ufficio')
-                            ->options(OfficeType::pluck('name', 'id'))
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Repeater::make('emails')
+                            // ->relationship('emails')
+                            ->dehydrated(true)
+                            ->afterStateHydrated(function (Repeater $component, $state) use ($from) {
+                                if (blank($state)) {
+                                    // Se lo stato è vuoto o null, inizializzalo con un array contenente
+                                    // un set di chiavi vuote corrispondenti ai tuoi input
+                                    $component->state([
+                                        'item1' => [
+                                            'email' => $from,
+                                            'mail_type' => null,
+                                            'office_type_id' => null,
+                                        ],
+                                    ]);
+                                }
+                            })
+                            ->label('')
+                            ->schema([
+                                TextInput::make('email')
+                                    ->label('Email')
+                                    ->email()
+                                    ->required()
+                                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                                Select::make('mail_type')
+                                    ->label('Tipo')
+                                    ->options(MailType::class)
+                                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                                Select::make('office_type_id')
+                                    ->label('Ufficio')
+                                    ->options(OfficeType::pluck('name', 'id'))
+                                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                            ])
+                            ->columns(12)
+                            ->defaultItems(1)
+                            ->addActionLabel('Aggiungi Email')
+                            ->reorderable(true)
+                            ->orderColumn('order')
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
+                            ->columnSpan('full'),
                     ]),
                 Section::make('Altri recapiti')
                     // ->collapsed(fn ($record) => $record)

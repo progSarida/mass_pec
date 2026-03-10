@@ -112,6 +112,77 @@ class SendEmailResource extends Resource
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 8]),
 
+//                 Forms\Components\Select::make('recipients')
+//                     ->label('Destinatari')
+//                     ->multiple()
+//                     ->searchable()
+//                     ->required()
+//                     ->live()
+//                     ->placeholder('Inizia a scrivere per cercare un\'email o una descrizione...')
+//                     ->columnSpan(['sm' => 'full', 'md' => 'full'])
+//                     ->getSearchResultsUsing(function (string $search, callable $get) {
+//                         if (strlen($search) < 3) {
+//                             return [];
+//                         }
+
+//                         // Ottengo i valori dei filtri
+//                         $mailType = $get('mail_type');
+// // dd($mailType);
+//                         $officeTypeId = $get('office_type_id');
+// // dd($officeTypeId);
+//                         // Divido la ricerca in parole
+//                         $words = array_filter(explode(' ', $search));
+
+//                         $query = \App\Models\Recipient::query();
+
+//                         // Filtro per parole chiave
+//                         if (!empty($words)) {
+//                             $query->where(function ($q) use ($words) {
+//                                 foreach ($words as $word) {
+//                                     $q->where(function ($subQuery) use ($word) {
+//                                         $subQuery->where('description', 'like', "%{$word}%")
+//                                             ->orWhere('resp_surname', 'like', "%{$word}%")
+//                                             ->orWhere('resp_name', 'like', "%{$word}%");
+//                                     });
+//                                 }
+//                             });
+//                         }
+
+//                         return $query
+//                             ->limit(50)
+//                             ->get()
+//                             ->flatMap(function ($item) use ($mailType, $officeTypeId) {
+//                                 $out = [];
+
+//                                 // Controllo ogni campo mail solo se mail_type e office_type_id corrispondono
+//                                 for ($i = 1; $i <= 5; $i++) {
+//                                     $mailField = "mail_{$i}";
+//                                     $mailTypeField = "mail_type_{$i}";
+//                                     $officeTypeField = "office_type_id_{$i}";
+
+//                                     // Verifico che l'email esista e i tipi corrispondono (se mail_type e office_type_id sono selezionati)
+//                                     if (!empty($item->$mailField)) {
+//                                         if ((!$mailType || $item->$mailTypeField == $mailType) && (!$officeTypeId || $item->$officeTypeField == $officeTypeId)) {
+//                                             // $label = "{$item->description} - {$item->resp_surname} {$item->resp_name} <{$item->$mailField}>";
+//                                             $label = "{$item->description} - <{$item->$mailField}>";
+//                                             $out[$item->$mailField] = $label;
+//                                         }
+//                                     }
+//                                 }
+
+//                                 return $out;
+//                             })
+//                             ->toArray();
+//                     })
+//                     ->getOptionLabelsUsing(function ($values) {
+//                         // Quando il record è salvato, voglio vedere l'email nei tag
+//                         return collect($values)->mapWithKeys(fn ($email) => [$email => static::labelRecipient($email)])->toArray();
+//                     })
+//                     ->createOptionUsing(function (string $data) {
+//                         // Se l'utente scrive un'email a mano, il valore salvato sarà il testo inserito
+//                         return $data;
+//                     }),
+
                 Forms\Components\Select::make('recipients')
                     ->label('Destinatari')
                     ->multiple()
@@ -127,15 +198,13 @@ class SendEmailResource extends Resource
 
                         // Ottengo i valori dei filtri
                         $mailType = $get('mail_type');
-// dd($mailType);
                         $officeTypeId = $get('office_type_id');
-// dd($officeTypeId);
+
                         // Divido la ricerca in parole
                         $words = array_filter(explode(' ', $search));
 
-                        $query = \App\Models\Recipient::query();
+                        $query = Recipient::query();
 
-                        // Filtro per parole chiave
                         if (!empty($words)) {
                             $query->where(function ($q) use ($words) {
                                 foreach ($words as $word) {
@@ -149,25 +218,22 @@ class SendEmailResource extends Resource
                         }
 
                         return $query
+                            ->with(['emails' => function($q) use ($mailType, $officeTypeId) {
+                                if ($mailType) {
+                                    $q->where('mail_type', $mailType);
+                                }
+                                if ($officeTypeId) {
+                                    $q->where('office_type_id', $officeTypeId);
+                                }
+                            }])
                             ->limit(50)
                             ->get()
-                            ->flatMap(function ($item) use ($mailType, $officeTypeId) {
+                            ->flatMap(function ($recipient) {
                                 $out = [];
 
-                                // Controllo ogni campo mail solo se mail_type e office_type_id corrispondono
-                                for ($i = 1; $i <= 5; $i++) {
-                                    $mailField = "mail_{$i}";
-                                    $mailTypeField = "mail_type_{$i}";
-                                    $officeTypeField = "office_type_id_{$i}";
-
-                                    // Verifico che l'email esista e i tipi corrispondono (se mail_type e office_type_id sono selezionati)
-                                    if (!empty($item->$mailField)) {
-                                        if ((!$mailType || $item->$mailTypeField == $mailType) && (!$officeTypeId || $item->$officeTypeField == $officeTypeId)) {
-                                            // $label = "{$item->description} - {$item->resp_surname} {$item->resp_name} <{$item->$mailField}>";
-                                            $label = "{$item->description} - <{$item->$mailField}>";
-                                            $out[$item->$mailField] = $label;
-                                        }
-                                    }
+                                foreach ($recipient->emails as $email) {
+                                    $label = "{$recipient->description} - <{$email->email}>";
+                                    $out[$email->email] = $label;
                                 }
 
                                 return $out;
@@ -422,20 +488,35 @@ class SendEmailResource extends Resource
         ];
     }
 
+    // private static function labelRecipientOld($email): string
+    // {
+    //     $rec = Recipient::where(function ($query) use ($email) {
+    //         $query->where('mail_1', $email)
+    //             ->orWhere('mail_2', $email)
+    //             ->orWhere('mail_3', $email)
+    //             ->orWhere('mail_4', $email)
+    //             ->orWhere('mail_5', $email);
+    //     })
+    //     ->select('description', 'resp_surname', 'resp_name')
+    //     ->first();
+
+    //     if ($rec) {
+    //         // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
+    //         return "{$rec->description} <{$email}>";
+    //     }
+
+    //     return $email;
+    // }
+
     private static function labelRecipient($email): string
     {
-        $rec = Recipient::where(function ($query) use ($email) {
-            $query->where('mail_1', $email)
-                ->orWhere('mail_2', $email)
-                ->orWhere('mail_3', $email)
-                ->orWhere('mail_4', $email)
-                ->orWhere('mail_5', $email);
+        $rec = Recipient::whereHas('emails', function($query) use ($email) {
+            $query->where('email', $email);
         })
         ->select('description', 'resp_surname', 'resp_name')
         ->first();
 
         if ($rec) {
-            // return "{$rec->description} - {$rec->resp_surname} {$rec->resp_name} <{$email}>";
             return "{$rec->description} <{$email}>";
         }
 
@@ -601,14 +682,20 @@ class SendEmailResource extends Resource
         return 1;
     }
 
+    // private static function getRecipientIdOld($from)
+    // {
+    //     $recipient = Recipient::where('mail_1', $from)
+    //                     ->orWhere('mail_2', $from)
+    //                     ->orWhere('mail_3', $from)
+    //                     ->orWhere('mail_4', $from)
+    //                     ->orWhere('mail_5', $from)
+    //                     ->first();
+    //     return $recipient?->id;
+    // }
+
     private static function getRecipientId($from)
     {
-        $recipient = Recipient::where('mail_1', $from)
-                        ->orWhere('mail_2', $from)
-                        ->orWhere('mail_3', $from)
-                        ->orWhere('mail_4', $from)
-                        ->orWhere('mail_5', $from)
-                        ->first();
+        $recipient = Recipient::findByEmail($from);
         return $recipient?->id;
     }
 }

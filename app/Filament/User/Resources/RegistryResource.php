@@ -276,7 +276,7 @@ class RegistryResource extends Resource
                         Select::make('region_display')
                             ->label('Regione')
                             ->visible(fn($record) => $record && $record->shipment_id)
-                            ->options(\App\Models\Region::pluck('name', 'id'))
+                            ->options(Region::pluck('name', 'id'))
                             ->formatStateUsing(fn ($record) => $record?->shipment?->region_id)
                             ->columnSpan(['sm' => 'full', 'md' => 7])
                             ->disabled()
@@ -285,7 +285,7 @@ class RegistryResource extends Resource
                         Select::make('province_display')
                             ->label('Provincia')
                             ->visible(fn($record) => $record && $record->shipment_id)
-                            ->options(\App\Models\Province::pluck('name', 'id'))
+                            ->options(Province::pluck('name', 'id'))
                             ->formatStateUsing(fn ($record) => $record?->shipment?->province_id)
                             ->columnSpan(['sm' => 'full', 'md' => 8])
                             ->disabled()
@@ -1087,16 +1087,16 @@ Log::info("Inviati: {$sent} - Consegnati: {$delivered} -------------------------
 //             ->send();
 //     }
 
-    private static function getRecipient($from): Recipient|null
-    {
-        $recipient = Recipient::where('mail_1', $from)
-                        ->orWhere('mail_2', $from)
-                        ->orWhere('mail_3', $from)
-                        ->orWhere('mail_4', $from)
-                        ->orWhere('mail_5', $from)
-                        ->first();
-        return $recipient;
-    }
+    // private static function getRecipientOld($from): Recipient|null
+    // {
+    //     $recipient = Recipient::where('mail_1', $from)
+    //                     ->orWhere('mail_2', $from)
+    //                     ->orWhere('mail_3', $from)
+    //                     ->orWhere('mail_4', $from)
+    //                     ->orWhere('mail_5', $from)
+    //                     ->first();
+    //     return $recipient;
+    // }
 
     public static function getEloquentQuery(): Builder
     {

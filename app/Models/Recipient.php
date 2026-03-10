@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\MailType;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
@@ -21,21 +22,21 @@ class Recipient extends Model
         'resp_surname',
         'resp_name',
         'resp_tax_code',
-        'mail_1',
-        'mail_type_1',
-        'office_type_id_1',
-        'mail_2',
-        'mail_type_2',
-        'office_type_id_2',
-        'mail_3',
-        'mail_type_3',
-        'office_type_id_3',
-        'mail_4',
-        'mail_type_4',
-        'office_type_id_4',
-        'mail_5',
-        'mail_type_5',
-        'office_type_id_5',
+        // 'mail_1',
+        // 'mail_type_1',
+        // 'office_type_id_1',
+        // 'mail_2',
+        // 'mail_type_2',
+        // 'office_type_id_2',
+        // 'mail_3',
+        // 'mail_type_3',
+        // 'office_type_id_3',
+        // 'mail_4',
+        // 'mail_type_4',
+        // 'office_type_id_4',
+        // 'mail_5',
+        // 'mail_type_5',
+        // 'office_type_id_5',
         'phone',
         'site',
         'url_facebook',
@@ -45,11 +46,11 @@ class Recipient extends Model
     ];
 
     protected $casts = [
-        'mail_type_1' =>  MailType::class,
-        'mail_type_2' =>  MailType::class,
-        'mail_type_3' =>  MailType::class,
-        'mail_type_4' =>  MailType::class,
-        'mail_type_5' =>  MailType::class,
+        // 'mail_type_1' =>  MailType::class,
+        // 'mail_type_2' =>  MailType::class,
+        // 'mail_type_3' =>  MailType::class,
+        // 'mail_type_4' =>  MailType::class,
+        // 'mail_type_5' =>  MailType::class,
     ];
 
     public function adminType(){
@@ -64,25 +65,118 @@ class Recipient extends Model
         return $this->belongsTo(City::class);
     }
 
-    public function officeType1(){
-        return $this->belongsTo(OfficeType::class, 'office_type_id_1');
+    public function emails(): HasMany
+    {
+        return $this->hasMany(RecipientEmail::class)->orderBy('order');
     }
 
-    public function officeType2(){
-        return $this->belongsTo(OfficeType::class, 'office_type_id_2');
+    // ========== METODI HELPER PER RETROCOMPATIBILITÀ ==========
+
+    /**
+     * Ottiene l'email alla posizione specificata (1-5)
+     */
+    public function getMail(int $index): ?string
+    {
+        $email = $this->emails()->skip($index - 1)->first();
+        return $email?->email;
     }
 
-    public function officeType3(){
-        return $this->belongsTo(OfficeType::class, 'office_type_id_3');
+    /**
+     * Ottiene il tipo mail alla posizione specificata
+     */
+    public function getMailType(int $index): ?MailType
+    {
+        $email = $this->emails()->skip($index - 1)->first();
+        return $email?->mail_type;
     }
 
-    public function officeType4(){
-        return $this->belongsTo(OfficeType::class, 'office_type_id_4');
+    /**
+     * Ottiene l'office_type_id alla posizione specificata
+     */
+    public function getOfficeTypeId(int $index): ?int
+    {
+        $email = $this->emails()->skip($index - 1)->first();
+        return $email?->office_type_id;
     }
 
-    public function officeType5(){
-        return $this->belongsTo(OfficeType::class, 'office_type_id_5');
+    /**
+     * Accessor dinamici per mail_1, mail_2, etc.
+     */
+    public function __get($key)
+    {
+        // Gestisce mail_1, mail_2, mail_3, mail_4, mail_5
+        if (preg_match('/^mail_(\d+)$/', $key, $matches)) {
+            $index = (int)$matches[1];
+            return $this->getMail($index);
+        }
+
+        // Gestisce mail_type_1, mail_type_2, etc.
+        if (preg_match('/^mail_type_(\d+)$/', $key, $matches)) {
+            $index = (int)$matches[1];
+            return $this->getMailType($index);
+        }
+
+        // Gestisce office_type_id_1, office_type_id_2, etc.
+        if (preg_match('/^office_type_id_(\d+)$/', $key, $matches)) {
+            $index = (int)$matches[1];
+            return $this->getOfficeTypeId($index);
+        }
+
+        return parent::__get($key);
     }
+
+    /**
+     * Verifica se un attributo esiste (per compatibilità con isset())
+     */
+    public function __isset($key)
+    {
+        if (preg_match('/^(mail|mail_type|office_type_id)_\d+$/', $key)) {
+            return true;
+        }
+        return parent::__isset($key);
+    }
+
+    // ========== METODI DI RICERCA ==========
+
+    /**
+     * Cerca un recipient per email (qualsiasi delle sue email)
+     */
+    public static function findByEmail(string $email): ?self
+    {
+        return self::whereHas('emails', function ($query) use ($email) {
+            $query->where('email', $email);
+        })->first();
+    }
+
+    /**
+     * Scope per cercare per email
+     */
+    public function scopeWhereEmail($query, string $email)
+    {
+        return $query->whereHas('emails', function ($q) use ($email) {
+            $q->where('email', $email);
+        });
+    }
+
+    // public function officeType1(){
+    //     return $this->belongsTo(OfficeType::class, 'office_type_id_1');
+    // }
+
+    // public function officeType2(){
+    //     return $this->belongsTo(OfficeType::class, 'office_type_id_2');
+    // }
+
+    // public function officeType3(){
+    //     return $this->belongsTo(OfficeType::class, 'office_type_id_3');
+    // }
+
+    // public function officeType4(){
+    //     return $this->belongsTo(OfficeType::class, 'office_type_id_4');
+    // }
+
+    // public function officeType5(){
+    //     return $this->belongsTo(OfficeType::class, 'office_type_id_5');
+    // }
 
     public function receivers(){
         return $this->hasMany(Receiver::class);

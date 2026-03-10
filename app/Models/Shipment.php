@@ -204,27 +204,64 @@ class Shipment extends Model
             ->send();
     }
 
+    // public function createReceiversOld($receiverList): void
+    // {
+    //     foreach ($receiverList as $recipientId => $emails) {
+    //         foreach ($emails as $mailField => $isSelected) {
+    //             // Salto se non è selezionato
+    //             if (!$isSelected) continue;
+
+    //             $recipient = Recipient::find($recipientId);
+    //             if (!$recipient) continue;
+
+    //             $receiver = new Receiver();
+    //             $receiver->shipment_id = $this->id;
+    //             $receiver->address = $recipient->{$mailField};
+    //             $receiver->mail_type = $recipient->{'mail_type_' . substr($mailField, -1)};
+    //             $receiver->recipient_id = $recipient->id;
+    //             $receiver->save();
+
+    //             $ref = "{$this->id}_{$receiver->id}_{$recipient->id}-" . substr($mailField, -1);
+    //             $receiver->update([
+    //                 'ref' => $ref,
+    //             ]);
+    //         }
+    //     }
+
+    //     Notification::make()
+    //         ->title('Destinatari associati correttamente')
+    //         ->success()
+    //         ->send();
+    // }
+
     public function createReceivers($receiverList): void
     {
         foreach ($receiverList as $recipientId => $emails) {
-            foreach ($emails as $mailField => $isSelected) {
-                // Salto se non è selezionato
+            foreach ($emails as $emailKey => $isSelected) {
                 if (!$isSelected) continue;
 
-                $recipient = Recipient::find($recipientId);
+                $recipient = Recipient::with('emails')->find($recipientId);
                 if (!$recipient) continue;
 
-                $receiver = new Receiver();
-                $receiver->shipment_id = $this->id;
-                $receiver->address = $recipient->{$mailField};
-                $receiver->mail_type = $recipient->{'mail_type_' . substr($mailField, -1)};
-                $receiver->recipient_id = $recipient->id;
-                $receiver->save();
+                // Estrai l'ID email dal formato "email_{id}"
+                if (preg_match('/^email_(\d+)$/', $emailKey, $matches)) {
+                    $emailId = $matches[1];
+                    $recipientEmail = $recipient->emails->firstWhere('id', $emailId);
 
-                $ref = "{$this->id}_{$receiver->id}_{$recipient->id}-" . substr($mailField, -1);
-                $receiver->update([
-                    'ref' => $ref,
-                ]);
+                    if (!$recipientEmail) continue;
+
+                    $receiver = new Receiver();
+                    $receiver->shipment_id = $this->id;
+                    $receiver->address = $recipientEmail->email;
+                    $receiver->mail_type = $recipientEmail->mail_type;
+                    $receiver->recipient_id = $recipient->id;
+                    $receiver->save();
+
+                    $ref = "{$this->id}_{$receiver->id}_{$recipient->id}-{$emailId}";
+                    $receiver->update([
+                        'ref' => $ref,
+                    ]);
+                }
             }
         }
 
@@ -232,5 +269,5 @@ class Shipment extends Model
             ->title('Destinatari associati correttamente')
             ->success()
             ->send();
-    }
+}
 }

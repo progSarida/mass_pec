@@ -222,14 +222,19 @@ class ListInMails extends ListRecords
         );
     }
 
-    private function getSenderId($from)
+    // private function getSenderIdOld($from)
+    // {
+    //     $recipient = Recipient::where('mail_1', $from)
+    //                     ->orWhere('mail_2', $from)
+    //                     ->orWhere('mail_3', $from)
+    //                     ->orWhere('mail_4', $from)
+    //                     ->orWhere('mail_5', $from)
+    //                     ->first();
+    //     return $recipient?->id;
+    // }
+
+    private static function getSenderId($from): Recipient|null
     {
-        $recipient = Recipient::where('mail_1', $from)
-                        ->orWhere('mail_2', $from)
-                        ->orWhere('mail_3', $from)
-                        ->orWhere('mail_4', $from)
-                        ->orWhere('mail_5', $from)
-                        ->first();
-        return $recipient?->id;
+        return Recipient::findByEmail($from)?->id;
     }
 }

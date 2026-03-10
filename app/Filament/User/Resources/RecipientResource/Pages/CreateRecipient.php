@@ -14,15 +14,18 @@ class CreateRecipient extends CreateRecord
 
     protected function beforeCreate(): void
     {
-        $formState = $this->form->getState();
-        for($i = 1; $i <= 5; $i++){
-            $address = $formState["mail_{$i}"];
+// dd($this->data['emails']);
+        $emails = $this->data['emails'];
+
+        foreach ($emails as $email) {
+// dd($email['email']);
+            $address = $email['email'];
             if(!$address || $address == '') {
-                Log::info("Mail_{$i} è vuoto o nullo");
                 continue;
             }
-Log::info("Mail {$i}: {$address}");
+
             $recipient = static::getRecipient($address);
+
             if ($recipient) {
                 Notification::make()
                     ->title("Indirizzo {$address} presente in archivio")
@@ -36,14 +39,19 @@ Log::info("Mail {$i}: {$address}");
         }
     }
 
+    // private static function getRecipientOld($from): Recipient|null
+    // {
+    //     $recipient = Recipient::where('mail_1', $from)
+    //                     ->orWhere('mail_2', $from)
+    //                     ->orWhere('mail_3', $from)
+    //                     ->orWhere('mail_4', $from)
+    //                     ->orWhere('mail_5', $from)
+    //                     ->first();
+    //     return $recipient;
+    // }
+
     private static function getRecipient($from): Recipient|null
     {
-        $recipient = Recipient::where('mail_1', $from)
-                        ->orWhere('mail_2', $from)
-                        ->orWhere('mail_3', $from)
-                        ->orWhere('mail_4', $from)
-                        ->orWhere('mail_5', $from)
-                        ->first();
-        return $recipient;
+        return Recipient::findByEmail($from);
     }
 }

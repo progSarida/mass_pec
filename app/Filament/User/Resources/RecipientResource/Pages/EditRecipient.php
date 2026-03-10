@@ -5,6 +5,7 @@ namespace App\Filament\User\Resources\RecipientResource\Pages;
 use App\Filament\User\Resources\RecipientResource;
 use App\Models\Recipient;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -115,6 +116,38 @@ class EditRecipient extends EditRecord
                 $this->data = $this->getRecord()->toArray();
                 $this->fillForm();
             });
+    }
+
+    protected function beforeSave(): void
+    {
+
+        $emails = $this->data['emails'];
+
+        foreach ($emails as $email) {
+
+            $address = $email['email'];
+            if(!$address || $address == '') {
+                continue;
+            }
+
+            $recipient = static::getRecipient($address);
+
+            if ($recipient && $recipient->id != $this->record->id) {
+                Notification::make()
+                    ->title("Indirizzo {$address} presente in archivio")
+                    ->body("L'indirizzo {$address} è già associato a {$recipient->description}")
+                    ->danger()
+                    ->persistent()
+                    ->send();
+
+                $this->halt(); // blocca il salvataggio
+            }
+        }
+    }
+
+    private static function getRecipient($from): Recipient|null
+    {
+        return Recipient::findByEmail($from);
     }
 
     public function hasCombinedRelationManagerTabsWithContent(): bool

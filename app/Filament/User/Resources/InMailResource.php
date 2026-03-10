@@ -62,17 +62,20 @@ class InMailResource extends Resource
                             ->hintAction(
                                 Action::make('Nuovo')
                                     ->icon('ri-user-2-line')
-                                    ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    // ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    ->form(fn(Form $form, Get $get) => RecipientResource::modalForm($form, $get('from')))
                                     ->fillForm(function (Get $get) {
                                         return [
-                                            'mail_1' => $get('from'),
+                                            'email' => $get('from'),
                                         ];
                                     })
                                     ->modalWidth('7xl')
                                     ->modalHeading('')
-                                    ->action(fn (array $data, Recipient $recipient, Set $set) => InMailResource::saveRecipient($data, $recipient, $set))
-                                    ->hidden(fn ($record) => $record->sender_id)
-                                    ->hidden(fn ($livewire, $record) => $livewire instanceof \App\Filament\User\Resources\InMailResource\Pages\ViewInMail || $record->sender_id)
+                                    ->action(fn (array $data, Set $set) => InMailResource::saveRecipient($data, $set))
+                                    // ->hidden(fn ($record) => $record->sender_id)
+                                    ->hidden(fn ($livewire, $record, Get $get) => $livewire instanceof \App\Filament\User\Resources\InMailResource\Pages\ViewInMail
+                                                                                                    || $record?->sender_id
+                                                                                                    || $get('sender_id'))
                             )
                             ->live()
                             ->searchable()
@@ -482,31 +485,98 @@ class InMailResource extends Resource
         return 1;
     }
 
+    // private static function getRecipient($from): Recipient|null
+    // {
+    //     $recipient = Recipient::where('mail_1', $from)
+    //                     ->orWhere('mail_2', $from)
+    //                     ->orWhere('mail_3', $from)
+    //                     ->orWhere('mail_4', $from)
+    //                     ->orWhere('mail_5', $from)
+    //                     ->first();
+    //     return $recipient;
+    // }
+
     private static function getRecipient($from): Recipient|null
     {
-        $recipient = Recipient::where('mail_1', $from)
-                        ->orWhere('mail_2', $from)
-                        ->orWhere('mail_3', $from)
-                        ->orWhere('mail_4', $from)
-                        ->orWhere('mail_5', $from)
-                        ->first();
-        return $recipient;
+        return Recipient::findByEmail($from);
     }
 
-    public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
+//     public static function saveRecipientOld(array $data, Recipient $recipient, Set $set): void
+//     {
+//         for($i = 1; $i <= 5; $i++){
+//             $address = $data["mail_{$i}"];
+//             if(!$address || $address == '') {
+//                 Log::info("Mail_{$i} è vuoto o nullo");
+//                 continue;
+//             }
+// Log::info("Mail {$i}: {$address}");
+//             $rec = static::getRecipient($address);
+//             if ($rec) {
+//                 Notification::make()
+//                     ->title("Indirizzo {$address} presente in archivio")
+//                     ->body("L'indirizzo {$address} è già associato a {$rec->description}")
+//                     ->danger()
+//                     ->persistent()
+//                     ->send();
+
+//                 return;
+//             }
+//         }
+
+//         $recipient->description = $data['description'] ?? null;
+//         $recipient->admin_type_id = $data['admin_type_id'] ?? null;
+//         $recipient->istat_type_id = $data['istat_type_id'] ?? null;
+//         $recipient->code_ipa = $data['code_ipa'] ?? null;
+//         $recipient->acronym = $data['acronym'] ?? null;
+//         $recipient->city_id = $data['city_id'] ?? null;
+//         $recipient->address = $data['address'] ?? null;
+//         $recipient->city_cap = $data['city_cap'] ?? null;
+//         $recipient->resp_title = $data['resp_title'] ?? null;
+//         $recipient->resp_surname = $data['resp_surname'] ?? null;
+//         $recipient->resp_name = $data['resp_name'] ?? null;
+//         $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
+//         $recipient->mail_1 = $data['mail_1'] ?? null;
+//         $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
+//         $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
+//         $recipient->mail_2 = $data['mail_2'] ?? null;
+//         $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
+//         $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
+//         $recipient->mail_3 = $data['mail_3'] ?? null;
+//         $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
+//         $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
+//         $recipient->mail_4 = $data['mail_4'] ?? null;
+//         $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
+//         $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
+//         $recipient->mail_5 = $data['mail_5'] ?? null;
+//         $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
+//         $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
+//         $recipient->site = $data['site'] ?? null;
+//         $recipient->url_facebook = $data['url_facebook'] ?? null;
+//         $recipient->url_twitter = $data['url_twitter'] ?? null;
+//         $recipient->url_googleplus = $data['url_googleplus'] ?? null;
+//         $recipient->url_youtube = $data['url_youtube'] ?? null;
+//         $recipient->save();
+
+//         $set('sender_id', $recipient->id);
+//         Notification::make()
+//             ->title('Interlocutore salvato con successo')
+//             ->success()
+//             ->send();
+//     }
+
+    public static function saveRecipient(array $data, Set $set): void
     {
-        for($i = 1; $i <= 5; $i++){
-            $address = $data["mail_{$i}"];
-            if(!$address || $address == '') {
-                Log::info("Mail_{$i} è vuoto o nullo");
-                continue;
-            }
-Log::info("Mail {$i}: {$address}");
-            $rec = static::getRecipient($address);
+        // 1. Estraiamo i dati del repeater
+        $emails = $data['emails'] ?? [];
+        unset($data['emails']);
+
+        // 2. Controllo se un interlocutore ha già uno degl indirizzi del nuovo
+        foreach ($emails as $email) {
+            $rec = Recipient::findByEmail($email['email']);
             if ($rec) {
                 Notification::make()
-                    ->title("Indirizzo {$address} presente in archivio")
-                    ->body("L'indirizzo {$address} è già associato a {$rec->description}")
+                    ->title("Indirizzo {$email['email']} presente in archivio")
+                    ->body("L'indirizzo {$email['email']} è già associato a {$rec->description}")
                     ->danger()
                     ->persistent()
                     ->send();
@@ -515,43 +585,20 @@ Log::info("Mail {$i}: {$address}");
             }
         }
 
-        $recipient->description = $data['description'] ?? null;
-        $recipient->admin_type_id = $data['admin_type_id'] ?? null;
-        $recipient->istat_type_id = $data['istat_type_id'] ?? null;
-        $recipient->code_ipa = $data['code_ipa'] ?? null;
-        $recipient->acronym = $data['acronym'] ?? null;
-        $recipient->city_id = $data['city_id'] ?? null;
-        $recipient->address = $data['address'] ?? null;
-        $recipient->city_cap = $data['city_cap'] ?? null;
-        $recipient->resp_title = $data['resp_title'] ?? null;
-        $recipient->resp_surname = $data['resp_surname'] ?? null;
-        $recipient->resp_name = $data['resp_name'] ?? null;
-        $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
-        $recipient->mail_1 = $data['mail_1'] ?? null;
-        $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
-        $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
-        $recipient->mail_2 = $data['mail_2'] ?? null;
-        $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
-        $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
-        $recipient->mail_3 = $data['mail_3'] ?? null;
-        $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
-        $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
-        $recipient->mail_4 = $data['mail_4'] ?? null;
-        $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
-        $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
-        $recipient->mail_5 = $data['mail_5'] ?? null;
-        $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
-        $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
-        $recipient->site = $data['site'] ?? null;
-        $recipient->url_facebook = $data['url_facebook'] ?? null;
-        $recipient->url_twitter = $data['url_twitter'] ?? null;
-        $recipient->url_googleplus = $data['url_googleplus'] ?? null;
-        $recipient->url_youtube = $data['url_youtube'] ?? null;
-        $recipient->save();
+        // 3. Creiamo il record principale (modifica il percorso del Model se necessario)
+        $recipient = Recipient::create($data);
 
+        // 4. Salviamo le relazioni (il repeater)
+        if (!empty($emails)) {
+            $recipient->emails()->createMany($emails);
+        }
+
+        // 5. Selezioniamo automaticamente il nuovo record nel Select
         $set('sender_id', $recipient->id);
+
+        // 6. Opzionale: Notifica di successo
         Notification::make()
-            ->title('Interlocutore salvato con successo')
+            ->title('Interlocutore creato con successo')
             ->success()
             ->send();
     }

@@ -435,26 +435,122 @@ class CreateShipment extends CreateRecord
     //     return new HtmlString($html);
     // }
 
+    // private function renderRecipientsListOld($mailType, $regionId, $provinceId, $deselectAll, $adminTypes, $officeTypes): HtmlString
+    // {
+    //     $officeNames = OfficeType::pluck('name', 'id');
+    //     $recipients = '';
+
+    //     // Query Destinatari
+    //     if($provinceId){                                                                                                // è indicata la provincia
+    //         $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
+    //             ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
+    //             ->with('city.province')
+    //             ->orderBy('recipients.description', 'asc')
+    //             ->get();
+    //     } else if($regionId){                                                                                           // è indicata solo la regione
+    //         $recipients = Recipient::whereHas('city.province', fn($q) => $q->where('region_id', $regionId))
+    //             ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
+    //             ->with('city.province.region')
+    //             ->orderBy('recipients.description', 'asc')
+    //             ->get();
+    //     } else{
+    //         //
+    //     }
+
+    //     if ($recipients->isEmpty()) {
+    //         return new HtmlString('<div class="p-4 text-gray-500 italic">Nessun destinatario trovato per questa provincia.</div>');
+    //     }
+
+    //     $isFirstLoad = empty($this->receiverList) && !$deselectAll;
+
+    //     $html = '<div class="space-y-4 p-1">';
+    //     $foundAnyEmail = false;
+
+    //     foreach ($recipients as $recipient) {
+    //         $emailsHtml = '';
+
+    //         for ($i = 1; $i <= 5; $i++) {
+    //             $mail = $recipient->{"mail_$i"};
+    //             $type = $recipient->{"mail_type_$i"}; // Questo di solito è un Enum
+    //             $oType = $recipient->{"office_type_id_$i"};
+
+    //             // Filtro Ufficio
+    //             $officeFilter = empty($officeTypes) || in_array((string)$oType, array_map('strval', $officeTypes));
+
+    //             // CONFRONTO (usiamo == meno rigido per evitare problemi di tipo stringa/int)
+    //             if (!empty($mail) && $type == $mailType && $officeFilter) {
+    //                 $foundAnyEmail = true;
+    //                 $field = "receiverList.{$recipient->id}.mail_{$i}";
+    //                 $checkboxId = "rcpt-{$recipient->id}-{$i}";
+
+    //                 // Inizializza lo stato se non esiste
+    //                 if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
+    //                     $this->receiverList[$recipient->id]["mail_{$i}"] = $isFirstLoad;
+    //                 }
+
+    //                 $officeLabel = $officeNames[$oType] ?? 'N/D';
+
+    //                 $emailsHtml .= '
+    //                 <div class="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+    //                     <input type="checkbox"
+    //                         wire:model.live="' . $field . '"
+    //                         id="' . $checkboxId . '"
+    //                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+    //                     <label for="' . $checkboxId . '" class="flex flex-col cursor-pointer">
+    //                         <span class="text-sm font-semibold text-gray-900">' . e($mail) . '</span>
+    //                         <span class="text-xs text-gray-500">' . e($type->getLabel()) . ' - ' . e($officeLabel) . '</span>
+    //                     </label>
+    //                 </div>';
+    //             }
+    //         }
+
+    //         if ($emailsHtml !== '') {
+    //             $html .= '<div class="border rounded-xl p-4 bg-white shadow-sm ring-1 ring-gray-200">';
+    //             $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . ' (' . $recipient->city->province->code . ')' . '</div>';
+    //             $html .= $emailsHtml;
+    //             $html .= '</div>';
+    //         }
+    //     }
+
+    //     $html .= '</div>';
+
+    //     if (!$foundAnyEmail) {
+    //         return new HtmlString('<div class="p-4 text-red-500 bg-red-50 rounded-lg">Trovati destinatari, ma nessuno ha una mail di tipo "' . e($mailType) . '" negli uffici selezionati.</div>');
+    //     }
+
+    //     return new HtmlString($html);
+    // }
+
     private function renderRecipientsList($mailType, $regionId, $provinceId, $deselectAll, $adminTypes, $officeTypes): HtmlString
     {
         $officeNames = OfficeType::pluck('name', 'id');
-        $recipients = '';
+        $recipients = collect();
 
         // Query Destinatari
-        if($provinceId){                                                                                                // è indicata la provincia
+        if($provinceId) {
             $recipients = Recipient::whereHas('city', fn($q) => $q->where('province_id', $provinceId))
                 ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
-                ->with('city.province')
+                ->with(['city.province', 'emails' => function($q) use ($mailType, $officeTypes) {
+                    $q->where('mail_type', $mailType);
+                    if (!empty($officeTypes)) {
+                        $q->whereIn('office_type_id', $officeTypes);
+                    }
+                    $q->orderBy('order');
+                }])
                 ->orderBy('recipients.description', 'asc')
                 ->get();
-        } else if($regionId){                                                                                           // è indicata solo la regione
+        } else if($regionId) {
             $recipients = Recipient::whereHas('city.province', fn($q) => $q->where('region_id', $regionId))
                 ->when(!empty($adminTypes), fn($q) => $q->whereIn('admin_type_id', $adminTypes))
-                ->with('city.province.region')
+                ->with(['city.province.region', 'emails' => function($q) use ($mailType, $officeTypes) {
+                    $q->where('mail_type', $mailType);
+                    if (!empty($officeTypes)) {
+                        $q->whereIn('office_type_id', $officeTypes);
+                    }
+                    $q->orderBy('order');
+                }])
                 ->orderBy('recipients.description', 'asc')
                 ->get();
-        } else{
-            //
         }
 
         if ($recipients->isEmpty()) {
@@ -469,39 +565,67 @@ class CreateShipment extends CreateRecord
         foreach ($recipients as $recipient) {
             $emailsHtml = '';
 
-            for ($i = 1; $i <= 5; $i++) {
-                $mail = $recipient->{"mail_$i"};
-                $type = $recipient->{"mail_type_$i"}; // Questo di solito è un Enum
-                $oType = $recipient->{"office_type_id_$i"};
+            // for ($i = 1; $i <= 5; $i++) {
+            //     $mail = $recipient->{"mail_$i"};
+            //     $type = $recipient->{"mail_type_$i"}; // Questo di solito è un Enum
+            //     $oType = $recipient->{"office_type_id_$i"};
 
-                // Filtro Ufficio
-                $officeFilter = empty($officeTypes) || in_array((string)$oType, array_map('strval', $officeTypes));
+            //     // Filtro Ufficio
+            //     $officeFilter = empty($officeTypes) || in_array((string)$oType, array_map('strval', $officeTypes));
 
-                // CONFRONTO (usiamo == meno rigido per evitare problemi di tipo stringa/int)
-                if (!empty($mail) && $type == $mailType && $officeFilter) {
-                    $foundAnyEmail = true;
-                    $field = "receiverList.{$recipient->id}.mail_{$i}";
-                    $checkboxId = "rcpt-{$recipient->id}-{$i}";
+            //     // CONFRONTO (usiamo == meno rigido per evitare problemi di tipo stringa/int)
+            //     if (!empty($mail) && $type == $mailType && $officeFilter) {
+            //         $foundAnyEmail = true;
+            //         $field = "receiverList.{$recipient->id}.mail_{$i}";
+            //         $checkboxId = "rcpt-{$recipient->id}-{$i}";
 
-                    // Inizializza lo stato se non esiste
-                    if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
-                        $this->receiverList[$recipient->id]["mail_{$i}"] = $isFirstLoad;
-                    }
+            //         // Inizializza lo stato se non esiste
+            //         if (!isset($this->receiverList[$recipient->id]["mail_{$i}"])) {
+            //             $this->receiverList[$recipient->id]["mail_{$i}"] = $isFirstLoad;
+            //         }
 
-                    $officeLabel = $officeNames[$oType] ?? 'N/D';
+            //         $officeLabel = $officeNames[$oType] ?? 'N/D';
 
-                    $emailsHtml .= '
-                    <div class="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                        <input type="checkbox"
-                            wire:model.live="' . $field . '"
-                            id="' . $checkboxId . '"
-                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                        <label for="' . $checkboxId . '" class="flex flex-col cursor-pointer">
-                            <span class="text-sm font-semibold text-gray-900">' . e($mail) . '</span>
-                            <span class="text-xs text-gray-500">' . e($type->getLabel()) . ' - ' . e($officeLabel) . '</span>
-                        </label>
-                    </div>';
+            //         $emailsHtml .= '
+            //         <div class="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+            //             <input type="checkbox"
+            //                 wire:model.live="' . $field . '"
+            //                 id="' . $checkboxId . '"
+            //                 class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+            //             <label for="' . $checkboxId . '" class="flex flex-col cursor-pointer">
+            //                 <span class="text-sm font-semibold text-gray-900">' . e($mail) . '</span>
+            //                 <span class="text-xs text-gray-500">' . e($type->getLabel()) . ' - ' . e($officeLabel) . '</span>
+            //             </label>
+            //         </div>';
+            //     }
+            // }
+
+            // Usa la relazione emails invece del loop
+            foreach ($recipient->emails as $emailModel) {
+                $foundAnyEmail = true;
+                $emailId = $emailModel->id;
+
+                $field = "receiverList.{$recipient->id}.email_{$emailId}";
+                $checkboxId = "rcpt-{$recipient->id}-{$emailId}";
+
+                // Inizializza lo stato se non esiste
+                if (!isset($this->receiverList[$recipient->id]["email_{$emailId}"])) {
+                    $this->receiverList[$recipient->id]["email_{$emailId}"] = $isFirstLoad;
                 }
+
+                $officeLabel = $officeNames[$emailModel->office_type_id] ?? 'N/D';
+
+                $emailsHtml .= '
+                <div class="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                    <input type="checkbox"
+                        wire:model.live="' . $field . '"
+                        id="' . $checkboxId . '"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                    <label for="' . $checkboxId . '" class="flex flex-col cursor-pointer">
+                        <span class="text-sm font-semibold text-gray-900">' . e($emailModel->email) . '</span>
+                        <span class="text-xs text-gray-500">' . e($emailModel->mail_type->getLabel()) . ' - ' . e($officeLabel) . '</span>
+                    </label>
+                </div>';
             }
 
             if ($emailsHtml !== '') {
@@ -515,7 +639,7 @@ class CreateShipment extends CreateRecord
         $html .= '</div>';
 
         if (!$foundAnyEmail) {
-            return new HtmlString('<div class="p-4 text-red-500 bg-red-50 rounded-lg">Trovati destinatari, ma nessuno ha una mail di tipo "' . e($mailType) . '" negli uffici selezionati.</div>');
+            return new HtmlString('<div class="p-4 text-red-500 bg-red-50 rounded-lg">Trovati destinatari, ma nessuno ha una mail di tipo "' . e($mailType->getLabel()) . '" negli uffici selezionati.</div>');
         }
 
         return new HtmlString($html);

@@ -467,14 +467,20 @@ class EditSendEmail extends EditRecord
         return 1;
     }
 
+    // private static function getRecipientIdOld($from)
+    // {
+    //     $recipient = Recipient::where('mail_1', $from)
+    //                     ->orWhere('mail_2', $from)
+    //                     ->orWhere('mail_3', $from)
+    //                     ->orWhere('mail_4', $from)
+    //                     ->orWhere('mail_5', $from)
+    //                     ->first();
+    //     return $recipient?->id;
+    // }
+
     private static function getRecipientId($from)
     {
-        $recipient = Recipient::where('mail_1', $from)
-                        ->orWhere('mail_2', $from)
-                        ->orWhere('mail_3', $from)
-                        ->orWhere('mail_4', $from)
-                        ->orWhere('mail_5', $from)
-                        ->first();
+        $recipient = Recipient::findByEmail($from);
         return $recipient?->id;
     }
 }

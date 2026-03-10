@@ -97,25 +97,31 @@ class RegistryEmailService
     /**
      * Ottiene il nome del destinatario dalla rubrica
      */
-    public function getRecipientName(string $email): string
-    {
-        $recipient = Recipient::where(function ($query) use ($email) {
-            $query->where('mail_1', $email)
-                ->orWhere('mail_2', $email)
-                ->orWhere('mail_3', $email)
-                ->orWhere('mail_4', $email)
-                ->orWhere('mail_5', $email);
-        })
-        ->select('description')
-        ->first();
+    // public function getRecipientNameOld(string $email): string
+    // {
+    //     $recipient = Recipient::where(function ($query) use ($email) {
+    //         $query->where('mail_1', $email)
+    //             ->orWhere('mail_2', $email)
+    //             ->orWhere('mail_3', $email)
+    //             ->orWhere('mail_4', $email)
+    //             ->orWhere('mail_5', $email);
+    //     })
+    //     ->select('description')
+    //     ->first();
 
-        return $recipient?->description ?? $email;
+    //     return $recipient?->description ?? $email;
+    // }
+
+    private static function getRecipientName($from)
+    {
+        $recipient = Recipient::findByEmail($from);
+        return $recipient?->description;
     }
 
     /**
      * Estrae i destinatari da Registry
      */
-    public function extractRecipients(Registry $registry): Collection
+    public function extractRecipients(Registry $registry): Collection|array
     {
         return $registry->registryReceivers ?? [];
     }
