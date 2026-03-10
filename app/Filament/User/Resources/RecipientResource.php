@@ -772,7 +772,7 @@ class RecipientResource extends Resource
                             ->addActionLabel('Aggiungi Email')
                             ->reorderable(true)
                             ->orderColumn('order')
-                            ->collapsible()
+                            ->collapsed()
                             ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
                             ->columnSpan('full'),
                     ]),
