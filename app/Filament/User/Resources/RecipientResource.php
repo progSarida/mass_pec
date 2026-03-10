@@ -345,8 +345,17 @@ class RecipientResource extends Resource
                             ->addActionLabel('Aggiungi Email')
                             ->reorderable(true)
                             ->orderColumn('order')
-                            ->collapsed(fn ($record) => $record && $record->email)
-                            ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
+                            // ->collapsed(fn ($record) => $record && $record->email)
+                            ->collapsed()
+                            // ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
+                            ->itemLabel(function (array $state) {
+                                if (!empty($state['email']) && !empty($state['mail_type'])) {
+                                    $type = MailType::tryFrom($state['mail_type'])?->getLabel();
+                                    return $state['email'] . " (" . ($type ?? $state['mail_type']) . ")";
+                                }
+
+                                return $state['email'] ?? null;
+                            })
                             ->columnSpan('full'),
                     ]),
                 Section::make('Altri recapiti')
@@ -772,7 +781,7 @@ class RecipientResource extends Resource
                             ->addActionLabel('Aggiungi Email')
                             ->reorderable(true)
                             ->orderColumn('order')
-                            ->collapsed()
+                            ->collapsible()
                             ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
                             ->columnSpan('full'),
                     ]),
