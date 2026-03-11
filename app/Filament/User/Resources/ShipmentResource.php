@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\MailType;
+use App\Enums\ManageRegistryType;
 use App\Filament\User\Resources\ShipmentResource\Pages;
 use App\Filament\User\Resources\ShipmentResource\RelationManagers;
 use App\Filament\User\Resources\ShipmentResource\RelationManagers\ShipmentErrorsRelationManager;
@@ -423,11 +424,21 @@ class ShipmentResource extends Resource
                             ->label('Settore interno')
                             ->options(ScopeType::pluck('name', 'id'))
                             ->searchable()
-                            ->placeholder('Seleziona il settore interno della registrazione')
+                            ->placeholder('Seleziona il settore interno della registrazione'),
+                        Select::make('manage_registry_type')
+                            ->label('Gestione')
+                            ->options(
+                                collect(ManageRegistryType::cases())
+                                    ->filter(fn (ManageRegistryType $enum) => $enum->showToAssign())
+                                    ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                                        $enum->value => $enum->getLabel()
+                                    ])
+                            )
+                            ->default(ManageRegistryType::NONE->value)
                     ])
                     ->action(function ($record, array $data) {
                         try {
-                            static::registerShipment($record, $data['scope_type_id']);
+                            static::registerShipment($record, $data);
                             Notification::make()
                                 ->title('Mail protocollata')
                                 ->body('La spedizione e i suoi allegati sono stati protocollati con successo.')
@@ -473,10 +484,13 @@ class ShipmentResource extends Resource
         ];
     }
 
-    private static function registerShipment($record, $scopeTypeId)
+    private static function registerShipment($record, $data)
     {
         try {
             DB::beginTransaction();
+
+            $scopeTypeId = $data['scope_type_id'];
+            $manageRegistryType = $data['manage_registry_type'];
 
             $oldPath = $record->shipment_path;
             $protocolNumber = static::newProtocol();
@@ -505,6 +519,7 @@ class ShipmentResource extends Resource
                 'download_date' => null,
                 'download_user_id' => null,
                 'register_user_id' => Auth::user()->id,
+                'manage_registry_type' => $manageRegistryType,
             ]);
 
             // Elimino la spedizione

@@ -2,6 +2,7 @@
 
 namespace App\Filament\User\Resources;
 
+use App\Enums\ManageRegistryType;
 use App\Models\Recipient;
 use Filament\Forms;
 use Filament\Forms\Get;
@@ -243,11 +244,21 @@ class DownloadEmailResource extends Resource
                             ->label('Settore interno')
                             ->options(ScopeType::pluck('name', 'id'))
                             ->searchable()
-                            ->placeholder('Seleziona il settore interno della registrazione')
+                            ->placeholder('Seleziona il settore interno della registrazione'),
+                        Select::make('manage_registry_type')
+                            ->label('Gestione')
+                            ->options(
+                                collect(ManageRegistryType::cases())
+                                    ->filter(fn (ManageRegistryType $enum) => $enum->showToAssign())
+                                    ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                                        $enum->value => $enum->getLabel()
+                                    ])
+                            )
+                            ->default(ManageRegistryType::NONE->value)
                     ])
                     ->action(function ($record, array $data) {
                         try {
-                            static::registerEmail($record, $data['scope_type_id']);
+                            static::registerEmail($record, $data);
                             Notification::make()
                                 ->title('Mail protocollata')
                                 ->body('La mail e i suoi allegati sono stati protocollati con successo.')
@@ -335,11 +346,14 @@ class DownloadEmailResource extends Resource
         ];
     }
 
-    private static function registerEmail($record, $scopeTypeId)
+    private static function registerEmail($record, $data)
     {
         try {
             DB::beginTransaction();
 // dd($record);
+            $scopeTypeId = $data['scope_type_id'];
+            $manageRegistryType = $data['manage_registry_type'];
+
             $oldPath = $record->attachment_path;
             $protocolNumber = static::newProtocol();
 
@@ -367,6 +381,7 @@ class DownloadEmailResource extends Resource
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
                 'register_user_id' => Auth::user()->id,
+                'manage_registry_type' => $manageRegistryType,
             ]);
 
             // Elimino la mail

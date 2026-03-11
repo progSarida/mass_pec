@@ -164,10 +164,13 @@ class EditInMail extends EditRecord
             });
     }
 
-    private static function registerEmail($record, $scopeTypeId)
+    private static function registerEmail($record, $data)
     {
         try {
             DB::beginTransaction();
+
+            $scopeTypeId = $data['scope_type_id'];
+            $manageRegistryType = $data['manage_registry_type'];
 
             $oldPath = $record->attachment_path;
             $protocolNumber = static::newProtocol();
@@ -195,6 +198,7 @@ class EditInMail extends EditRecord
                 'download_date' => $record->created_at,
                 'download_user_id' => $record->download_user_id,
                 'register_user_id' => Auth::id(),
+                'manage_registry_type' => $manageRegistryType,
             ]);
 
             $disk = config('filesystems.default');

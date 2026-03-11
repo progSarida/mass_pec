@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources\RegistryResource\Pages;
 
 use App\Enums\FlowType;
+use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource;
@@ -12,10 +13,13 @@ use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use Filament\Actions;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Colors\Color;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -181,373 +185,409 @@ class EditRegistry extends EditRecord
                 //         }
                 //     }),
 
-            Actions\Action::make('send')
-                ->label('Invia Email')
-                ->icon('hugeicons-mail-send-01')
-                ->color('success')
-                ->visible(fn($record) =>
-                    $record->isOutgoingEmail()
-                    && !$record->send_date
-                    && $record->account_id
-                    // && !empty($record->recipients)
-                    && $record->registryReceivers
-                )
-                ->requiresConfirmation()
-                ->modalHeading('Conferma invio email')
-                ->modalDescription(function ($record) {
-                    $count = count($record->registryReceivers ?? []);
-                    return "L'email sarà inviata in background a {$count} destinatari. Riceverai una notifica al termine dell'invio.";
-                })
-                ->modalSubmitActionLabel('Sì, invia')
-                ->modalCancelActionLabel('Annulla')
-                ->action(function ($record) {
-                    try {
-                        \App\Jobs\ProcessRegistryEmailJob::dispatch(
-                            registryId: $record->id,
-                            userId: Auth::id(),
-                        );
-
-                        Notification::make()
-                            ->title('Invio avviato')
-                            ->body("L'email del protocollo {$record->protocol_number} sarà inviata in background.")
-                            ->success()
-                            ->duration(5000)
-                            ->send();
-
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore avvio invio')
-                            ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
-
-            Actions\Action::make('receipts')
-                ->label('Controlla ricevute')
-                ->icon('hugeicons-mail-receive-01')
-                ->color('primary')
-                ->visible(function($record) {
-                        $allDone = $record->checkReceipts();
-                        return $record->isOutgoingEmail()                                                           // è una email in uscita
-                                && $record->send_date                                                               // è stata inviata
-                                && $record->account_id                                                              // ha un mittente
-                                && $record->registryReceivers                                                       // ha dei destinatari
-                                && !$allDone;                                                                       // ci sono destinatari senza ricevuta
-                    }
-                )
-                ->requiresConfirmation()
-                ->modalHeading('Conferma scarico ricevute')
-                ->modalDescription(function ($record) {
-                    return "Sarà avviato lo scarico delle ricevute per delle email inviate della voce del protocollo " . $record->protocol_number . ".";
-                })
-                ->modalSubmitActionLabel('Scarica')
-                ->modalCancelActionLabel('Annulla')
-                ->action(function ($record) {
-                    try {
-                            $this->downloadReceipts($record);
+                Actions\Action::make('send')
+                    ->label('Invia Email')
+                    ->icon('hugeicons-mail-send-01')
+                    ->color('success')
+                    ->visible(fn($record) =>
+                        $record->isOutgoingEmail()
+                        && !$record->send_date
+                        && $record->account_id
+                        // && !empty($record->recipients)
+                        && $record->registryReceivers
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Conferma invio email')
+                    ->modalDescription(function ($record) {
+                        $count = count($record->registryReceivers ?? []);
+                        return "L'email sarà inviata in background a {$count} destinatari. Riceverai una notifica al termine dell'invio.";
+                    })
+                    ->modalSubmitActionLabel('Sì, invia')
+                    ->modalCancelActionLabel('Annulla')
+                    ->action(function ($record) {
+                        try {
+                            \App\Jobs\ProcessRegistryEmailJob::dispatch(
+                                registryId: $record->id,
+                                userId: Auth::id(),
+                            );
 
                             Notification::make()
-                                ->title('Ricevute scaricate')
-                                ->body('Tutte le ricevute sono state elaborate con successo.')
+                                ->title('Invio avviato')
+                                ->body("L'email del protocollo {$record->protocol_number} sarà inviata in background.")
                                 ->success()
+                                ->duration(5000)
                                 ->send();
 
-                            $this->dispatch('refreshRelationManager');
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore avvio invio')
+                                ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
 
-                    } catch (\Exception $e) {
-                        Notification::make()
-                            ->title('Errore elaborazione ricevute')
-                            ->body('Impossibile avviare l\'elaborazione: ' . $e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
-                }),
-
-            Action::make('uploadReceipts')
-                ->label('Carica Ricevute')
-                ->visible(function($record) {
-                        $allDone = $record->checkReceipts();
-                        return $record->isOutgoingEmail()                                                           // è una email in uscita
-                                && $record->send_date                                                               // è stata inviata
-                                && $record->account_id                                                              // ha un mittente
-                                && $record->registryReceivers                                                       // ha dei destinatari
-                                && !$allDone;                                                                       // ci sono destinatari senza ricevuta
-                    }
-                )
-                ->icon('fluentui-receipt-20-o')
-                ->color('info')
-                ->modalSubmitActionLabel('Carica')
-                // ->visible(fn($record) => !$record->is_email)
-                ->form([
-                    FileUpload::make('receipts')
-                        ->label('Seleziona File')
-                        ->multiple()
-                        ->directory(fn () => $this->getRecord()->attachment_path . '/receipts')
-                        ->preserveFilenames()
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    Notification::make()
-                        ->title('Caricamento completato')
-                        ->success()
-                        ->send();
-                }),
-
-            Action::make('uploadFile')
-                    ->label('Carica allegati')
-                    ->icon('heroicon-o-document-arrow-up')
-                    ->color('info')
-                    ->modalSubmitActionLabel('Carica')
+                Actions\Action::make('receipts')
+                    ->label('Controlla ricevute')
+                    ->icon('hugeicons-mail-receive-01')
+                    ->color('primary')
                     ->visible(function($record) {
                             $allDone = $record->checkReceipts();
                             return $record->isOutgoingEmail()                                                           // è una email in uscita
-                                    && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
-                                    && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
-                                    && !$record->send_date                                                              // non è stata inviata
+                                    && $record->send_date                                                               // è stata inviata
                                     && $record->account_id                                                              // ha un mittente
-                                    && $record->registryReceivers;                                                      // ha dei destinatari
+                                    && $record->registryReceivers                                                       // ha dei destinatari
+                                    && !$allDone;                                                                       // ci sono destinatari senza ricevuta
                         }
                     )
+                    ->requiresConfirmation()
+                    ->modalHeading('Conferma scarico ricevute')
+                    ->modalDescription(function ($record) {
+                        return "Sarà avviato lo scarico delle ricevute per delle email inviate della voce del protocollo " . $record->protocol_number . ".";
+                    })
+                    ->modalSubmitActionLabel('Scarica')
+                    ->modalCancelActionLabel('Annulla')
+                    ->action(function ($record) {
+                        try {
+                                $this->downloadReceipts($record);
+
+                                Notification::make()
+                                    ->title('Ricevute scaricate')
+                                    ->body('Tutte le ricevute sono state elaborate con successo.')
+                                    ->success()
+                                    ->send();
+
+                                $this->dispatch('refreshRelationManager');
+
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Errore elaborazione ricevute')
+                                ->body('Impossibile avviare l\'elaborazione: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                Action::make('uploadReceipts')
+                    ->label('Carica Ricevute')
+                    ->visible(function($record) {
+                            $allDone = $record->checkReceipts();
+                            return $record->isOutgoingEmail()                                                           // è una email in uscita
+                                    && $record->send_date                                                               // è stata inviata
+                                    && $record->account_id                                                              // ha un mittente
+                                    && $record->registryReceivers                                                       // ha dei destinatari
+                                    && !$allDone;                                                                       // ci sono destinatari senza ricevuta
+                        }
+                    )
+                    ->icon('fluentui-receipt-20-o')
+                    ->color('info')
+                    ->modalSubmitActionLabel('Carica')
+                    // ->visible(fn($record) => !$record->is_email)
                     ->form([
-                        FileUpload::make('attachments')
+                        FileUpload::make('receipts')
                             ->label('Seleziona File')
                             ->multiple()
-                            ->directory(fn ($record) => $record->attachment_path)
+                            ->directory(fn () => $this->getRecord()->attachment_path . '/receipts')
                             ->preserveFilenames()
-                            ->getUploadedFileNameForStorageUsing(function ($file, $record) {
-                                $disk = config('filesystems.default');
-                                $directory = $record->attachment_path;
-
-                                // Estraiamo nome e estensione originali
-                                $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                                $extension = $file->getClientOriginalExtension();
-
-                                $finalName = $filename . '.' . $extension;
-                                $counter = 1;
-
-                                // Finché esiste un file con questo nome, incrementiamo il suffisso
-                                while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
-                                    $finalName = $filename . '_' . $counter . '.' . $extension;
-                                    $counter++;
-                                }
-
-                                return $finalName;
-                            })
                             ->required(),
                     ])
                     ->action(function (array $data) {
-                        // I file vengono caricati automaticamente nella cartella
-                        // configurata nel metodo ->directory() sopra.
-
                         Notification::make()
                             ->title('Caricamento completato')
                             ->success()
                             ->send();
                     }),
 
-            Action::make('uploadRelated')
-                ->label('Carica integrazioni')
-                ->visible(fn() => $this->getRecord()->registry_origin_type !== RegistryOriginType::SHIPMENT)
-                ->icon('fluentui-document-link-20-o')
-                ->color('info')
-                ->modalSubmitActionLabel('Carica')
-                ->form([
-                    FileUpload::make('receipts')
-                        ->label('Seleziona File')
-                        ->multiple()
-                        ->directory(fn () => $this->getRecord()->attachment_path . '/related')
-                        ->preserveFilenames()
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    Notification::make()
-                        ->title('Caricamento completato')
-                        ->success()
-                        ->send();
-                }),
-
-            Action::make('deleteFile')
-                ->label('Elimina file')
-                ->icon('heroicon-o-trash')
-                ->color('danger')
-                ->visible(function($record) {
-                        $allDone = $record->checkReceipts();
-                        return $record->isOutgoingEmail()                                                           // è una email in uscita
-                                && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
-                                && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
-                                && !empty(Storage::allfiles($record->attachment_path))                              // la cartella dei file non è vuota
-                                && !$record->send_date                                                              // non è stata inviata
-                                && $record->account_id                                                              // ha un mittente
-                                && $record->registryReceivers;                                                      // ha dei destinatari
-                    }
-                )
-                ->form([
-                    Select::make('file_to_delete')
-                        ->label('Seleziona il file da eliminare')
-                        ->options(function ($record) {
-                            if (!$record || !$record->attachment_path) {
-                                return [];
+                Action::make('uploadFile')
+                        ->label('Carica allegati')
+                        ->icon('heroicon-o-document-arrow-up')
+                        ->color('info')
+                        ->modalSubmitActionLabel('Carica')
+                        ->visible(function($record) {
+                                $allDone = $record->checkReceipts();
+                                return $record->isOutgoingEmail()                                                           // è una email in uscita
+                                        && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
+                                        && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
+                                        && !$record->send_date                                                              // non è stata inviata
+                                        && $record->account_id                                                              // ha un mittente
+                                        && $record->registryReceivers;                                                      // ha dei destinatari
                             }
+                        )
+                        ->form([
+                            FileUpload::make('attachments')
+                                ->label('Seleziona File')
+                                ->multiple()
+                                ->directory(fn ($record) => $record->attachment_path)
+                                ->preserveFilenames()
+                                ->getUploadedFileNameForStorageUsing(function ($file, $record) {
+                                    $disk = config('filesystems.default');
+                                    $directory = $record->attachment_path;
 
-                            $files = Storage::allfiles($record->attachment_path);
+                                    // Estraiamo nome e estensione originali
+                                    $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                                    $extension = $file->getClientOriginalExtension();
 
-                            return collect($files)->mapWithKeys(function ($file) {
-                                return [$file => basename($file)];
-                            })->toArray();
-                        })
-                        ->required()
-                        ->native(false)
-                        ->searchable(),
-                ])
-                ->requiresConfirmation()
-                ->modalHeading('Elimina allegato')
-                ->modalDescription('Questa azione non può essere annullata.')
-                ->modalSubmitActionLabel('Elimina')
-                ->modalCancelActionLabel('Annulla')
-                ->action(function (array $data) {
-                    $file = $data['file_to_delete'];
+                                    $finalName = $filename . '.' . $extension;
+                                    $counter = 1;
 
-                    if (Storage::exists($file)) {
-                        Storage::delete($file);
+                                    // Finché esiste un file con questo nome, incrementiamo il suffisso
+                                    while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                                        $finalName = $filename . '_' . $counter . '.' . $extension;
+                                        $counter++;
+                                    }
 
+                                    return $finalName;
+                                })
+                                ->required(),
+                        ])
+                        ->action(function (array $data) {
+                            // I file vengono caricati automaticamente nella cartella
+                            // configurata nel metodo ->directory() sopra.
+
+                            Notification::make()
+                                ->title('Caricamento completato')
+                                ->success()
+                                ->send();
+                        }),
+
+                Action::make('uploadRelated')
+                    ->label('Carica integrazioni')
+                    ->visible(fn() => $this->getRecord()->registry_origin_type !== RegistryOriginType::SHIPMENT)
+                    ->icon('fluentui-document-link-20-o')
+                    ->color('info')
+                    ->modalSubmitActionLabel('Carica')
+                    ->form([
+                        FileUpload::make('receipts')
+                            ->label('Seleziona File')
+                            ->multiple()
+                            ->directory(fn () => $this->getRecord()->attachment_path . '/related')
+                            ->preserveFilenames()
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
                         Notification::make()
-                            ->title('File eliminato con successo')
-                            ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                            ->title('Caricamento completato')
                             ->success()
                             ->send();
-                    } else {
-                        Notification::make()
-                            ->title('File non trovato')
-                            ->warning()
-                            ->send();
-                    }
-                }),
+                    }),
 
-            Action::make('reply')
-                ->label('Rispondi')
-                ->visible(fn($record) => $record->isIngoingEmail())                                                          // solo per email in entrata
-                ->icon('fluentui-arrow-reply-20-o')
-                ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('Crea risposta')
-                ->modalDescription('Creare risposta a questa email?')
-                ->modalSubmitActionLabel('Crea')
-                ->modalCancelActionLabel('Annulla')
-                ->form([
-                    Select::make('account_id')
-                        ->label('Account')
-                        ->required()
-                        // ->extraInputAttributes(['class' => 'text-center'])
-                        ->relationship(
-                            name: 'account',
-                            titleAttribute: 'public_name',
-                            modifyQueryUsing: fn ($query) => $query
-                                ->where('send', true)
-                                ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
-                        )
-                        ->preload(),
-                ])
-                ->action(function ($record, array $data) {
-                    $protocolNumber = static::newProtocol();
-                    $newPath = 'registry/' . $protocolNumber;
-                    $account = Account::find($data['account_id']);
+                Action::make('deleteFile')
+                    ->label('Elimina file')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->visible(function($record) {
+                            $allDone = $record->checkReceipts();
+                            return $record->isOutgoingEmail()                                                           // è una email in uscita
+                                    && $record->attachment_path                                                         // c'è il riferimento alla cartella dei file
+                                    && Storage::exists($record->attachment_path)                                        // la cartella dei file esiste
+                                    && !empty(Storage::allfiles($record->attachment_path))                              // la cartella dei file non è vuota
+                                    && !$record->send_date                                                              // non è stata inviata
+                                    && $record->account_id                                                              // ha un mittente
+                                    && $record->registryReceivers;                                                      // ha dei destinatari
+                        }
+                    )
+                    ->form([
+                        Select::make('file_to_delete')
+                            ->label('Seleziona il file da eliminare')
+                            ->options(function ($record) {
+                                if (!$record || !$record->attachment_path) {
+                                    return [];
+                                }
 
-                    $newRegistry = Registry::create([
-                        'protocol_number' => $protocolNumber,
-                        'flow_type' => 'issued',
-                        'flow_index' => static::newIndex('issued'),
-                        'registry_origin_type' => 'reply',
-                        'parent_id' => $record->id,
-                        'is_email' => true,
-                        'scope_type_id' => $record->scope_type_id,
-                        'uid' => '#reply' . $protocolNumber,
-                        'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
-                        'sender_id' => null,
-                        'from' => $account->public_name,
-                        'subject' => "Re: " . $record->subject,
-                        'body' => null,
-                        'receive_date' => null,
-                        'account_id' => $data['account_id'],
-                        'send_date' => null,
-                        'send_user_id' => null,
-                        'shipment_id' => null,
-                        'attachment_path' => $newPath,
-                        'download_date' => null,
-                        'download_user_id' => null,
-                        'register_user_id' => Auth::user()->id,
-                    ]);
+                                $files = Storage::allfiles($record->attachment_path);
 
-                    RegistryReceiver::create([
-                        'registry_id' => $newRegistry->id,
-                        'protocol_number' => $protocolNumber,
-                        'recipient_id' => static::getRecipientId($record->from),
-                        'address' => $record->from,
-                        'pec_status' => PecStatus::WAITING,
-                    ]);
+                                return collect($files)->mapWithKeys(function ($file) {
+                                    return [$file => basename($file)];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->native(false)
+                            ->searchable(),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('Elimina allegato')
+                    ->modalDescription('Questa azione non può essere annullata.')
+                    ->modalSubmitActionLabel('Elimina')
+                    ->modalCancelActionLabel('Annulla')
+                    ->action(function (array $data) {
+                        $file = $data['file_to_delete'];
 
-                    $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
-                }),
+                        if (Storage::exists($file)) {
+                            Storage::delete($file);
 
-            Action::make('forward')
-                ->label('Inoltra')
-                ->visible(fn($record) => $record->isIngoingEmail())                                                          // solo per email in entrata
-                ->icon('fluentui-arrow-forward-20-o')
-                ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('Inoltra email')
-                ->modalDescription('Creare copia in uscita di questa email?')
-                ->modalSubmitActionLabel('Crea')
-                ->modalCancelActionLabel('Annulla')
-                ->form([
-                    Select::make('account_id')
-                        ->label('Account')
-                        ->required()
-                        // ->extraInputAttributes(['class' => 'text-center'])
-                        ->relationship(
-                            name: 'account',
-                            titleAttribute: 'public_name',
-                            modifyQueryUsing: fn ($query) => $query
-                                ->where('send', true)
-                                ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
-                        )
-                        ->preload(),])
-                ->action(function ($record, array $data) {
-                    $protocolNumber = static::newProtocol();
-                    $newPath = 'registry/' . $protocolNumber;
-                    $account = Account::find($data['account_id']);
+                            Notification::make()
+                                ->title('File eliminato con successo')
+                                ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('File non trovato')
+                                ->warning()
+                                ->send();
+                        }
+                    }),
 
-                    $newRegistry = Registry::create([
-                        'protocol_number' => $protocolNumber,
-                        'flow_type' => 'issued',
-                        'flow_index' => static::newIndex('issued'),
-                        'registry_origin_type' => 'forward',
-                        'parent_id' => $record->id,
-                        'is_email' => true,
-                        'scope_type_id' => $record->scope_type_id,
-                        'uid' => '#forward' . $protocolNumber,
-                        'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
-                        'sender_id' => null,
-                        'from' => $account->public_name,
-                        'subject' => $record->subject,
-                        'body' => $record->body,
-                        'receive_date' => null,
-                        'account_id' => $record->account_id,
-                        'send_date' => $record->send_date,
-                        'send_user_id' => $record->send_user_id,
-                        'shipment_id' => null,
-                        'attachment_path' => $newPath,
-                        'download_date' => null,
-                        'download_user_id' => null,
-                        'register_user_id' => Auth::user()->id,
-                    ]);
-                    $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
-                }),
+                Action::make('reply')
+                    ->label('Rispondi')
+                    ->visible(fn($record) => $record->isIngoingEmail())                                                          // solo per email in entrata
+                    ->icon('fluentui-arrow-reply-20-o')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('Crea risposta')
+                    ->modalDescription('Creare risposta a questa email?')
+                    ->modalSubmitActionLabel('Crea')
+                    ->modalCancelActionLabel('Annulla')
+                    ->form([
+                        Select::make('account_id')
+                            ->label('Account')
+                            ->required()
+                            // ->extraInputAttributes(['class' => 'text-center'])
+                            ->relationship(
+                                name: 'account',
+                                titleAttribute: 'public_name',
+                                modifyQueryUsing: fn ($query) => $query
+                                    ->where('send', true)
+                                    ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                            )
+                            ->preload(),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $protocolNumber = static::newProtocol();
+                        $newPath = 'registry/' . $protocolNumber;
+                        $account = Account::find($data['account_id']);
+
+                        $newRegistry = Registry::create([
+                            'protocol_number' => $protocolNumber,
+                            'flow_type' => 'issued',
+                            'flow_index' => static::newIndex('issued'),
+                            'registry_origin_type' => 'reply',
+                            'parent_id' => $record->id,
+                            'is_email' => true,
+                            'scope_type_id' => $record->scope_type_id,
+                            'uid' => '#reply' . $protocolNumber,
+                            'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+                            'sender_id' => null,
+                            'from' => $account->public_name,
+                            'subject' => "Re: " . $record->subject,
+                            'body' => null,
+                            'receive_date' => null,
+                            'account_id' => $data['account_id'],
+                            'send_date' => null,
+                            'send_user_id' => null,
+                            'shipment_id' => null,
+                            'attachment_path' => $newPath,
+                            'download_date' => null,
+                            'download_user_id' => null,
+                            'register_user_id' => Auth::user()->id,
+                            'manage_registry_type' => ManageRegistryType::NONE,
+                        ]);
+
+                        RegistryReceiver::create([
+                            'registry_id' => $newRegistry->id,
+                            'protocol_number' => $protocolNumber,
+                            'recipient_id' => static::getRecipientId($record->from),
+                            'address' => $record->from,
+                            'pec_status' => PecStatus::WAITING,
+                        ]);
+
+                        $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+                    }),
+
+                Action::make('forward')
+                    ->label('Inoltra')
+                    ->visible(fn($record) => $record->isIngoingEmail())                                                          // solo per email in entrata
+                    ->icon('fluentui-arrow-forward-20-o')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('Inoltra email')
+                    ->modalDescription('Creare copia in uscita di questa email?')
+                    ->modalSubmitActionLabel('Crea')
+                    ->modalCancelActionLabel('Annulla')
+                    ->form([
+                        Select::make('account_id')
+                            ->label('Account')
+                            ->required()
+                            // ->extraInputAttributes(['class' => 'text-center'])
+                            ->relationship(
+                                name: 'account',
+                                titleAttribute: 'public_name',
+                                modifyQueryUsing: fn ($query) => $query
+                                    ->where('send', true)
+                                    ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                            )
+                            ->preload(),])
+                    ->action(function ($record, array $data) {
+                        $protocolNumber = static::newProtocol();
+                        $newPath = 'registry/' . $protocolNumber;
+                        $account = Account::find($data['account_id']);
+
+                        $newRegistry = Registry::create([
+                            'protocol_number' => $protocolNumber,
+                            'flow_type' => 'issued',
+                            'flow_index' => static::newIndex('issued'),
+                            'registry_origin_type' => 'forward',
+                            'parent_id' => $record->id,
+                            'is_email' => true,
+                            'scope_type_id' => $record->scope_type_id,
+                            'uid' => '#forward' . $protocolNumber,
+                            'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+                            'sender_id' => null,
+                            'from' => $account->public_name,
+                            'subject' => $record->subject,
+                            'body' => $record->body,
+                            'receive_date' => null,
+                            'account_id' => $record->account_id,
+                            'send_date' => $record->send_date,
+                            'send_user_id' => $record->send_user_id,
+                            'shipment_id' => null,
+                            'attachment_path' => $newPath,
+                            'download_date' => null,
+                            'download_user_id' => null,
+                            'register_user_id' => Auth::user()->id,
+                            'manage_registry_type' => ManageRegistryType::NONE,
+                        ]);
+                        $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+                    }),
+
+                Actions\Action::make('validate')
+                    ->label('Gestisci')
+                    ->icon('heroicon-o-cog-8-tooth')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->visible(fn($record) => $record->manage_registry_type->showManage())
+                    ->fillForm(fn (Registry $record): array => [
+                        'manage_registry_type' => $record->manage_registry_type->value,
+                        'manage_registry_date' => now(),
+                    ])
+                    ->form([
+                        Select::make('manage_registry_type')
+                            ->label('Gestione')
+                            ->options(
+                                collect(ManageRegistryType::cases())
+                                    ->filter(fn (ManageRegistryType $enum) => $enum->showToUpdate())
+                                    ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                                        $enum->value => $enum->getLabel()
+                                    ])
+                            )
+                            ->live(),
+                        DatePicker::make('manage_registry_date')
+                            ->label('Data gestione')
+                            ->required()
+                            ->visible(fn (Get $get) =>$get('manage_registry_type') == ManageRegistryType::DONE->value ),
+                    ])
+                    ->action(function (Registry $record, $data) {
+                        $record->update([
+                            'manage_registry_type' => $data['manage_registry_type'],
+                            'manage_registry_date' => $data['manage_registry_date'],
+                        ]);
+                    }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')
             ->color('info')
             ->button(),
+
         ];
     }
 

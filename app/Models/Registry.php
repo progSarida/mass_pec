@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\FlowType;
+use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +39,8 @@ class Registry extends Model
         'download_date',
         'download_user_id',
         'register_user_id',
+        'manage_registry_type',
+        'manage_registry_date',
     ];
 
     protected $casts = [
@@ -46,6 +49,8 @@ class Registry extends Model
         'recipients' => 'array',
         'send_date' => 'datetime',
         'other_senders' => 'array',
+        'manage_registry_type' => ManageRegistryType::class,
+        'manage_registry_date' => 'date',
     ];
 
     public function downloadUser(){

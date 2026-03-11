@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\FlowType;
+use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
@@ -89,6 +90,46 @@ class RegistryResource extends Resource
                 return false;
         })
             ->schema([
+                Placeholder::make('manage_registry_type')
+                        ->label('')
+                        // ->visible(fn($record) => $record && filled($record->pi_validation_id))
+                        ->visible(fn($record) => $record->manage_registry_type->showType() )
+                        ->content(function ($record) {
+                            if (!$record->manage_registry_type) {
+                                return 'Nessuna gestione selezionata';
+                            }
+
+                            $dateString = $record->manage_registry_date ? " il {$record->manage_registry_date?->format('d/m/Y')}" : '';
+
+                            return "{$record->manage_registry_type->getLabel()}{$dateString}";
+                        })
+                        ->extraAttributes(function ($record) {
+                            $statusEnum = $record?->manage_registry_type;
+
+                            $color = $statusEnum?->getColor() ?? 'gray';
+
+                            $bgColorClass = "bg-{$color}-100";
+
+                            $borderColorClass = "border-{$color}-400";
+
+                            $baseClasses = 'text-lg font-semibold border pb-1 pt-2';
+
+                            $customClasses = [
+                                'rounded-lg', // Arrotondamento angoli
+
+                                'text-center', // Testo centrato
+
+                                $bgColorClass, // Colore di sfondo dinamico
+                                $borderColorClass,
+                                'text-gray-900', // Assicura che il testo sia leggibile su sfondi chiari
+                            ];
+
+                            return [
+                                'class' => $baseClasses . ' ' . implode(' ', $customClasses),
+                            ];
+                        })
+                        ->columnSpan('full'),
+
                 Section::make('Informazioni Principali')
                     ->columns(15)
                     ->schema([
@@ -586,43 +627,47 @@ class RegistryResource extends Resource
                 //         return $tooltip;
                 //     }),
 
-                    IconColumn::make('esito_report')
-                        ->label('Esito')
-                        ->getStateUsing(function ($record) {
-                            return static::checkReceipts($record);
-                        })
-                        ->icon(function ($state) {
-                            if(!$state) {
-                                return null;
-                            }
+                IconColumn::make('esito_report')
+                    ->label('Esito invio')
+                    ->getStateUsing(function ($record) {
+                        return static::checkReceipts($record);
+                    })
+                    ->icon(function ($state) {
+                        if(!$state) {
+                            return null;
+                        }
 
-                            [$sent, $delivered] = explode(',', $state);
+                        [$sent, $delivered] = explode(',', $state);
 
-                            if($sent == 0) return 'heroicon-o-envelope';
+                        if($sent == 0) return 'heroicon-o-envelope';
 
-                            return $sent == $delivered ? 'heroicon-o-check-circle' : 'heroicon-o-exclamation-triangle';
-                        })
-                        ->color(function ($state) {
-                            if(!$state) return 'gray';
+                        return $sent == $delivered ? 'heroicon-o-check-circle' : 'heroicon-o-exclamation-triangle';
+                    })
+                    ->color(function ($state) {
+                        if(!$state) return 'gray';
 
-                            [$sent, $delivered] = explode(',', $state);
+                        [$sent, $delivered] = explode(',', $state);
 
-                            if($sent == 0) return 'gray';
+                        if($sent == 0) return 'gray';
 
-                            return $sent == $delivered ? 'success' : 'warning';
-                        })
-                        ->tooltip(function ($state) {
-                            if (!$state) return null;
+                        return $sent == $delivered ? 'success' : 'warning';
+                    })
+                    ->tooltip(function ($state) {
+                        if (!$state) return null;
 
-                            [$sent, $delivered] = explode(',', $state);
+                        [$sent, $delivered] = explode(',', $state);
 
-                            if($sent == 0) return 'Non inviato';
+                        if($sent == 0) return 'Non inviato';
 
-                            $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
-                            $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
+                        $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
+                        $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
 
-                            return $tooltip;
-                        }),
+                        return $tooltip;
+                    }),
+
+                IconColumn::make('manage_registry_type')
+                    ->label('Gestione')
+                    ->tooltip(fn (ManageRegistryType $state): ?string => $state->getLabel()),
 
                 TextColumn::make('body')
                     ->label('Messaggio')
@@ -965,18 +1010,18 @@ class RegistryResource extends Resource
 
     private static function checkReceiptsOld($registry)
     {
-Log::info("{$registry->protocol_number} -----------------------------------------------------");
+// Log::info("{$registry->protocol_number} -----------------------------------------------------");
         if(!$registry->isOutgoingEmail()) { return null; }
         $sent = 0;
         $delivered = 0;
         foreach($registry->registryReceivers as $receiver){
-Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
+// Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
             if($receiver->pec_status == PecStatus::ACCEPTED) { $sent = ++$sent; }
             if($receiver->pec_status == PecStatus::NOT_ACCEPTED) {  }
             if($receiver->pec_status == PecStatus::DELIVERED) { $sent = ++$sent; $delivered = ++$delivered; }
             if($receiver->pec_status == PecStatus::NOT_DELIVERED) { $sent = ++$sent; }
         }
-Log::info("Inviati: {$sent} - Consegnati: {$delivered} ---------------------------------------");
+// Log::info("Inviati: {$sent} - Consegnati: {$delivered} ---------------------------------------");
         $report = [
             'sent' => $sent,
             'delivered' => $delivered,
@@ -992,7 +1037,7 @@ Log::info("Inviati: {$sent} - Consegnati: {$delivered} -------------------------
             return self::$receiptsCache[$cacheKey];
         }
 
-        Log::info("{$registry->protocol_number} -----------------------------------------------------");
+        // Log::info("{$registry->protocol_number} -----------------------------------------------------");
 
         if(!$registry->isOutgoingEmail()) {
             self::$receiptsCache[$cacheKey] = null;
@@ -1017,7 +1062,7 @@ Log::info("Inviati: {$sent} - Consegnati: {$delivered} -------------------------
             }
         }
 
-        Log::info("Inviati: {$sent} - Consegnati: {$delivered} ---------------------------------------");
+        // Log::info("Inviati: {$sent} - Consegnati: {$delivered} ---------------------------------------");
 
         // Restituisci una stringa invece di un array
         $report = "{$sent},{$delivered}";
