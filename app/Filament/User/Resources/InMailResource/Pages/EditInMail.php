@@ -104,7 +104,7 @@ class EditInMail extends EditRecord
                     ])
                     ->action(function ($record, $data) {
                         try {
-                            static::registerEmail($record, $data['scope_type_id']);
+                            static::registerEmail($record, $data);
                             Notification::make()
                                 ->title('Mail protocollata')
                                 ->body('La mail e i suoi allegati sono stati protocollati con successo.')
