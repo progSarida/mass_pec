@@ -42,9 +42,11 @@ class SendRegistryEmailJob implements ShouldQueue
         if ($this->batch()?->cancelled()) return;
 
         $registry = Registry::find($this->registryId);
-        if (!$registry || $registry->send_date) return;
+        // if (!$registry || $registry->send_date) return;
+        if (!$registry) return;                                                                     // elimninato controllosu data di invio perchè quando è presente l'invio batch non è visibile
 
         try {
+
             $registryEmailService->setAccount($registry->account_id);
             $account = $registryEmailService->getAccount();
 
@@ -73,7 +75,7 @@ class SendRegistryEmailJob implements ShouldQueue
             // Recupero l'ID univoco (formato: <stringa@dominio.it>)
             $messageId = $sentMessage->getMessageId();
 
-            // Salvo sul record del destinatario
+            // Salvo sul record del destinatario l'ID del messaggio inviato
             RegistryReceiver::where('id', $this->registryReceiverId)->update(['message_id' => $messageId]);
 
             Log::info("Email Registry inviata", ['recipient' => $this->recipientEmail, 'message_id' => $messageId]);

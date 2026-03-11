@@ -151,6 +151,40 @@ class RegistryReceiversRelationManager extends RelationManager
                     ->visible(fn($record) => $record->pec_status === PecStatus::WAITING),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn($record) => $record->pec_status === PecStatus::WAITING),
+                Tables\Actions\Action::make('resend')
+                    ->label('Reinvia')
+                    ->icon('heroicon-c-arrow-right-circle')
+                    ->color('warning')
+                    ->visible(fn ($record, $livewire) => $livewire->pageClass === \App\Filament\User\Resources\RegistryResource\Pages\EditRegistry::class
+                            && $record->registry->send_date
+                            && !$record->message_id
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Reinvia Email')
+                    ->modalDescription(fn($record) => "Vuoi tentare un nuovo invio a {$record->address}?")
+                    ->action(function ($record) {
+                        try {
+
+                            \App\Jobs\SendRegistryEmailJob::dispatch(
+                                registryId: $record->registry_id,
+                                recipientEmail: $record->address,
+                                registryReceiverId: $record->id,
+                            );
+
+                            \Filament\Notifications\Notification::make()
+                                ->title('Invio pianificato')
+                                ->body("Il nuovo tentativo di invio per {$record->address} è stato accodato.")
+                                ->success()
+                                ->send();
+
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Errore durante il rinvio')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

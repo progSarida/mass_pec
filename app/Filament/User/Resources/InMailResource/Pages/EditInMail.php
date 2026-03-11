@@ -2,6 +2,7 @@
 
 namespace App\Filament\User\Resources\InMailResource\Pages;
 
+use App\Enums\ManageRegistryType;
 use App\Filament\User\Resources\InMailResource;
 use App\Models\InMail;
 use App\Models\Registry;
@@ -89,7 +90,17 @@ class EditInMail extends EditRecord
                             ->label('Settore interno')
                             ->options(ScopeType::pluck('name', 'id'))
                             ->searchable()
-                            ->placeholder('Seleziona il settore interno della registrazione')
+                            ->placeholder('Seleziona il settore interno della registrazione'),
+                        Select::make('manage_registry_type')
+                            ->label('Gestione')
+                            ->options(
+                                collect(ManageRegistryType::cases())
+                                    ->filter(fn (ManageRegistryType $enum) => $enum->showToAssign())
+                                    ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                                        $enum->value => $enum->getLabel()
+                                    ])
+                            )
+                            ->default(ManageRegistryType::NONE->value)
                     ])
                     ->action(function ($record, $data) {
                         try {

@@ -190,11 +190,11 @@ class EditRegistry extends EditRecord
                     ->icon('hugeicons-mail-send-01')
                     ->color('success')
                     ->visible(fn($record) =>
-                        $record->isOutgoingEmail()
-                        && !$record->send_date
-                        && $record->account_id
+                        $record->isOutgoingEmail()                                          // è una email in uscita
+                        && !$record->send_date                                              // non è stata inviata
+                        && $record->account_id                                              // ha un mittente
                         // && !empty($record->recipients)
-                        && $record->registryReceivers
+                        && $record->registryReceivers                                       // ha dei destinatari
                     )
                     ->requiresConfirmation()
                     ->modalHeading('Conferma invio email')
@@ -801,7 +801,7 @@ class EditRegistry extends EditRecord
             elseif ($type === "ACCETTAZIONE" && $receiver->pec_status === PecStatus::WAITING) {
                 $receiver->pec_status = PecStatus::ACCEPTED;
             }
-            elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE") {
+            elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE" && $receiver->pec_status === PecStatus::WAITING) {
                 $receiver->pec_status = PecStatus::NOT_ACCEPTED;
             }
 
