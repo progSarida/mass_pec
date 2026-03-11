@@ -550,7 +550,7 @@ class EditRegistry extends EditRecord
                         $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
                     }),
 
-                Actions\Action::make('validate')
+                Actions\Action::make('manage')
                     ->label('Gestisci')
                     ->icon('heroicon-o-cog-8-tooth')
                     ->color('info')
