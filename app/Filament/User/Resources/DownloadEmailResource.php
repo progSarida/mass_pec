@@ -62,6 +62,7 @@ class DownloadEmailResource extends Resource
                                 Action::make('Nuovo')
                                     ->icon('ri-user-2-line')
                                     // ->form(fn(Form $form) => RecipientResource::modalForm($form))
+                                    ->modalSubmitActionLabel('Salva')
                                     ->form(fn(Form $form, Get $get) => RecipientResource::modalForm($form, $get('from')))
                                     ->fillForm(function (Get $get) {
                                         return [
