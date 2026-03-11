@@ -422,51 +422,51 @@ class SendEmailResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
-                Tables\Actions\Action::make('register')
-                    ->label('Protocolla')
-                    ->icon('fluentui-pen-20-o')
-                    ->color('warning')
-                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
-                                                // && $record->send_date
-                                                // && !Registry::where('uid', '#send_email' . $record->id)->exists()
-                    )
-                    ->requiresConfirmation()
-                    ->modalHeading('Protocolla email')
-                    ->modalDescription('La mail verrà inserita nel protocollo')
-                    ->modalSubmitActionLabel('Protocolla')
-                    ->form([
-                        Select::make('scope_type_id')
-                            ->label('Settore interno')
-                            ->options(ScopeType::pluck('name', 'id'))
-                            ->searchable()
-                            ->placeholder('Seleziona il settore interno della registrazione'),
-                        Select::make('manage_registry_type')
-                            ->label('Gestione')
-                            ->options(
-                                collect(ManageRegistryType::cases())
-                                    ->filter(fn (ManageRegistryType $enum): mixed => $enum->showToAssign())
-                                    ->mapWithKeys(fn (ManageRegistryType $enum) => [
-                                        $enum->value => $enum->getLabel()
-                                    ])
-                            )
-                            ->default(ManageRegistryType::NONE->value)
-                    ])
-                    ->action(function ($record, array $data) {
-                        try {
-                            static::registerEmail($record, $data);
-                            Notification::make()
-                                ->title('Mail protocollata')
-                                ->body('La mail e i suoi allegati sono stati protocollati con successo.')
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Errore registrazione')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                // Tables\Actions\Action::make('register')
+                //     ->label('Protocolla')
+                //     ->icon('fluentui-pen-20-o')
+                //     ->color('warning')
+                //     ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+                //                                 // && $record->send_date
+                //                                 // && !Registry::where('uid', '#send_email' . $record->id)->exists()
+                //     )
+                //     ->requiresConfirmation()
+                //     ->modalHeading('Protocolla email')
+                //     ->modalDescription('La mail verrà inserita nel protocollo')
+                //     ->modalSubmitActionLabel('Protocolla')
+                //     ->form([
+                //         Select::make('scope_type_id')
+                //             ->label('Settore interno')
+                //             ->options(ScopeType::pluck('name', 'id'))
+                //             ->searchable()
+                //             ->placeholder('Seleziona il settore interno della registrazione'),
+                //         Select::make('manage_registry_type')
+                //             ->label('Gestione')
+                //             ->options(
+                //                 collect(ManageRegistryType::cases())
+                //                     ->filter(fn (ManageRegistryType $enum): mixed => $enum->showToAssign())
+                //                     ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                //                         $enum->value => $enum->getLabel()
+                //                     ])
+                //             )
+                //             ->default(ManageRegistryType::NONE->value)
+                //     ])
+                //     ->action(function ($record, array $data) {
+                //         try {
+                //             static::registerEmail($record, $data);
+                //             Notification::make()
+                //                 ->title('Mail protocollata')
+                //                 ->body('La mail e i suoi allegati sono stati protocollati con successo.')
+                //                 ->success()
+                //                 ->send();
+                //         } catch (\Exception $e) {
+                //             Notification::make()
+                //                 ->title('Errore registrazione')
+                //                 ->body($e->getMessage())
+                //                 ->danger()
+                //                 ->send();
+                //         }
+                //     }),
                 // Tables\Actions\Action::make('registered')
                 //     ->label('Protocollata')
                 //     ->icon('heroicon-o-information-circle')

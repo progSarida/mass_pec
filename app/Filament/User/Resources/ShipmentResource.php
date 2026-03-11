@@ -407,51 +407,51 @@ class ShipmentResource extends Resource
                 // Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
                     ->hidden(fn($record) => $record->no_mails_sended > 0),
-                Tables\Actions\Action::make('register')
-                    ->label('Protocolla')
-                    ->icon('fluentui-pen-20-o')
-                    ->color('warning')
-                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
-                                                && $record->extraction_zip_file
-                                                && !Registry::where('uid', '#shipment' . $record->id)->exists()
-                    )
-                    ->requiresConfirmation()
-                    ->modalHeading('Protocolla spedizione')
-                    ->modalDescription('La spedizione verrà inserita nel protocollo')
-                    ->modalSubmitActionLabel('Protocolla')
-                    ->form([
-                        Select::make('scope_type_id')
-                            ->label('Settore interno')
-                            ->options(ScopeType::pluck('name', 'id'))
-                            ->searchable()
-                            ->placeholder('Seleziona il settore interno della registrazione'),
-                        Select::make('manage_registry_type')
-                            ->label('Gestione')
-                            ->options(
-                                collect(ManageRegistryType::cases())
-                                    ->filter(fn (ManageRegistryType $enum) => $enum->showToAssign())
-                                    ->mapWithKeys(fn (ManageRegistryType $enum) => [
-                                        $enum->value => $enum->getLabel()
-                                    ])
-                            )
-                            ->default(ManageRegistryType::NONE->value)
-                    ])
-                    ->action(function ($record, array $data) {
-                        try {
-                            static::registerShipment($record, $data);
-                            Notification::make()
-                                ->title('Mail protocollata')
-                                ->body('La spedizione e i suoi allegati sono stati protocollati con successo.')
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Errore registrazione')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                // Tables\Actions\Action::make('register')
+                //     ->label('Protocolla')
+                //     ->icon('fluentui-pen-20-o')
+                //     ->color('warning')
+                //     ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+                //                                 && $record->extraction_zip_file
+                //                                 && !Registry::where('uid', '#shipment' . $record->id)->exists()
+                //     )
+                //     ->requiresConfirmation()
+                //     ->modalHeading('Protocolla spedizione')
+                //     ->modalDescription('La spedizione verrà inserita nel protocollo')
+                //     ->modalSubmitActionLabel('Protocolla')
+                //     ->form([
+                //         Select::make('scope_type_id')
+                //             ->label('Settore interno')
+                //             ->options(ScopeType::pluck('name', 'id'))
+                //             ->searchable()
+                //             ->placeholder('Seleziona il settore interno della registrazione'),
+                //         Select::make('manage_registry_type')
+                //             ->label('Gestione')
+                //             ->options(
+                //                 collect(ManageRegistryType::cases())
+                //                     ->filter(fn (ManageRegistryType $enum) => $enum->showToAssign())
+                //                     ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                //                         $enum->value => $enum->getLabel()
+                //                     ])
+                //             )
+                //             ->default(ManageRegistryType::NONE->value)
+                //     ])
+                //     ->action(function ($record, array $data) {
+                //         try {
+                //             static::registerShipment($record, $data);
+                //             Notification::make()
+                //                 ->title('Mail protocollata')
+                //                 ->body('La spedizione e i suoi allegati sono stati protocollati con successo.')
+                //                 ->success()
+                //                 ->send();
+                //         } catch (\Exception $e) {
+                //             Notification::make()
+                //                 ->title('Errore registrazione')
+                //                 ->body($e->getMessage())
+                //                 ->danger()
+                //                 ->send();
+                //         }
+                //     }),
                 Tables\Actions\Action::make('registered')
                     ->label('Protocollata')
                     ->icon('heroicon-o-information-circle')
