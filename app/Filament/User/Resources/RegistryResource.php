@@ -854,6 +854,7 @@ class RegistryResource extends Resource
                                 ->whereHas('registryReceivers')
                                 ->whereDoesntHave('registryReceivers', function ($q) {
                                     $q->whereIn('pec_status', [
+                                        PecStatus::WAITING,
                                         PecStatus::ACCEPTED,
                                         PecStatus::NOT_DELIVERED,
                                         PecStatus::NOT_ACCEPTED
@@ -866,6 +867,7 @@ class RegistryResource extends Resource
                             return $query->whereNotNull('send_date')
                                 ->whereHas('registryReceivers', function ($q) {
                                     $q->whereIn('pec_status', [
+                                        PecStatus::WAITING,
                                         PecStatus::ACCEPTED,
                                         PecStatus::NOT_DELIVERED,
                                         PecStatus::NOT_ACCEPTED
@@ -876,7 +878,11 @@ class RegistryResource extends Resource
                         return $query;
                     })
                     ->columnSpan(1),
-
+                SelectFilter::make('manage_registry_type')
+                    ->label('Gestione')
+                    ->options(ManageRegistryType::class)
+                    ->multiple()
+                    ->columnSpan(1),
                 SelectFilter::make('sender')
                     ->label('Mittente')
                     ->multiple()
