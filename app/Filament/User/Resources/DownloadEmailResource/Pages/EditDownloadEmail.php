@@ -76,7 +76,7 @@ class EditDownloadEmail extends EditRecord
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')
                     ->color('warning')
-                    ->visible(fn() => Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager'))
+                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')) && $record->sender_id)
                     ->requiresConfirmation()
                     ->modalHeading('Protocolla email')
                     ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
