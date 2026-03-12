@@ -76,7 +76,7 @@ class SendEmailResource extends Resource
 
                 Select::make('signature_id')->label('Firma')
                     ->live()
-                    ->visible(fn($record) => !$record)
+                    // ->visible(fn($record) => !$record)
                     ->options(Signature::pluck('description', 'id'))
                     ->afterStateUpdated(function(Set $set, Get $get, $state) {
                         $text = Signature::find($state)->text;
