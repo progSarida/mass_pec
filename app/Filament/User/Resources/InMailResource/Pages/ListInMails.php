@@ -234,7 +234,7 @@ class ListInMails extends ListRecords
     //     return $recipient?->id;
     // }
 
-    private static function getSenderId($from): Recipient|null
+    private static function getSenderId($from): int|null
     {
         return Recipient::findByEmail($from)?->id;
     }
