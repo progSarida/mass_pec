@@ -636,9 +636,10 @@ class EditRegistry extends EditRecord
                             ->visible(fn (Get $get) =>$get('manage_registry_type') == ManageRegistryType::DONE->value ),
                     ])
                     ->action(function (Registry $record, $data) {
+                        $manageRegistryDate = $data['manage_registry_date'] ?? null;
                         $record->update([
                             'manage_registry_type' => $data['manage_registry_type'],
-                            'manage_registry_date' => $data['manage_registry_date'],
+                            'manage_registry_date' => $manageRegistryDate,
                         ]);
                     }),
             ])

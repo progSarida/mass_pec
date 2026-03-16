@@ -113,7 +113,7 @@ Log::info("Data ricezione: {$date}");
                     $skip = false;
                     if ($message_id) {
                         $skip = DownloadEmail::where('message_id', $message_id)->exists() ||
-                                Registry::where('message_id', $message_id)->exists();
+                                Registry::where('registry_origin_type', 'download_email')->where('message_id', $message_id)->exists();
                     }
 
                     if (!$skip && $uid && $date) {

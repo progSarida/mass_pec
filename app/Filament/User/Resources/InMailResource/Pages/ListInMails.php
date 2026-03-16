@@ -5,6 +5,7 @@ namespace App\Filament\User\Resources\InMailResource\Pages;
 use App\Filament\User\Resources\InMailResource;
 use App\Models\InMail;
 use App\Models\Recipient;
+use App\Models\Registry;
 use App\Models\Sender;
 use Ddeboer\Imap\Server;
 use Filament\Actions;
@@ -120,10 +121,10 @@ class ListInMails extends ListRecords
                 // SKIP GIA' SCARICATA
                 $message_id = $message->getId();
                 if (
-                    ($message_id && InMail::where('message_id', $message_id)->exists()) ||
-                    InMail::where('uid', $uid)->where('receive_date', $date)->exists()
+                    $message_id && (InMail::where('message_id', $message_id)->exists() || Registry::where('registry_origin_type', 'in_mail')->where('message_id', $message_id)->exists())
+                    // InMail::where('uid', $uid)->where('receive_date', $date)->exists()
                 ) {
-                    Log::info("Ignorata mail già scaricata: UID {$uid}, Message-ID {$message_id}, DATA {$date}");
+                    Log::info("Ignorata mail già scaricata: Message-ID {$message_id}, DATA {$date}");
                     if ($sender->delete && $date) {                                                        // se è prevista la cancellazione dal server
                         if ($sender->delete_after_days && $date && $from != 'Sconosciuto') {
                             $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
