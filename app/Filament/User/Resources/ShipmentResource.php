@@ -182,7 +182,8 @@ class ShipmentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('insert_date', 'desc')
+            // ->defaultSort('insert_date', 'desc')
+            ->defaultSort(fn ($query) => $query->orderBy('insert_date', 'desc')->orderBy('id', 'desc'))
             ->columns([
                 TextColumn::make('mail_type')
                     ->label('Tipo mail')

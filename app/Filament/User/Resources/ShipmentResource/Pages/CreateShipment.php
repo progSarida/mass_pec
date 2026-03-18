@@ -647,6 +647,18 @@ class CreateShipment extends CreateRecord
 
     protected function handleRecordCreation(array $data): \Illuminate\Database\Eloquent\Model
     {
+        // pulisco l'elenco di destinatari lasciando solo i selezionati
+        foreach ($this->receiverList as $recipientId => $emails) {
+            $this->receiverList[$recipientId] = array_filter(
+                $emails,
+                fn($value) => $value === true
+            );
+
+            if (empty($this->receiverList[$recipientId])) {
+                unset($this->receiverList[$recipientId]);
+            }
+        }
+
         $emptyAttachment = false;
         $emptyReceivers = false;
 
@@ -683,7 +695,9 @@ class CreateShipment extends CreateRecord
             // $shipment->receiverList = $this->receiverList;                                                   // aggiungo l'array con la lista dei destinatari
             // $shipment->attachmentList = $this->attachmentList;                                               // aggiungo l'array con la lista degli allegati
 // dd($shipment);
+// dd($this->receiverList);
 // dd(count($this->receiverList));
+// dd('STOP');
             $shipment->update([
                 'mail_type' => $this->receiverFilters['mail_type'],                                             // tipo email destinatari
                 'region_id' => $this->receiverFilters['region_id'] ?? null,                                     // id regione destinatari
