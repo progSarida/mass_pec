@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Webklex\PHPIMAP\Message as ImapMessage;
 
 class ListInMails extends ListRecords
 {
@@ -26,7 +25,7 @@ class ListInMails extends ListRecords
     {
         return [
             Actions\Action::make('download')
-                ->label('Scarico casella')
+                ->label('Scarico email')
                 ->icon('fluentui-mail-arrow-down-20')
                 ->color('warning')
                 ->requiresConfirmation()
@@ -35,12 +34,21 @@ class ListInMails extends ListRecords
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
-                        $this->downloadEmails();
-                        Notification::make()
-                            ->title('Mail scaricate')
-                            ->body('Tutte le mail sono state scaricate con successo.')
-                            ->success()
-                            ->send();
+                        $downloaded = $this->downloadEmails();
+                        if($downloaded > 0){
+                            $body = $downloaded = 1 ? "È stata scaricata con successo una mail." : "Sono state scaricate con successo {$downloaded} mail.";
+                            Notification::make()
+                                ->title('Procedura completata')
+                                ->body($body)
+                                ->success()
+                                ->send();
+                            }
+                        else
+                            Notification::make()
+                                ->title('Procedura completata')
+                                ->body('Nessuna nuova mail da scaricare')
+                                ->success()
+                                ->send();
                     } catch (\Exception $e) {
                         Notification::make()
                             ->title('Errore scarico')
@@ -57,13 +65,15 @@ class ListInMails extends ListRecords
         return MaxWidth::Full;
     }
 
-    public function downloadEmails()
+    public function downloadEmails(): int
     {
         ini_set('memory_limit', '512M');
         set_time_limit(300);
 
         try {
             DB::beginTransaction();
+
+            $downloaded = 0;
 
             $sender = Sender::first();
             if (!$sender) {
@@ -105,6 +115,14 @@ class ListInMails extends ListRecords
                 $rawHeaders = $message->getRawHeaders();
                 if ($this->isOfficialPecReceipt($rawHeaders)) {
                     Log::info("Ignorata ricevuta PEC: UID {$uid}");
+                    // if ($sender->delete && $date) {                                                        // se è prevista la cancellazione dal server
+                    //     if ($sender->delete_after_days && $date && $from != 'Sconosciuto') {
+                    //         $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
+                    //         if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
+                    //             $message->delete();
+                    //         }
+                    //     }
+                    // }
                     continue;
                 }
 
@@ -164,6 +182,8 @@ class ListInMails extends ListRecords
                     'download_user_id' => Auth::id(),
                 ]);
 
+                $downloaded++;
+
                 // --- SALVA ALLEGATI ---
                 // $folderPath = storage_path("app/public/in_mail/{$inMail->id}");
                 $folderPath = "in_mail/{$inMail->id}";
@@ -200,6 +220,8 @@ class ListInMails extends ListRecords
             $connection->expunge();
             $connection->close();
             DB::commit();
+
+            return $downloaded;
 
         } catch (\Throwable $e) {
             DB::rollBack();

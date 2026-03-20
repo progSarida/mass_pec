@@ -159,7 +159,11 @@ class RecipientResource extends Resource
                     ->columnSpan('full'),
                 Select::make('admin_type_id')->label('Tipo interlocutore')
                     // ->required()
-                    ->relationship(name: 'adminType', titleAttribute: 'name')
+                    ->relationship(
+                        name: 'adminType',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query) => $query->orderBy('position', 'asc')
+                        )
                     ->searchable()
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
@@ -302,78 +306,64 @@ class RecipientResource extends Resource
                             else
                                 return "Nessuna email inserita";
                         }
-
                         return "Email";
                     })
                     ->collapsed(fn ($record) => $record && $record->emails()->count() > 0)
                     ->columns(12)
                     ->schema([
                         Repeater::make('emails')
-                            ->relationship('emails')
-                            ->dehydrated(true)
-                            ->afterStateHydrated(function (Repeater $component, $state) {
-                                if (blank($state)) {
-                                    // Se lo stato è vuoto o null, inizializzalo con un array contenente
-                                    // un set di chiavi vuote corrispondenti ai tuoi input
-                                    $component->state([
-                                        'item1' => [
-                                            'email' => null,
-                                            'mail_type' => null,
-                                            'office_type_id' => null,
-                                        ],
-                                    ]);
-                                }
-                            })
-                            ->label('')
-                            ->schema([
-                                TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->required()
-                                    ->columnSpan(['sm' => 'full', 'md' => 6]),
-                                Select::make('mail_type')
-                                    ->label('Tipo')
-                                    ->options(MailType::class)
-                                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                                Select::make('office_type_id')
-                                    ->label('Ufficio')
-                                    ->options(OfficeType::pluck('name', 'id'))
-                                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                            ])
-                            ->columns(12)
-                            ->defaultItems(1)
-                            ->addActionLabel('Aggiungi Email')
-                            ->reorderable(true)
-                            ->orderColumn('order')
-                            // ->collapsed(fn ($record) => $record && $record->email)
-                            ->collapsed()
-                            // ->itemLabel(fn (array $state): ?string => $state['email'] ?? null)
-                            ->itemLabel(function (array $state) {
-                                if (!empty($state['email']) && !empty($state['mail_type'])) {
-                                    $type = MailType::tryFrom($state['mail_type'])?->getLabel();
-                                    return $state['email'] . " (" . ($type ?? $state['mail_type']) . ")";
-                                }
-
-                                return $state['email'] ?? null;
-                            })
-                            ->columnSpan('full'),
+                    ->relationship('emails')
+                    ->dehydrated(true)
+                    ->label('')
+                    ->schema([
+                        TextInput::make('email')
+                            ->label('Email')
+                            ->email()
+                            ->required()
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Select::make('mail_type')
+                            ->label('Tipo')
+                            ->options(MailType::class)
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('office_type_id')
+                            ->label('Ufficio')
+                            ->options(OfficeType::pluck('name', 'id'))
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                    ])
+                    ->columns(12)
+                    ->defaultItems(1)
+                    ->addActionLabel('Aggiungi Email')
+                    ->reorderable(true)
+                    ->orderColumn('order')
+                    ->collapsible()
+                    ->collapsed(fn (string $operation) => !($operation === 'create'))
+                    ->itemLabel(function (array $state) {
+                        if (!empty($state['email']) && !empty($state['mail_type'])) {
+                            $type = MailType::tryFrom($state['mail_type'])?->getLabel();
+                            return $state['email'] . " (" . ($type ?? $state['mail_type']) . ")";
+                        }
+                        return $state['email'] ?? 'Nuova email';
+                    })
+                    ->columnSpan('full'),
                     ]),
                 Section::make('Altri recapiti')
                     ->collapsed(fn ($record) => $record)
                     ->columns(12)
                     ->schema([
                         TextInput::make(name: 'phone')->label('Telefono')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-                        TextInput::make('site')->label('Sito istituzionale')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
+                        TextInput::make('fax')->label('Fax')
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
                         TextInput::make('url_facebook')->label('Facebook')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
                         TextInput::make('url_twitter')->label('Twitter')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
                         TextInput::make('url_googleplus')->label('Google')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
                         TextInput::make('url_youtube')->label('Youtube')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
+                        TextInput::make('site')->label('Sito istituzionale')
+                            ->columnSpan(['sm' => 'full', 'md' => 'full']),
                     ]),
             ]);
     }
@@ -386,9 +376,24 @@ class RecipientResource extends Resource
                 TextColumn::make('description')
                     ->label('Descrizione')
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where('description_search', 'like', "%{$search}%");
+                        // Applico la stessa logica di pulizia che usi nel boot del modello
+                        // per rendere la ricerca coerente con 'description_search'
+                        $cleanedSearch = str($search)
+                            ->ascii()
+                            ->replace(['.', '"', "'", '(', ')'], '')
+                            ->replace(['/', '-'], ' ')
+                            ->squish()
+                            ->trim()
+                            ->lower();
+
+                        return $query->where(function (Builder $q) use ($search, $cleanedSearch) {
+                            $q->where('description_search', 'like', "%{$cleanedSearch}%")
+                            // Cerchiamo nella relazione corretta: 'emails' (non 'receivers')
+                            ->orWhereHas('emails', function ($q) use ($search) {
+                                $q->where('email', 'like', "%{$search}%");
+                            });
+                        });
                     }),
-                    // ->searchable(),
                 TextColumn::make('adminType.name')
                     ->label('Tipo interlocutore'),
                 TextColumn::make('istatType.name')

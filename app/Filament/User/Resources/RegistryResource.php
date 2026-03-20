@@ -571,9 +571,11 @@ class RegistryResource extends Resource
                         return '';
                     })
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        // Nota: searchable() su colonne calcolate richiede una logica custom
-                        return $query->whereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"))
-                                    ->orWhereHas('account', fn ($q) => $q->where('public_name', 'like', "%{$search}%"));
+                        return $query->where(function ($q) use ($search) {
+                            $q->where('from', 'like', "%{$search}%")
+                            ->orWhereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"))
+                            ->orWhereHas('account', fn ($q) => $q->where('public_name', 'like', "%{$search}%"));
+                        });
                     })
                     ->sortable()
                     // ->tooltip(fn ($record) => $record?->from)
@@ -586,6 +588,11 @@ class RegistryResource extends Resource
                         if ($state === 0) return '';
                         return $state . ' ' . ($state === 1 ? 'destinatario' : 'destinatari');
                     })
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->whereHas('registryReceivers', fn ($q) => $q->where('address', 'like', "%{$search}%"));
+                        });
+                    })
                     ->tooltip(function ($record) {
                         $receivers = $record?->registryReceivers;
 
@@ -597,10 +604,18 @@ class RegistryResource extends Resource
                         return $receivers->pluck('address')->implode(', ');
                     }),
 
+                TextColumn::make('date')
+                    ->label('Invio/Ricezione')
+                    ->state(function ($record) {
+                        if($record->flow_type == FlowType::ISSUED) return $record->send_date;
+                        else if($record->flow_type == FlowType::RECEIVED) return $record->receive_date;
+                    })
+                    ->date('d/m/Y h:m:s'),
+
                 TextColumn::make('subject')
                     ->label('Oggetto')
                     ->searchable()
-                    ->limit(100)
+                    ->limit(50)
                     ->tooltip(fn ($record) => $record?->subject),
 
                 // TextColumn::make('old_esito_report')
@@ -627,6 +642,30 @@ class RegistryResource extends Resource
                 //         return $tooltip;
                 //     }),
 
+                IconColumn::make('attachment_path')
+                    ->label('Allegati')
+                    ->icon(function($record) {
+                        $files = Storage::files($record?->attachment_path);
+                        if (!empty($files)) { return 'fluentui-mail-attach-20'; }
+                        else { return ''; }
+                    })
+                    ->color(function ($record) {
+                        $files = Storage::files($record?->attachment_path);
+                        if (!empty($files)) { return 'info'; }
+                        else { return ''; }
+                    })->tooltip(function ($record) {
+                        $files = Storage::files($record->attachment_path);
+                        $count = count($files);
+
+                        if ($count === 0) {
+                            return 'Nessun allegato presente';
+                        }
+
+                        return $count === 1
+                            ? "C'è 1 allegato"
+                            : "Ci sono {$count} allegati";
+                    }),
+
                 IconColumn::make('esito_report')
                     ->label('Esito invio')
                     ->getStateUsing(function ($record) {
@@ -637,9 +676,8 @@ class RegistryResource extends Resource
                             return null;
                         }
 
-                        [$sent, $accepted, $delivered] = explode(',', $state);                           // inviate, accettate, consegnate
+                        [$sent, $accepted, $delivered] = explode(',', $state);                                              // inviate, accettate, consegnate
                         $count = $record->registryReceivers()->count();                                                     // numero destinatari
-                        $allDone = $record->checkReceipts();                                                                // tutte le mail sono state elaborate
 
                         if($sent == 0) return 'heroicon-o-envelope';                                                        // nessuna mail inviata
 
@@ -655,7 +693,6 @@ class RegistryResource extends Resource
 
                         [$sent, $accepted, $delivered] = explode(',', $state);
                         $count = $record->registryReceivers()->count();
-                        $allDone = $record->checkReceipts();
 
                         if($sent == 0) return 'gray';
 
@@ -671,7 +708,6 @@ class RegistryResource extends Resource
 
                         [$sent, $accepted, $delivered] = explode(',', $state);
                         $count = $record->registryReceivers()->count();
-                        $allDone = $record->checkReceipts();
 
                         if($sent == 0) return 'Non inviata';
 
@@ -692,7 +728,8 @@ class RegistryResource extends Resource
 
                 TextColumn::make('body')
                     ->label('Messaggio')
-                    ->limit(100)
+                    ->searchable()
+                    ->limit(50)
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? Str::limit(strip_tags($state), 50) : '—')
                     ->tooltip(function ($record) {
@@ -752,6 +789,90 @@ class RegistryResource extends Resource
             ->filtersFormWidth('lg')
             ->filtersFormColumns(2)
             ->filters([
+                SelectFilter::make('sender')
+                    ->label('Mittente')
+                    ->multiple()
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array =>
+                        Recipient::where('description', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->pluck('description', 'id')
+                            ->toArray()
+                    )
+                    ->getOptionLabelsUsing(fn (array $values): array =>
+                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        $senderIds = $data['values'] ?? [];
+
+                        if (empty($senderIds)) {
+                            return $query;
+                        }
+
+                        return $query->where(function ($q) use ($senderIds) {
+                            // Ricerca sul mittente principale (molto veloce se sender_id ha un indice)
+                            $q->whereIn('sender_id', $senderIds)
+                            // Ricerca nel campo JSON
+                            ->orWhere(function ($subQuery) use ($senderIds) {
+                                foreach ($senderIds as $id) {
+                                    // Usiamo orWhereJsonContains, ma limitato ai record necessari
+                                    $subQuery->orWhereJsonContains('other_senders', (string)$id)
+                                            ->orWhereJsonContains('other_senders', (int)$id);
+                                }
+                            });
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) return [];
+
+                        $labels = Recipient::whereIn('id', $data['values'])
+                            ->pluck('description')
+                            ->toArray();
+
+                        return ['Mittenti: ' . implode(', ', $labels)];
+                    })
+                    ->columnSpan(2),
+
+                SelectFilter::make('recipient')
+                    ->label('Destinatario')
+                    ->multiple()
+                    ->searchable()
+                    // 1. NON usare ->options() qui se hai molti record.
+                    // Usiamo getSearchResultsUsing per caricare solo i primi 50 che corrispondono alla ricerca.
+                    ->getSearchResultsUsing(fn (string $search): array =>
+                        Recipient::where('description', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->pluck('description', 'id')
+                            ->toArray()
+                    )
+                    // 2. Serve a Filament per visualizzare il nome corretto dei tag selezionati
+                    ->getOptionLabelsUsing(fn (array $values): array =>
+                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        $recipientIds = $data['values'] ?? [];
+
+                        if (empty($recipientIds)) {
+                            return $query;
+                        }
+
+                        // 3. whereHas è corretto se hai una relazione Many-to-Many o One-to-Many
+                        return $query->whereHas('registryReceivers', function ($q) use ($recipientIds) {
+                            $q->whereIn('recipient_id', $recipientIds);
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) return [];
+
+                        // 4. Ottimizzazione: ritorniamo un array per gli indicatori (Filament v3 style)
+                        $recipients = Recipient::whereIn('id', $data['values'])
+                            ->pluck('description')
+                            ->toArray();
+
+                        return ['Destinatari: ' . implode(', ', $recipients)];
+                    })
+                    ->columnSpan(2),
+
                 SelectFilter::make('flow_type')
                     ->label('Corrispondenza')
                     ->options(FlowType::class)
@@ -883,89 +1004,6 @@ class RegistryResource extends Resource
                     ->options(ManageRegistryType::class)
                     ->multiple()
                     ->columnSpan(1),
-                SelectFilter::make('sender')
-                    ->label('Mittente')
-                    ->multiple()
-                    ->searchable()
-                    ->getSearchResultsUsing(fn (string $search): array =>
-                        Recipient::where('description', 'like', "%{$search}%")
-                            ->limit(50)
-                            ->pluck('description', 'id')
-                            ->toArray()
-                    )
-                    ->getOptionLabelsUsing(fn (array $values): array =>
-                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
-                    )
-                    ->query(function (Builder $query, array $data): Builder {
-                        $senderIds = $data['values'] ?? [];
-
-                        if (empty($senderIds)) {
-                            return $query;
-                        }
-
-                        return $query->where(function ($q) use ($senderIds) {
-                            // Ricerca sul mittente principale (molto veloce se sender_id ha un indice)
-                            $q->whereIn('sender_id', $senderIds)
-                            // Ricerca nel campo JSON
-                            ->orWhere(function ($subQuery) use ($senderIds) {
-                                foreach ($senderIds as $id) {
-                                    // Usiamo orWhereJsonContains, ma limitato ai record necessari
-                                    $subQuery->orWhereJsonContains('other_senders', (string)$id)
-                                            ->orWhereJsonContains('other_senders', (int)$id);
-                                }
-                            });
-                        });
-                    })
-                    ->indicateUsing(function (array $data): array {
-                        if (empty($data['values'])) return [];
-
-                        $labels = Recipient::whereIn('id', $data['values'])
-                            ->pluck('description')
-                            ->toArray();
-
-                        return ['Mittenti: ' . implode(', ', $labels)];
-                    })
-                    ->columnSpan(2),
-
-                SelectFilter::make('recipient')
-                    ->label('Destinatario')
-                    ->multiple()
-                    ->searchable()
-                    // 1. NON usare ->options() qui se hai molti record.
-                    // Usiamo getSearchResultsUsing per caricare solo i primi 50 che corrispondono alla ricerca.
-                    ->getSearchResultsUsing(fn (string $search): array =>
-                        Recipient::where('description', 'like', "%{$search}%")
-                            ->limit(50)
-                            ->pluck('description', 'id')
-                            ->toArray()
-                    )
-                    // 2. Serve a Filament per visualizzare il nome corretto dei tag selezionati
-                    ->getOptionLabelsUsing(fn (array $values): array =>
-                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
-                    )
-                    ->query(function (Builder $query, array $data): Builder {
-                        $recipientIds = $data['values'] ?? [];
-
-                        if (empty($recipientIds)) {
-                            return $query;
-                        }
-
-                        // 3. whereHas è corretto se hai una relazione Many-to-Many o One-to-Many
-                        return $query->whereHas('registryReceivers', function ($q) use ($recipientIds) {
-                            $q->whereIn('recipient_id', $recipientIds);
-                        });
-                    })
-                    ->indicateUsing(function (array $data): array {
-                        if (empty($data['values'])) return [];
-
-                        // 4. Ottimizzazione: ritorniamo un array per gli indicatori (Filament v3 style)
-                        $recipients = Recipient::whereIn('id', $data['values'])
-                            ->pluck('description')
-                            ->toArray();
-
-                        return ['Destinatari: ' . implode(', ', $recipients)];
-                    })
-                    ->columnSpan(2)
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

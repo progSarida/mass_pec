@@ -35,12 +35,21 @@ class ListDownloadEmails extends ListRecords
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
-                        $this->downloadEmails();
-                        Notification::make()
-                            ->title('Mail scaricate')
-                            ->body('Tutte le mail sono state scaricate con successo.')
-                            ->success()
-                            ->send();
+                        $downloaded = $this->downloadEmails();
+                        if($downloaded > 0){
+                            $body = $downloaded = 1 ? "È stata scaricata con successo una mail." : "Sono state scaricate con successo {$downloaded} mail.";
+                            Notification::make()
+                                ->title('Procedura completata')
+                                ->body($body)
+                                ->success()
+                                ->send();
+                            }
+                        else
+                            Notification::make()
+                                ->title('Procedura completata')
+                                ->body('Nessuna nuova mail da scaricare')
+                                ->success()
+                                ->send();
                     } catch (\Exception $e) {
                         Notification::make()
                             ->title('Errore scarico')
@@ -57,13 +66,15 @@ class ListDownloadEmails extends ListRecords
         return MaxWidth::Full;
     }
 
-    public function downloadEmails()
+    public function downloadEmails(): int
     {
         ini_set('memory_limit', '512M');
         set_time_limit(300);
 
         try {
             DB::beginTransaction();
+
+            $downloaded = 0;
 
             // $accounts = Account::where('download', true)->get();                                            // tutte le caselle di posta
             $accounts = Auth::user()->accounts->where('download', true);                                    // le caselle scaricabili per cui l'utente' ha i permessi
@@ -101,6 +112,17 @@ class ListDownloadEmails extends ListRecords
                     $rawHeaders = $message->getRawHeaders();
                     if ($this->isOfficialPecReceipt($rawHeaders)) {
                         Log::info("Ignorata ricevuta PEC: UID {$uid}");
+                        // if ($account->delete && $date) {                                                                    // se è prevista la cancellazione dal server
+                        //     if ($account->delete_after_days && $date && $from != 'Sconosciuto'){
+                        //         $deleteDate = now()->subDays($account->delete_after_days)->startOfDay();
+                        //         if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {                                        // se ho indicato i giorni da aspettare per cancellare
+                        //             $message->delete();
+                        //         }
+                        //     }
+                        //     else if ($date) {                                                                               // se non ho indicato i giorni da aspettare per cancellare
+                        //         // $message->delete();
+                        //     }
+                        // }
                         continue;
                     }
 
@@ -176,7 +198,9 @@ Log::info('Scarico mail da ' . $from);
                         'receive_date' => $date,
                         'download_user_id' => Auth::id(),
                     ]);
-// dd($inMail);
+
+                    $downloaded++;
+
                     // --- SALVA ALLEGATI ---
                     // $folderPath = storage_path("app/public/download_email/{$inMail->id}");
                     $folderPath = "download_email/{$inMail->id}";
@@ -219,6 +243,8 @@ Log::info('Scarico mail da ' . $from);
             $connection->expunge();
             $connection->close();
             DB::commit();
+
+            return $downloaded;
 
         } catch (\Throwable $e) {
             DB::rollBack();

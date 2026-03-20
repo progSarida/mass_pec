@@ -23,8 +23,11 @@ use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -38,10 +41,10 @@ class InMailResource extends Resource
 {
     protected static ?string $model = InMail::class;
 
-    public static ?string $pluralModelLabel = 'Leggi mail sped. massive';
+    public static ?string $pluralModelLabel = 'Gestione posta sped. massive';
     public static ?string $modelLabel = 'Mail';
     protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20-o';
-    protected static ?string $navigationLabel = 'Leggi mail sped. massive';
+    protected static ?string $navigationLabel = 'Gestione posta sped. massive';
     protected static ?string $navigationGroup = 'Pec Massiva';
     protected static ?int $navigationSort = 2;
 
@@ -181,7 +184,12 @@ class InMailResource extends Resource
 
                 TextColumn::make('sender.description')
                     ->label('Mittente')
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where('from', 'like', "%{$search}%")
+                            ->orWhereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"));
+                        });
+                    })
                     ->limit(25)
                     ->tooltip(fn ($record) => $record->from),
 
@@ -202,6 +210,30 @@ class InMailResource extends Resource
                         return Str::limit($preview, 500);
                     }),
 
+                IconColumn::make('attachment_path')
+                    ->label('Allegati')
+                    ->icon(function($record) {
+                        $files = Storage::files($record?->attachment_path);
+                        if (!empty($files)) { return 'fluentui-mail-attach-20'; }
+                        else { return ''; }
+                    })
+                    ->color(function ($record) {
+                        $files = Storage::files($record?->attachment_path);
+                        if (!empty($files)) { return 'info'; }
+                        else { return ''; }
+                    })->tooltip(function ($record) {
+                        $files = Storage::files($record->attachment_path);
+                        $count = count($files);
+
+                        if ($count === 0) {
+                            return 'Nessun allegato presente';
+                        }
+
+                        return $count === 1
+                            ? "C'è 1 allegato"
+                            : "Ci sono {$count} allegati";
+                    }),
+
                 TextColumn::make('receive_date')
                     ->label('Ricevuto il')
                     ->date('d/m/Y H:i:s')
@@ -214,7 +246,8 @@ class InMailResource extends Resource
 
                 TextColumn::make('downloadUser.name')
                     ->label('Scaricato da')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 // Tables\Columns\TextColumn::make('attachments')
                 //     ->label('Allegati')
@@ -224,8 +257,71 @@ class InMailResource extends Resource
                 //     ->icon('heroicon-o-folder-open')
                 //     ->color('primary'),
             ])
+            ->filtersFormWidth('lg')
+            ->filtersFormColumns(2)
             ->filters([
-                //
+                SelectFilter::make('sender')
+                    ->label('Mittente')
+                    ->multiple()
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array =>
+                        Recipient::where('description', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->pluck('description', 'id')
+                            ->toArray()
+                    )
+                    ->getOptionLabelsUsing(fn (array $values): array =>
+                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
+                    )
+                    ->query(function (Builder $query, array $data): Builder {
+                        $senderIds = $data['values'] ?? [];
+
+                        if (empty($senderIds)) {
+                            return $query;
+                        }
+
+                        return $query->where(function ($q) use ($senderIds) {
+                            // Ricerca sul mittente principale (molto veloce se sender_id ha un indice)
+                            $q->whereIn('sender_id', $senderIds);
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) return [];
+
+                        $labels = Recipient::whereIn('id', $data['values'])
+                            ->pluck('description')
+                            ->toArray();
+
+                        return ['Mittenti: ' . implode(', ', $labels)];
+                    })
+                    ->columnSpan(2),
+                SelectFilter::make('missing_sender')
+                    ->label('Mittenti mancanti')
+                    ->placeholder('Includi')
+                    ->options([
+                        'select' => 'Seleziona',
+                        'exclude' => 'Escludi',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        // Se non è selezionato nulla, non applico filtri alla query
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        if ($value === 'select') {
+                            // Mostro solo le mail senza mittente associato
+                            return $query->whereNull('sender_id');
+                        }
+
+                        if ($value === 'exclude') {
+                            // Escludo le mail senza mittente associato
+                            return $query->whereNotNull('sender_id');
+                        }
+
+                        return $query;
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
