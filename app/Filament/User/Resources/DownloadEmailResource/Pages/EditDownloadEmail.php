@@ -188,6 +188,7 @@ class EditDownloadEmail extends EditRecord
                 'flow_type' => 'received',
                 'flow_index' => static::newIndex('received'),
                 'registry_origin_type' => 'download_email',
+                'receiving_mail' => $record->receiving_mail,
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,

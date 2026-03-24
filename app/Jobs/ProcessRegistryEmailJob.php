@@ -26,6 +26,8 @@ class ProcessRegistryEmailJob implements ShouldQueue
     public function __construct(
         public int $registryId,
         public int $userId,
+        public bool $autoDownloadReceipts = true, // Flag per scaricare ricevute automaticamente
+        public int $receiptsDelayMinutes = 30,    // Delay prima di scaricare le ricevute
     ) {}
 
     /**
@@ -70,12 +72,14 @@ class ProcessRegistryEmailJob implements ShouldQueue
         $registryId = $this->registryId;
         $userId = $this->userId;
         $protocolNumber = $registry->protocol_number;
+        $autoDownloadReceipts = $this->autoDownloadReceipts;
+        $receiptsDelayMinutes = $this->receiptsDelayMinutes;
 
         // Esegui il batch con callbacks
         Bus::batch($jobs)
             ->name("Send Registry Email #{$registryId} ({$protocolNumber})")
-            ->then(function (Batch $batch) use ($registryId, $userId, $protocolNumber) {
-                if ($batch->cancelled()) return; // Aggiunta di sicurezza
+            ->then(function (Batch $batch) use ($registryId, $userId, $protocolNumber, $autoDownloadReceipts, $receiptsDelayMinutes) {
+                if ($batch->cancelled()) return;
 
                 // Tutti i job sono completati con successo
                 $registry = Registry::find($registryId);
@@ -90,6 +94,17 @@ class ProcessRegistryEmailJob implements ShouldQueue
                         'registry_id' => $registryId,
                         'protocol_number' => $protocolNumber,
                     ]);
+
+                    // Schedule download ricevute se richiesto
+                    if ($autoDownloadReceipts) {
+                        DownloadReceiptsJob::dispatch($registryId, $userId)
+                            ->delay(now()->addMinutes($receiptsDelayMinutes));
+
+                        Log::info("Schedulato download ricevute tra {$receiptsDelayMinutes} minuti", [
+                            'registry_id' => $registryId,
+                            'protocol_number' => $protocolNumber,
+                        ]);
+                    }
                 }
             })
             ->catch(function (Batch $batch, \Throwable $e) use ($registryId, $userId) {
@@ -104,7 +119,7 @@ class ProcessRegistryEmailJob implements ShouldQueue
                         ->title('Errore critico invio email')
                         ->body("Il processo di invio per il protocollo ID {$registryId} si è interrotto bruscamente.")
                         ->danger()
-                        ->persistent() // La notifica non sparisce finché non viene chiusa
+                        ->persistent()
                         ->sendToDatabase($user);
                 }
             })
@@ -125,14 +140,12 @@ class ProcessRegistryEmailJob implements ShouldQueue
                 ]);
 
                 if ($failedJobs > 0) {
-                    // Notifica di fallimento parziale
                     \Filament\Notifications\Notification::make()
                         ->title('Invio completato con errori')
                         ->body("Protocollo {$protocolNumber}: {$failedJobs} email su {$totalJobs} non sono state inviate. Controlla i log.")
                         ->warning()
                         ->sendToDatabase($user);
                 } else {
-                    // Notifica di successo totale
                     \Filament\Notifications\Notification::make()
                         ->title('Invio completato')
                         ->body("Tutte le email del protocollo {$protocolNumber} sono state inviate con successo.")

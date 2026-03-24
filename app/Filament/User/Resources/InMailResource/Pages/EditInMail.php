@@ -7,6 +7,7 @@ use App\Filament\User\Resources\InMailResource;
 use App\Models\InMail;
 use App\Models\Registry;
 use App\Models\ScopeType;
+use App\Models\Sender;
 use Filament\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
@@ -192,6 +193,7 @@ class EditInMail extends EditRecord
                 'flow_type' => 'received',
                 'flow_index' => static::newIndex('received'),
                 'registry_origin_type' => 'in_mail',
+                'receiving_mail' => $record->receiving_mail,
                 'is_email' => true,
                 'scope_type_id' => $scopeTypeId,
                 'uid' => $record->uid,

@@ -18,6 +18,7 @@ class Registry extends Model
         'flow_type',
         'flow_index',
         'registry_origin_type',
+        'receiving_mail',
         'parent_id',
         'is_email',
         'scope_type_id',

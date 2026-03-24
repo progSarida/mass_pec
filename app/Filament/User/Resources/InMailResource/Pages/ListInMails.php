@@ -172,6 +172,7 @@ class ListInMails extends ListRecords
 
                 // --- CREA RECORD ---
                 $inMail = InMail::create([
+                    'receiving_mail' => Sender::first()->address,
                     'uid' => $uid,
                     'message_id' => $message_id,
                     'sender_id' => $this->getSenderId($from),

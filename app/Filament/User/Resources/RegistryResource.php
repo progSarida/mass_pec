@@ -39,6 +39,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
@@ -531,9 +532,16 @@ class RegistryResource extends Resource
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('flow_type')
-                    ->label('Corrispondenza')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                // TextColumn::make('flow_type')
+                //     ->label('Corr.')
+                //     ->formatStateUsing(fn ($state) => $state?->getAcronym())
+                //     ->badge()
+                //     ->toggleable(isToggledHiddenByDefault: false),
+
+                IconColumn::make('flow_type')
+                    ->label('')
+                    ->tooltip(fn ($record) => $record->flow_type->getLabel())
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('registry_origin_type')
                     ->label('Origine')
@@ -606,6 +614,13 @@ class RegistryResource extends Resource
 
                 TextColumn::make('date')
                     ->label('Invio/Ricezione')
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query->orderBy(
+                            // Usiamo una logica SQL identica a quella del tuo PHP
+                            DB::raw('CASE WHEN flow_type = "' . FlowType::ISSUED->value . '" THEN send_date ELSE receive_date END'),
+                            $direction
+                        );
+                    })
                     ->state(function ($record) {
                         if($record->flow_type == FlowType::ISSUED) return $record->send_date;
                         else if($record->flow_type == FlowType::RECEIVED) return $record->receive_date;
@@ -615,7 +630,7 @@ class RegistryResource extends Resource
                 TextColumn::make('subject')
                     ->label('Oggetto')
                     ->searchable()
-                    ->limit(50)
+                    ->limit(28)
                     ->tooltip(fn ($record) => $record?->subject),
 
                 // TextColumn::make('old_esito_report')
@@ -1114,7 +1129,7 @@ class RegistryResource extends Resource
         $delivered = 0;
 
         foreach($registry->registryReceivers as $receiver){
-            Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
+            // Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
 
             if($receiver->message_id) {
                 $sent++;

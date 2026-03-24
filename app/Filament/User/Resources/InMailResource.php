@@ -182,14 +182,33 @@ class InMailResource extends Resource
                 //     ->limit(25)
                 //     ->tooltip(fn ($record) => $record->from),
 
-                TextColumn::make('sender.description')
+                // TextColumn::make('sender.description')
+                //     ->label('Mittente')
+                //     ->searchable(query: function (Builder $query, string $search): Builder {
+                //         return $query->where(function ($q) use ($search) {
+                //             $q->where('from', 'like', "%{$search}%")
+                //             ->orWhereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"));
+                //         });
+                //     })
+                //     ->limit(25)
+                //     ->tooltip(fn ($record) => $record->from),
+
+                TextColumn::make('sender_id')
                     ->label('Mittente')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
                             $q->where('from', 'like', "%{$search}%")
-                            ->orWhereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"));
+                                ->orWhereHas('sender', fn ($q) => $q->where('description', 'like', "%{$search}%"));
                         });
                     })
+                    // 1. Definisco cosa mostrare
+                    ->state(function ($record) {
+                        return $record->sender?->description ?? 'Mittente non registrato';
+                    })
+                    // 2. Attivio il badge solo se la relazione manca
+                    ->badge(fn ($record) => ! $record->sender)
+                    // 3. Colore rosso solo per il badge "non registrato"
+                    ->color(fn ($record) => ! $record->sender ? 'danger' : null)
                     ->limit(25)
                     ->tooltip(fn ($record) => $record->from),
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 class DownloadEmail extends Model
 {
      protected $fillable = [
+        'receiving_mail',
         'uid',
         'message_id',
         'sender_id',
