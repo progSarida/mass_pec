@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -37,7 +36,9 @@ class InMail extends Model
     protected static function booted()
     {
         static::creating(function ($mail) {
-            $mail->download_user_id = Auth::user()->id;
+            if (auth()->check()) {
+                $mail->download_user_id = auth()->id();
+            }
         });
 
         static::created(function ($mail) {
