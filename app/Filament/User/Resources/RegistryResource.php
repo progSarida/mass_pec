@@ -25,12 +25,10 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -571,11 +569,9 @@ class RegistryResource extends Resource
                         if ($record->sender_id && $record->sender) {
                             return $record->sender->description ?? '';
                         }
-
                         if ($record->account_id && $record->account) {
                             return $record->account->public_name ?? '';
                         }
-
                         return '';
                     })
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -603,13 +599,11 @@ class RegistryResource extends Resource
                     })
                     ->tooltip(function ($record) {
                         $receivers = $record?->registryReceivers;
-
                         if (! $receivers || $receivers->isEmpty()) {
                             // return 'Nessun destinatario';
                             return '';
                         }
-
-                        return $receivers->pluck('address')->implode(', ');
+                        return static::getRecipientsName($receivers->pluck('address')) ;
                     }),
 
                 TextColumn::make('date')
@@ -632,30 +626,6 @@ class RegistryResource extends Resource
                     ->searchable()
                     ->limit(28)
                     ->tooltip(fn ($record) => $record?->subject),
-
-                // TextColumn::make('old_esito_report')
-                //     ->label('Esito')
-                //     ->state(function ($record) {
-                //         // Qui eseguiamo il calcolo e restituiamo l'array
-                //         return static::checkReceipts($record);
-                //     })
-                //     ->formatStateUsing(function ($state) {
-                //         // Se per qualche motivo checkReceipts fallisce o non è un array, evitiamo il crash
-                //         if(!$state) return '';
-                //         $report = explode(', ', $state);
-                //         return $report[0] . " ( " . $report[1] . " )";
-                //     })
-                //     ->tooltip(function ($state) {
-                //         if (! is_array($state)) return null;
-
-                //         $sent = $state['sent'];
-                //         $delivered = $state['delivered'];
-
-                //         $tooltip = "Inviat" . ($sent == 1 ? "a 1 email" : "e {$sent} email");
-                //         $tooltip .= " e consegnat" . ($delivered == 1 ? "a 1" : "e {$delivered}");
-
-                //         return $tooltip;
-                //     }),
 
                 IconColumn::make('attachment_path')
                     ->label('Allegati')
@@ -1155,77 +1125,20 @@ class RegistryResource extends Resource
         return $report;
     }
 
-//     public static function saveRecipient(array $data, Recipient $recipient, Set $set): void
-//     {
-//         for($i = 1; $i <= 5; $i++){
-//             $address = $data["mail_{$i}"];
-//             if(!$address || $address == '') {
-//                 Log::info("Mail_{$i} è vuoto o nullo");
-//                 continue;
-//             }
-// Log::info("Mail {$i}: {$address}");
-//             $rec = static::getRecipient($address);
-//             if ($rec) {
-//                 Notification::make()
-//                     ->title("Indirizzo {$address} presente in archivio")
-//                     ->body("L'indirizzo {$address} è già associato a {$rec->description}")
-//                     ->danger()
-//                     ->persistent()
-//                     ->send();
-
-//                 return;
-//             }
-//         }
-//         $recipient->description = $data['description'] ?? null;
-//         $recipient->admin_type_id = $data['admin_type_id'] ?? null;
-//         $recipient->istat_type_id = $data['istat_type_id'] ?? null;
-//         $recipient->code_ipa = $data['code_ipa'] ?? null;
-//         $recipient->acronym = $data['acronym'] ?? null;
-//         $recipient->city_id = $data['city_id'] ?? null;
-//         $recipient->address = $data['address'] ?? null;
-//         $recipient->city_cap = $data['city_cap'] ?? null;
-//         $recipient->resp_title = $data['resp_title'] ?? null;
-//         $recipient->resp_surname = $data['resp_surname'] ?? null;
-//         $recipient->resp_name = $data['resp_name'] ?? null;
-//         $recipient->resp_tax_code = $data['resp_tax_code'] ?? null;
-//         $recipient->mail_1 = $data['mail_1'] ?? null;
-//         $recipient->mail_type_1 = $data['mail_type_1'] ?? null;
-//         $recipient->office_type_id_1 = $data['office_type_id_1'] ?? null;
-//         $recipient->mail_2 = $data['mail_2'] ?? null;
-//         $recipient->mail_type_2 = $data['mail_type_2'] ?? null;
-//         $recipient->office_type_id_2 = $data['office_type_id_2'] ?? null;
-//         $recipient->mail_3 = $data['mail_3'] ?? null;
-//         $recipient->mail_type_3 = $data['mail_type_3'] ?? null;
-//         $recipient->office_type_id_3 = $data['office_type_id_3'] ?? null;
-//         $recipient->mail_4 = $data['mail_4'] ?? null;
-//         $recipient->mail_type_4 = $data['mail_type_4'] ?? null;
-//         $recipient->office_type_id_4 = $data['office_type_id_4'] ?? null;
-//         $recipient->mail_5 = $data['mail_5'] ?? null;
-//         $recipient->mail_type_5 = $data['mail_type_5'] ?? null;
-//         $recipient->office_type_id_5 = $data['office_type_id_5'] ?? null;
-//         $recipient->site = $data['site'] ?? null;
-//         $recipient->url_facebook = $data['url_facebook'] ?? null;
-//         $recipient->url_twitter = $data['url_twitter'] ?? null;
-//         $recipient->url_googleplus = $data['url_googleplus'] ?? null;
-//         $recipient->url_youtube = $data['url_youtube'] ?? null;
-//         $recipient->save();
-
-//         Notification::make()
-//             ->title('Interlocutore salvato con successo')
-//             ->success()
-//             ->send();
-//     }
-
-    // private static function getRecipientOld($from): Recipient|null
-    // {
-    //     $recipient = Recipient::where('mail_1', $from)
-    //                     ->orWhere('mail_2', $from)
-    //                     ->orWhere('mail_3', $from)
-    //                     ->orWhere('mail_4', $from)
-    //                     ->orWhere('mail_5', $from)
-    //                     ->first();
-    //     return $recipient;
-    // }
+    private static function getRecipientsName($addresses)
+    {
+        $output = "";
+        $count = count($addresses);
+        foreach($addresses as $key =>$address){
+            $recipient = Recipient::findByEmail($address);
+            if($recipient) {
+                $output .= $recipient->description;
+                if($key < $count - 1)
+                    $output .= ", ";
+            }
+        }
+        return $output;
+    }
 
     public static function getEloquentQuery(): Builder
     {
