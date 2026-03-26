@@ -108,7 +108,7 @@ class InMailResource extends Resource
                 DatePicker::make('created_at')
                     ->label('Scaricato il')
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y')
                     ->columnSpan(['sm' => 'full', 'md' => 4]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 

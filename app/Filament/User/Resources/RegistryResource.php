@@ -353,7 +353,7 @@ class RegistryResource extends Resource
                     ->disabled(fn ($record) => $record?->isIngoingEmail())
                     ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y')
                     // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
@@ -371,7 +371,7 @@ class RegistryResource extends Resource
                     ->visible(fn ($record) => $record?->isOutgoingEmail()
                                             || $record?->registry_origin_type == RegistryOriginType::SHIPMENT)
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->date('d/m/Y')
+                    ->displayFormat('d/m/Y')
                     // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
