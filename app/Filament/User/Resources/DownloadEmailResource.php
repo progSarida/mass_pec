@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\ManageRegistryType;
+use App\Models\Account;
 use App\Models\Recipient;
 use Filament\Forms;
 use Filament\Forms\Get;
@@ -55,6 +56,24 @@ class DownloadEmailResource extends Resource
                 Section::make('Informazioni Principali')
                     ->columns(12)
                     ->schema([
+                        Placeholder::make('')
+                            ->content(fn ($record): string => Account::where('address', $record->receiving_mail)->first()->public_name)
+                            ->extraAttributes(function ($record) {
+                                $baseClasses = 'text-lg font-semibold border pb-1 pt-2';
+
+                                $customClasses = [
+                                    'rounded-lg',           // Arrotondamento angoli
+                                    'text-center',          // Testo centrato
+                                    "bg-gray-100",          // Colore di sfondo dinamico
+                                    'text-gray-900',        // Assicura che il testo sia leggibile su sfondi chiari
+                                ];
+
+                                return [
+                                    'class' => $baseClasses . ' ' . implode(' ', $customClasses),
+                                ];
+                            })
+                            ->columnSpan(['sm' => 'full', 'md' => 'full']),
+
                         TextInput::make('from')
                             ->label('Email mittente')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
@@ -192,6 +211,13 @@ class DownloadEmailResource extends Resource
                 //     ->limit(25)
                 //     ->tooltip(fn ($record) => $record->from),
 
+                TextColumn::make('receiving_mail')
+                    ->label('Account')
+                    ->state(function ($record) {
+                        return Account::where('address', $record->receiving_mail)->first()->public_name;
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('sender_id') // Puntiamo a una colonna che esiste sempre sul modello DownloadEmail
                     ->label('Mittente')
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -313,6 +339,10 @@ class DownloadEmailResource extends Resource
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
                     ->columnSpan(2),
+                SelectFilter::make('receiving_mail')
+                    ->label('Account')
+                    ->preload()
+                    ->options(fn () => Account::pluck('public_name', 'address')),
                 SelectFilter::make('missing_sender')
                     ->label('Mittenti mancanti')
                     ->placeholder('Includi')

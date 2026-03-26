@@ -7,6 +7,7 @@ use App\Filament\User\Resources\DownloadEmailResource;
 use App\Models\DownloadEmail;
 use App\Models\Registry;
 use App\Models\ScopeType;
+use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
@@ -179,10 +180,13 @@ class EditDownloadEmail extends EditRecord
             $scopeTypeId = $data['scope_type_id'];
             $manageRegistryType = $data['manage_registry_type'];
 
+            // $receiveYear = Carbon::parse($record->receive_date)->year;
+
             $oldPath = $record->attachment_path;
             $protocolNumber = static::newProtocol();
+            // $protocolNumber = $receiveYear > 2025 ? static::newProtocol() : static::newArchiveProtocol($receiveYear);
             $newPath = 'registry/' . $protocolNumber;
-
+// dd('STOP');
             $registry = Registry::create([
                 'protocol_number' => $protocolNumber,
                 'flow_type' => 'received',
@@ -321,6 +325,11 @@ class EditDownloadEmail extends EditRecord
             }
         }
         return 'P-' . today()->year . '-00001';
+    }
+
+    private static function newArchiveProtocol($receiveYear): string
+    {
+        return '';
     }
 
     private static function newIndex($flow_type): int

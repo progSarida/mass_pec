@@ -143,6 +143,11 @@ class DownloadEmailsJob implements ShouldQueue
 
                     $from = $this->extractFrom($message);
 
+                    $date = $message->getDate()?->format('Y-m-d H:i:s');
+                    $message_id = $message->getId();
+
+// Mettere controllo per ignorare mail con data ricezione precedente 01/01/2026
+
                     // Skip ricevute PEC
                     if ($this->isOfficialPecReceipt($rawHeaders)) {
                         // controllo cancellazione solo se tutte le mail inviate del protocollo hanno un esito
@@ -151,9 +156,6 @@ class DownloadEmailsJob implements ShouldQueue
                         Log::info("UID: {$uid} - È ricevuta EPC");
                         continue;
                     }
-
-                    $date = $message->getDate()?->format('Y-m-d H:i:s');
-                    $message_id = $message->getId();
 
                     // Skip già scaricata
                     $skip = $this->isAlreadyDownloaded($account, $uid, $message_id, $date);
