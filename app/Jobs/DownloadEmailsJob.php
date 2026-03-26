@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\PecStatus;
 use App\Models\Account;
 use App\Models\RegistryReceiver;
+use DateTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -132,21 +133,25 @@ class DownloadEmailsJob implements ShouldQueue
         $server = new Server($host, $port, $flags);
         $connection = $server->authenticate($username, $password);
 
+        $limitDate = new DateTime('2026-01-01 00:00:00');
+
         try {
             $mailbox = $connection->getMailbox('INBOX');
             $messages = $mailbox->getMessages();
 
             foreach ($messages as $message) {
                 try {
+                    $messageDate = $message->getDate(); // Ottieni l'oggetto DateTime
+
+                    // Se la data del messaggio è inferiore al limite, saltalo
+                    if (!$messageDate || $messageDate < $limitDate) {
+                        continue;
+                    }
+
                     $uid = $message->getNumber();
                     $rawHeaders = $message->getRawHeaders();
 
                     $from = $this->extractFrom($message);
-
-                    $date = $message->getDate()?->format('Y-m-d H:i:s');
-                    $message_id = $message->getId();
-
-// Mettere controllo per ignorare mail con data ricezione precedente 01/01/2026
 
                     // Skip ricevute PEC
                     if ($this->isOfficialPecReceipt($rawHeaders)) {
@@ -156,6 +161,9 @@ class DownloadEmailsJob implements ShouldQueue
                         Log::info("UID: {$uid} - È ricevuta EPC");
                         continue;
                     }
+
+                    $date = $messageDate?->format('Y-m-d H:i:s');
+                    $message_id = $message->getId();
 
                     // Skip già scaricata
                     $skip = $this->isAlreadyDownloaded($account, $uid, $message_id, $date);
