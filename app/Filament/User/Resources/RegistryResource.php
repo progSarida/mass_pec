@@ -92,15 +92,15 @@ class RegistryResource extends Resource
                 Placeholder::make('manage_registry_type')
                         ->label('')
                         // ->visible(fn($record) => $record && filled($record->pi_validation_id))
-                        ->visible(fn($record) => $record->manage_registry_type->showType() )
+                        ->visible(fn($record) => $record?->manage_registry_type->showType() )
                         ->content(function ($record) {
-                            if (!$record->manage_registry_type) {
+                            if (!$record?->manage_registry_type) {
                                 return 'Nessuna gestione selezionata';
                             }
 
-                            $dateString = $record->manage_registry_date ? " il {$record->manage_registry_date?->format('d/m/Y')}" : '';
+                            $dateString = $record?->manage_registry_date ? " il {$record?->manage_registry_date?->format('d/m/Y')}" : '';
 
-                            return "{$record->manage_registry_type->getLabel()}{$dateString}";
+                            return "{$record?->manage_registry_type->getLabel()}{$dateString}";
                         })
                         ->extraAttributes(function ($record) {
                             $statusEnum = $record?->manage_registry_type;
