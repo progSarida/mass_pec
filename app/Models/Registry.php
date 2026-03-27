@@ -31,7 +31,7 @@ class Registry extends Model
         'body',
         'receive_date',
         'account_id',
-        'recipients',
+        // 'recipients',
         'send_date',
         'send_user_id',
         'shipment_id',
@@ -47,7 +47,7 @@ class Registry extends Model
     protected $casts = [
         'flow_type' => FlowType::class,
         'registry_origin_type' => RegistryOriginType::class,
-        'recipients' => 'array',
+        // 'recipients' => 'array',
         'send_date' => 'datetime',
         'other_senders' => 'array',
         'manage_registry_type' => ManageRegistryType::class,

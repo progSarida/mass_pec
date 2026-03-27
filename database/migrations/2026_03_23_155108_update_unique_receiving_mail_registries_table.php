@@ -52,8 +52,8 @@ return new class extends Migration
             $table->dropColumn('receiving_mail');
         });
 
-        Schema::table('registries', function (Blueprint $table) {
-            $table->download_emails('receiving_mail');
+        Schema::table('download_emails', function (Blueprint $table) {
+            $table->dropColumn('receiving_mail');
         });
     }
 };

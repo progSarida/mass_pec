@@ -237,6 +237,11 @@ class DownloadEmailResource extends Resource
                     ->limit(25)
                     ->tooltip(fn ($record) => $record->from),
 
+                TextColumn::make('from')
+                    ->label('indirizzo mittente')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('subject')
                     ->label('Oggetto')
                     ->searchable()

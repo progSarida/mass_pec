@@ -19,5 +19,5 @@ Route::get('/login', fn() => redirect()->route('sso.login'));
 Route::get('/download-zip/{type}/{id}', [AttachmentController::class, 'downloadZip'])->name('attachments.zip')->middleware(['auth']);
 // scarico zip delle ricevute
 Route::get('/download-zip-receipts/{id}', [AttachmentController::class, 'downloadZipReceipts'])->name('receipts.zip')->middleware(['auth']);
-// scarico zip delle ricevute
+// scarico zip dei documenti integrativi
 Route::get('/download-zip-related/{id}', [AttachmentController::class, 'downloadZipRelated'])->name('related.zip')->middleware(['auth']);

@@ -47,4 +47,13 @@ enum FlowType: string implements HasLabel, HasIcon, HasColor
             self::INTERNAL => 'zynch',
         };
     }
+
+    public function showArchive(): bool
+    {
+        return match($this) {
+            self::RECEIVED => true,
+            self::ISSUED => true,
+            self::INTERNAL => false,
+        };
+    }
 }
