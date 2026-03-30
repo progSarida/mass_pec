@@ -49,6 +49,7 @@ class Registry extends Model
         'registry_origin_type' => RegistryOriginType::class,
         // 'recipients' => 'array',
         'send_date' => 'datetime',
+        'receive_date' => 'datetime',
         'other_senders' => 'array',
         'manage_registry_type' => ManageRegistryType::class,
         'manage_registry_date' => 'date',

@@ -38,10 +38,10 @@ class ArchivedEmailResource extends Resource
     protected static ?string $model = ArchivedEmail::class;
 
     public static ?string $pluralModelLabel = 'Archivio email';
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-m-rectangle-stack';
     protected static ?string $navigationLabel = 'Archivio email';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {
