@@ -18,6 +18,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => 'Nessuna',
             self::TODO => 'Da evadere',
             self::DONE => 'Evasa',
+            default => '',
         };
     }
 
@@ -27,6 +28,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => '',
             self::TODO => 'heroicon-s-cog-6-tooth',
             self::DONE => 'heroicon-s-check-circle',
+            default => '',
         };
     }
 
@@ -36,6 +38,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => 'gray',
             self::TODO => 'warning',
             self::DONE => 'success',
+            default => '',
         };
     }
 
@@ -45,6 +48,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => false,
             self::TODO => true,
             self::DONE => true,
+            default => false,
         };
     }
 
@@ -54,6 +58,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => true,
             self::TODO => true,
             self::DONE => false,
+            default => false,
         };
     }
 
@@ -63,6 +68,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => true,
             self::TODO => true,
             self::DONE => false,
+            default => false,
         };
     }
 
@@ -72,6 +78,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
             self::NONE => true,
             self::TODO => true,
             self::DONE => true,
+            default => false,
         };
     }
 }

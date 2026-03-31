@@ -537,9 +537,9 @@ class EditRegistry extends EditRecord
                     ->icon('heroicon-o-cog-8-tooth')
                     ->color('info')
                     ->requiresConfirmation()
-                    ->visible(fn($record) => $record->manage_registry_type->showManage())
+                    ->visible(fn($record) => $record?->manage_registry_type?->showManage())
                     ->fillForm(fn (Registry $record): array => [
-                        'manage_registry_type' => $record->manage_registry_type->value,
+                        'manage_registry_type' => $record?->manage_registry_type?->value,
                         'manage_registry_date' => now(),
                     ])
                     ->form([

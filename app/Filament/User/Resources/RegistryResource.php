@@ -92,7 +92,7 @@ class RegistryResource extends Resource
                 Placeholder::make('manage_registry_type')
                         ->label('')
                         // ->visible(fn($record) => $record && filled($record->pi_validation_id))
-                        ->visible(fn($record) => $record?->manage_registry_type->showType() )
+                        ->visible(fn($record) => $record?->manage_registry_type?->showType() )
                         ->content(function ($record) {
                             if (!$record?->manage_registry_type) {
                                 return 'Nessuna gestione selezionata';
@@ -404,8 +404,8 @@ class RegistryResource extends Resource
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 3])
                     ->displayFormat('d/m/Y H:i:s')
+                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null)
                     ->visible(fn($record) => $record),
-                    // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 Forms\Components\Select::make('register_user_id')
                     ->label('Registrato da')
@@ -709,7 +709,7 @@ class RegistryResource extends Resource
 
                 IconColumn::make('manage_registry_type')
                     ->label('Gestione')
-                    ->tooltip(fn (ManageRegistryType $state): ?string => $state->getLabel()),
+                    ->tooltip(fn (?ManageRegistryType $state): ?string => $state?->getLabel()),
 
                 TextColumn::make('body')
                     ->label('Messaggio')
