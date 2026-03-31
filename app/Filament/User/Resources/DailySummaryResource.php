@@ -7,14 +7,19 @@ use App\Filament\User\Resources\DailySummaryResource\Pages;
 use App\Filament\User\Resources\DailySummaryResource\RelationManagers;
 use App\Models\DailySummary;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DailySummaryResource extends Resource
 {
@@ -52,24 +57,17 @@ class DailySummaryResource extends Resource
                     ->date('d/m/Y')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('filename')
-                    ->label('Nome file')
-                    ->searchable(),
+                    ->label('Nome file'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Data e ora creazione')
                     ->dateTime('d/m/Y H:i:s')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('from_protocol')
-                    ->label('Da protocollo')
-                    ->searchable(),
+                    ->label('Da protocollo'),
                 Tables\Columns\TextColumn::make('to_protocol')
-                    ->label('A protocollo')
-                    ->searchable(),
-                // Tables\Columns\TextColumn::make('preservation_state')
-                //     ->label('Stato preservazione')
-                //     ->searchable(),
+                    ->label('A protocollo'),
                 Tables\Columns\TextColumn::make('preservation_state')
                     ->label('Stato preservazione')
-                    ->searchable()
                     ->placeholder('......')
                     ->alignCenter()
                     // ->formatStateUsing(fn ($state) => $state ?? '......')
@@ -106,8 +104,93 @@ class DailySummaryResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->filtersFormWidth('md')
+            ->filtersFormColumns(2)
             ->filters([
-                //
+                // Filtro inytervallo data registrazione
+                Filter::make('registration_date_range')
+                    ->columns(2)
+                    ->form([
+                        DatePicker::make('registration_from_date')
+                            ->label('Data registrazione dal')
+                            ->columnSpan(1),
+                        DatePicker::make('registration_to_date')
+                            ->label('Data registrazione al')
+                            ->columnSpan(1),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        if (! empty($data['registration_from_date'])) {
+                            $query->whereDate('created_at', '>=', $data['registration_from_date']);
+                        }
+                        if (! empty($data['registration_to_date'])) {
+                            $query->whereDate('created_at', '<=', $data['registration_to_date']);
+                        }
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if ($data['registration_from_date'] && $data['registration_to_date']) {
+                            return "Data registrazione dal {$data['registration_from_date']} al {$data['registration_to_date']}";
+                        }
+                        if ($data['registration_from_date']) {
+                            return "Data registrazione dal {$data['registration_from_date']}";
+                        }
+                        if ($data['registration_to_date']) {
+                            return "Data registrazione al {$data['registration_to_date']}";
+                        }
+                        return null;
+                    })
+                    ->columnSpan(2),
+                // Filtro per ricerca tramite numero di protocollo
+                Filter::make('protocol_in_range')
+                    ->label('Cerca per numero protocollo')
+                    ->form([
+                        TextInput::make('protocol')
+                            ->label('Numero di protocollo')
+                            ->maxLength(30)
+                            ->autocomplete(false),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (empty($data['protocol'])) {
+                            return $query;
+                        }
+
+                        $input = trim($data['protocol']);
+
+                        // Normalizziamo l'input per estrarre solo le 5 cifre finali
+                        $searchNumber = self::extractProtocolNumber($input);
+
+                        if ($searchNumber === null) {
+                            return $query; // input non valido
+                        }
+
+                        // Cerchiamo i record dove il numero cercato è compreso tra from e to
+                        return $query->whereRaw('
+                            SUBSTRING_INDEX(from_protocol, "-", -1) <= ?
+                            AND SUBSTRING_INDEX(to_protocol,   "-", -1) >= ?
+                        ', [$searchNumber, $searchNumber]);
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if (!empty($data['protocol'])) {
+                            return "Protocollo: " . $data['protocol'];
+                        }
+                        return null;
+                    }),
+                SelectFilter::make('preservation_state')
+                    ->label('Stato preservazione')
+                    ->options([
+                        '' => 'Non specificato',
+                        ...collect(PreservationState::cases())
+                            ->mapWithKeys(fn($case) => [$case->value => $case->getLabel()])
+                            ->toArray(),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        $state = $data['value'] ?? null;
+
+                        return match (true) {
+                            $state === ''   => $query->whereNull('preservation_state'),
+                            $state !== null => $query->where('preservation_state', $state),
+                            default         => $query,
+                        };
+                    }),
             ])
             ->actions([
                 // Tables\Actions\ViewAction::make(),
@@ -160,5 +243,23 @@ class DailySummaryResource extends Resource
             // 'view' => Pages\ViewDailySummary::route('/{record}'),
             // 'edit' => Pages\EditDailySummary::route('/{record}/edit'),
         ];
+    }
+
+    public static function extractProtocolNumber(string $input): ?string
+    {
+        $input = trim($input);
+
+        // Rimuove eventuale prefisso "P-" o "P"
+        $input = preg_replace('/^P-?/i', '', $input);
+
+        // Estrae solo le cifre
+        $numbers = preg_replace('/\D/', '', $input);
+
+        if (empty($numbers)) {
+            return null;
+        }
+
+        // Prende solo le ultime 5 cifre (o meno) e le completa con zeri a sinistra fino a 5 cifre
+        return str_pad(substr($numbers, -5), 5, '0', STR_PAD_LEFT);
     }
 }
