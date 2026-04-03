@@ -7,6 +7,7 @@ use App\Enums\MailType;
 use App\Models\Account;
 use App\Models\Email;
 use App\Models\Recipient;
+use Filament\Notifications\Notification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -46,6 +47,15 @@ class EmailReceiveJob implements ShouldQueue
         $accounts = $this->accountId
             ? Account::where('id', $this->accountId)->where('download', true)->get()                            // account specifico scaricabile
             : $user->accounts->where('mail_type', MailType::MAIL)->where('download', true);                     // account scaricabili associati all'utente
+
+        if($accounts->isEmpty()) {
+             Notification::make()
+                ->title('Attenzione')
+                ->body('Nessun account scaricabile associato all\'utente')
+                ->warning()
+                ->persistent()
+                ->sendToDatabase($user);
+        }
 
         $totalDownloaded = 0;
         $accountsProcessed = 0;

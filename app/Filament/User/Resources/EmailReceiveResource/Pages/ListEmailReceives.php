@@ -4,8 +4,6 @@ namespace App\Filament\User\Resources\EmailReceiveResource\Pages;
 
 use App\Filament\User\Resources\EmailReceiveResource;
 use App\Jobs\EmailReceiveJob;
-use App\Models\Account;
-use Ddeboer\Imap\Server;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
@@ -19,9 +17,9 @@ class ListEmailReceives extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            // Actions\CreateAction::make(),
 
-            Actions\Action::make('download_with_receipts')
+            Actions\Action::make('download')
                 ->label('Scarico email')
                 ->icon('fluentui-mail-inbox-arrow-down-20-o')
                 ->color('warning')
@@ -31,8 +29,6 @@ class ListEmailReceives extends ListRecords
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
-                        // static::connectionTestAccount(Account::find(6));dd('STOP');
-
                         EmailReceiveJob::dispatch(Auth::id());
 
                         Notification::make()
@@ -50,55 +46,6 @@ class ListEmailReceives extends ListRecords
                     }
                 }),
         ];
-    }
-
-    private static function connectionTestAccount(Account $account)
-    {
-        $host = $account->in_mail_server;
-        $port = (int)$account->in_mail_port;
-        $username = $account->username;
-        $password = decrypt($account->password);
-// dd($password);
-        $encryption = strtolower($account->connection_safety_type->value);
-
-        $flags = '/' . $account->in_mail_protocol_type->value;
-        if ($encryption === 'ssl') $flags .= '/ssl';
-        elseif ($encryption === 'tls') $flags .= '/tls';
-        $flags .= '/novalidate-cert';
-// dd($flags);
-
-        $server = new Server($host, $port, $flags);
-        $connection = $server->authenticate($username, $password);
-
-dd($connection);
-    }
-
-    private static function connectionTest(Account $account)
-    {
-        $server = new Server(
-            'imap.sarida.it',
-            993,
-            '/imap/ssl/novalidate-cert'
-        );
-
-        try {
-            $connection = $server->authenticate(
-                'programmazione@sarida.it',
-                'S@rid@123'
-            );
-
-dd($connection);
-
-            $mailbox = $connection->getMailbox('INBOX');
-            $messages = $mailbox->getMessages();
-
-            foreach ($messages as $message) {
-                echo $message->getSubject() . "\n";
-            }
-
-        } catch (\Exception $e) {
-            dd($e->getMessage());
-        }
     }
 
     public function getMaxContentWidth(): MaxWidth|string|null
