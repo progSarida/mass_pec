@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\FlowType;
 use App\Enums\MailboxType;
+use App\Enums\MailType;
 use App\Models\Account;
 use App\Models\ArchivedReceiver;
 use DateTime;
@@ -40,7 +41,7 @@ class DownloadArchivedEmailsJob implements ShouldQueue
         // Determina gli account da processare
         $accounts = $this->accountId
             ? Account::where('id', $this->accountId)->where('download', true)->get()                        // account specifico scaricabile
-            : $user->accounts->where('download', true);                                                     // account scaricabili associati all'utente
+            : $user->accounts->where('mail_type', MailType::PEC)->where('download', true);                  // account scaricabili associati all'utente
 
         $totalDownloaded = 0;
         $accountsProcessed = 0;

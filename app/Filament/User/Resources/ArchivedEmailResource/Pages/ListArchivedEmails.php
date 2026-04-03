@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources\ArchivedEmailResource\Pages;
 
 use App\Enums\MailboxType;
+use App\Enums\MailType;
 use App\Filament\User\Resources\ArchivedEmailResource;
 use App\Jobs\DownloadArchivedEmailsJob;
 use App\Models\Account;
@@ -41,7 +42,7 @@ class ListArchivedEmails extends ListRecords
                 ->form([
                     Select::make('account_id')
                         ->label('Account')
-                        ->options(Auth::user()->accounts->where('download', true)->pluck('public_name', 'id'))
+                        ->options(Auth::user()->accounts->where('mail_type', MailType::PEC)->where('download', true)->pluck('public_name', 'id'))
                 ])
                 ->action(function ($data) {
                     // $this->connectionTest($data['account_id'], MailboxType::RECEIVED->getParameter()); dd('STOP');                                           // test connessione
@@ -80,7 +81,7 @@ class ListArchivedEmails extends ListRecords
                 ->form([
                     Select::make('account_id')
                         ->label('Account')
-                        ->options(Auth::user()->accounts->where('download', true)->pluck('public_name', 'id'))
+                        ->options(Auth::user()->accounts->where('mail_type', MailType::PEC)->where('download', true)->pluck('public_name', 'id'))
                 ])
                 ->action(function ($data) {
                     // $this->connectionTest($data['account_id'], MailboxType::ISSUED->getParameter()); dd('STOP');                                             // test connessione

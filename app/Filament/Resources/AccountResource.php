@@ -42,7 +42,7 @@ class AccountResource extends Resource
                     ->required(),
                 TextInput::make('address')->label('Indirizzo@email')->columnSpan(6)
                     ->required()
-                    ->live()
+                    ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('username', $state);
                         $set('out_username', $state);

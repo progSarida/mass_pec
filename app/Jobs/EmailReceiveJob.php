@@ -2,11 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Enums\FlowType;
 use App\Enums\MailType;
-use App\Enums\PecStatus;
 use App\Models\Account;
-use App\Models\RegistryReceiver;
-use DateTime;
+use App\Models\Email;
+use App\Models\Recipient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,18 +15,25 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Ddeboer\Imap\Server;
+use Illuminate\Support\Facades\Storage;
 
-class DownloadEmailsJob implements ShouldQueue
+class EmailReceiveJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 300;
 
+    /**
+     * Create a new job instance.
+     */
     public function __construct(
         public int $userId,
         public ?int $accountId = null,
     ) {}
 
+    /**
+     * Execute the job.
+     */
     public function handle(): void
     {
         $user = \App\Models\User::find($this->userId);
@@ -37,8 +44,8 @@ class DownloadEmailsJob implements ShouldQueue
 
         // Determina gli account da processare
         $accounts = $this->accountId
-            ? Account::where('id', $this->accountId)->where('download', true)->get()                        // account specifico scaricabile
-            : $user->accounts->where('mail_type', MailType::PEC)->where('download', true);                  // account scaricabili associati all'utente
+            ? Account::where('id', $this->accountId)->where('download', true)->get()                            // account specifico scaricabile
+            : $user->accounts->where('mail_type', MailType::MAIL)->where('download', true);                     // account scaricabili associati all'utente
 
         $totalDownloaded = 0;
         $accountsProcessed = 0;
@@ -134,34 +141,19 @@ class DownloadEmailsJob implements ShouldQueue
         $server = new Server($host, $port, $flags);
         $connection = $server->authenticate($username, $password);
 
-        $limitDate = new DateTime('2026-01-01 00:00:00');
-
         try {
             $mailbox = $connection->getMailbox('INBOX');
             $messages = $mailbox->getMessages();
 
             foreach ($messages as $message) {
+
                 try {
                     $messageDate = $message->getDate(); // Ottieni l'oggetto DateTime
-
-                    // Se la data del messaggio è inferiore al limite, saltalo
-                    if (!$messageDate || $messageDate < $limitDate) {
-                        continue;
-                    }
 
                     $uid = $message->getNumber();
                     $rawHeaders = $message->getRawHeaders();
 
                     $from = $this->extractFrom($message);
-
-                    // Skip ricevute PEC
-                    if ($this->isOfficialPecReceipt($rawHeaders)) {
-                        // controllo cancellazione solo se tutte le mail inviate del protocollo hanno un esito
-                        if($this->isDeletable($message->getSubject() ?? '(senza oggetto)'))
-                            $this->handleDeletion($message, $account, $message->getDate()?->format('Y-m-d H:i:s'), $from);
-                        Log::info("UID: {$uid} - È ricevuta EPC");
-                        continue;
-                    }
 
                     $date = $messageDate?->format('Y-m-d H:i:s');
                     $message_id = $message->getId();
@@ -215,51 +207,18 @@ class DownloadEmailsJob implements ShouldQueue
         return $downloaded;
     }
 
-    private function isOfficialPecReceipt($rawHeaders): bool
-    {
-        if (preg_match('/^X-Ricevuta:\s*(accettazione|avvenuta-consegna|non-accettazione|anomalia|errore-consegna)/mi', $rawHeaders)) {
-            return true;
-        }
-
-        if (preg_match('/^X-TipoRicevuta:\s*(accettazione|consegna|mancata-accettazione|mancata-consegna|anomalia|errore-consegna)/mi', $rawHeaders)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private function isDeletable($subject): bool
-    {
-        // Cerca specificamente il formato P-anno-numero (es: P-2026-00162)
-        if (preg_match('/\[(P-\d{4}-\d+)\]/', $subject, $matches)) {
-            $protocol = $matches[1];
-            $pending = RegistryReceiver::where('protocol_number', $protocol)
-                ->whereIn('pec_status', [PecStatus::WAITING, PecStatus::ACCEPTED])
-                ->exists();
-
-            return !$pending;
-        }
-        return false;
-    }
-
     private function isAlreadyDownloaded($account, $uid, $message_id, $date): bool
     {
         Log::info("Controllo {$message_id} su {$account->address}");
         if ($message_id) {
-            $exists = \App\Models\DownloadEmail::where('receiving_mail', $account->address)
-                                         ->where('message_id', $message_id)->exists() ||
-                      \App\Models\Registry::where('receiving_mail', $account->address)
-                                         ->where('message_id', $message_id)->exists();
+            $exists = Email::where('receiving_mail', $account->address)
+                            ->where('message_id', $message_id)->exists();
             if ($exists) return true;
         }
 
         if ($uid && $date) {
-            $exists = \App\Models\DownloadEmail::where('uid', $uid)
-                                ->where('receive_date', $date)
-                                ->exists() ||
-                      \App\Models\Registry::where('uid', $uid)
-                                ->where('receive_date', $date)
-                                ->exists();
+            $exists = Email::where('uid', $uid)
+                        ->where('receive_date', $date)->exists();
             if ($exists) return true;
         }
         Log::info("{$message_id} su {$account->address} da scaricare");
@@ -268,11 +227,8 @@ class DownloadEmailsJob implements ShouldQueue
 
     private function extractFrom($message): string
     {
-        $from = $message->getFrom()?->getName() ?? 'Sconosciuto';
-        if (str_contains($from, 'Per conto di:')) {
-            preg_match('/Per conto di:?\s*([^\s<"\']+)/i', $from, $m);
-            $from = $m[1] ?? $from;
-        }
+        Log::info($message->getFrom()?->getAddress());
+        $from = $message->getFrom()?->getAddress() ?? 'Sconosciuto';
         return $from;
     }
 
@@ -284,7 +240,9 @@ class DownloadEmailsJob implements ShouldQueue
 
         $body = $message->getCompleteBodyText();
 
-        $inMail = \App\Models\DownloadEmail::create([
+        $inMail = Email::create([
+            'flow_type' => FlowType::RECEIVED,
+            'flow_index' => Email::getNextIndex(FlowType::RECEIVED),
             'receiving_mail' => $account->address,
             'uid' => $uid,
             'message_id' => $message_id,
@@ -297,14 +255,14 @@ class DownloadEmailsJob implements ShouldQueue
         ]);
 
         // Salva allegati
-        $folderPath = "download_email/{$inMail->id}";
-        \Illuminate\Support\Facades\Storage::makeDirectory($folderPath);
+        $folderPath = "email_receive/{$inMail->id}";
+        Storage::makeDirectory($folderPath);
 
         foreach ($message->getAttachments() as $attachment) {
             $originalName = $attachment->getFilename();
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
             $content = $attachment->getDecodedContent();
-            \Illuminate\Support\Facades\Storage::put("{$folderPath}/{$safeName}", $content);
+            Storage::put("{$folderPath}/{$safeName}", $content);
         }
 
         $inMail->update(['attachment_path' => $folderPath]);
@@ -334,7 +292,7 @@ class DownloadEmailsJob implements ShouldQueue
 
     private function getSenderId($from): ?int
     {
-        return \App\Models\Recipient::findByEmail($from)?->id;
+        return Recipient::findByEmail($from)?->id;
     }
 
     private function sanitizeUtf8($string)

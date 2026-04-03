@@ -2,6 +2,7 @@
 
 namespace App\Filament\User\Resources;
 
+use App\Enums\MailType;
 use App\Enums\ManageRegistryType;
 use App\Models\Account;
 use App\Models\Recipient;
@@ -42,9 +43,9 @@ class DownloadEmailResource extends Resource
 {
     protected static ?string $model = DownloadEmail::class;
 
-    public static ?string $pluralModelLabel = 'Gestione posta in arrivo';
-    protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20';
-    protected static ?string $navigationLabel = 'Gestione posta in arrivo';
+    public static ?string $pluralModelLabel = 'Gestione PEC in arrivo';
+    protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20';
+    protected static ?string $navigationLabel = 'Gestione PEC in arrivo';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 2;
 
@@ -57,7 +58,7 @@ class DownloadEmailResource extends Resource
                     ->columns(12)
                     ->schema([
                         Placeholder::make('')
-                            ->content(fn ($record): string => Account::where('address', $record->receiving_mail)->first()->public_name)
+                            ->content(fn ($record): string => Account::where('mail_type', MailType::PEC)->where('address', $record->receiving_mail)->first()->public_name)
                             ->extraAttributes(function ($record) {
                                 $baseClasses = 'text-lg font-semibold border pb-1 pt-2';
 
@@ -214,7 +215,7 @@ class DownloadEmailResource extends Resource
                 TextColumn::make('receiving_mail')
                     ->label('Account')
                     ->state(function ($record) {
-                        return Account::where('address', $record->receiving_mail)->first()->public_name;
+                        return Account::where('mail_type', MailType::PEC)->where('address', $record->receiving_mail)->first()->public_name;
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -347,7 +348,7 @@ class DownloadEmailResource extends Resource
                 SelectFilter::make('receiving_mail')
                     ->label('Account')
                     ->preload()
-                    ->options(fn () => Account::pluck('public_name', 'address')),
+                    ->options(fn () => Account::where('mail_type', MailType::PEC)->pluck('public_name', 'address')),
                 SelectFilter::make('missing_sender')
                     ->label('Mittenti mancanti')
                     ->placeholder('Includi')

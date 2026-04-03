@@ -11,23 +11,19 @@ use App\Models\OfficeType;
 use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
-use App\Models\ScopeType;
 use App\Models\SendEmail;
 use App\Models\Signature;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,9 +34,9 @@ class SendEmailResource extends Resource
 {
     protected static ?string $model = SendEmail::class;
 
-    public static ?string $pluralModelLabel = 'Gestione posta in uscita';
-    protected static ?string $navigationIcon = 'fluentui-mail-arrow-forward-20';
-    protected static ?string $navigationLabel = 'Gestione posta in uscita';
+    public static ?string $pluralModelLabel = 'Gestione PEC in uscita';
+    protected static ?string $navigationIcon = 'fluentui-mail-arrow-up-20';
+    protected static ?string $navigationLabel = 'Gestione PEC in uscita';
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 3;
 
@@ -57,6 +53,7 @@ class SendEmailResource extends Resource
                         name: 'account',
                         titleAttribute: 'public_name',
                         modifyQueryUsing: fn ($query) => $query
+                            ->where('mail_type', MailType::PEC)
                             ->where('send', true)
                             ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
                     )

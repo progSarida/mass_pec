@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Mail;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Attachment;
+use Illuminate\Queue\SerializesModels;
+
+class EmailMailable extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public string $mailSubject;
+    public array $mailAttachments;
+
+    public function __construct(
+        string $subject,
+        public string $body,
+        public string $fromAddress,
+        public string $fromName,
+        array $attachments = [],
+    ) {
+        $this->mailSubject = $subject;
+        $this->mailAttachments = $attachments;
+    }
+
+    public function envelope(): Envelope
+    {
+        return new Envelope(
+            from: new Address($this->fromAddress, $this->fromName),
+            subject: $this->mailSubject,
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            htmlString: $this->body,
+        );
+    }
+
+    public function attachments(): array
+    {
+        return collect($this->mailAttachments)
+            ->map(function($attachment) {
+                // Usiamo fromStorageDisk per compatibilità S3
+                return Attachment::fromStorageDisk($attachment['disk'], $attachment['path'])
+                    ->as($attachment['name'])
+                    ->withMime($attachment['mime'] ?? 'application/octet-stream');
+            })
+            ->toArray();
+    }
+}

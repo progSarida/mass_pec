@@ -16,7 +16,10 @@ class CustomDashboard extends BaseDashboard
         // Controllo se nella sessione dell'utente esiste già il "marchio"
         if (!session()->has('daily_summary')) {
 
+            $today = now()->format('Y-m-d');
+
             $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                ->whereDate('created_at', '<', $today)
                 ->orderBy('date', 'asc')
                 ->distinct()
                 ->pluck('date');

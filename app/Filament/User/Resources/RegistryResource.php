@@ -38,7 +38,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
@@ -917,6 +916,37 @@ class RegistryResource extends Resource
                         }
                         if ($data['registration_to_date']) {
                             return "Registrazione al {$data['registration_to_date']}";
+                        }
+                        return null;
+                    })
+                    ->columnSpan(2),
+                Filter::make('send_date_range')
+                    ->columns(2)
+                    ->form([
+                        DatePicker::make('send_from_date')
+                            ->label('Invio dal')
+                            ->columnSpan(1),
+                        DatePicker::make('send_to_date')
+                            ->label('Invio al')
+                            ->columnSpan(1),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        if (! empty($data['send_from_date'])) {
+                            $query->whereDate('send_date', '>=', $data['send_from_date']);
+                        }
+                        if (! empty($data['send_to_date'])) {
+                            $query->whereDate('send_date', '<=', $data['send_to_date']);
+                        }
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        if ($data['send_from_date'] && $data['send_to_date']) {
+                            return "Invio dal {$data['send_from_date']} al {$data['send_to_date']}";
+                        }
+                        if ($data['send_from_date']) {
+                            return "Invio dal {$data['send_from_date']}";
+                        }
+                        if ($data['send_to_date']) {
+                            return "Invio al {$data['send_to_date']}";
                         }
                         return null;
                     })

@@ -1,16 +1,17 @@
 <?php
 
-namespace App\Filament\User\Resources\SendEmailResource\Pages;
+namespace App\Filament\User\Resources\EmailSendResource\Pages;
 
-use App\Filament\User\Resources\SendEmailResource;
-use Filament\Actions;
+use App\Enums\FlowType;
+use App\Filament\User\Resources\EmailSendResource;
+use App\Models\Email;
+use DB;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\DB;
 
-class CreateSendEmail extends CreateRecord
+class CreateEmailSend extends CreateRecord
 {
-    protected static string $resource = SendEmailResource::class;
+    protected static string $resource = EmailSendResource::class;
 
     public function getTitle(): string
     {
@@ -27,9 +28,11 @@ class CreateSendEmail extends CreateRecord
         DB::beginTransaction();
         try {
             // dd($data);
-            $sendEmail = parent::handleRecordCreation($data);
+            $data['flow_type'] = FlowType::ISSUED;
+            $data['flow_index'] = Email::getNextIndex(FlowType::ISSUED);
+            $emailSend = parent::handleRecordCreation($data);
             DB::commit();
-            return $sendEmail;
+            return $emailSend;
         } catch (\Exception $e) {
             DB::rollBack();
 

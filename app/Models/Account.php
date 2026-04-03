@@ -134,6 +134,24 @@ class Account extends Model
         ];
     }
 
+    public function getSmtpMailerConfigSarida(): array
+    {
+        $encryption = $this->getSmtpEncryption();
+
+        return [
+            'transport'  => $this->getSmtpTransportName(),
+            'host'       => $this->out_mail_server,
+            'port'       => (int) $this->out_mail_port,
+            'username'   => $this->getSmtpUsername(),
+            'password'   => $this->getSmtpPassword(),
+            'encryption' => $encryption,
+            'timeout'    => 10,
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true,
+        ];
+    }
+
     public function getFromAddress(): string
     {
         return $this->address;

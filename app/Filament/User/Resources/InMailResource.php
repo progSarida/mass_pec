@@ -43,7 +43,7 @@ class InMailResource extends Resource
 
     public static ?string $pluralModelLabel = 'Gestione posta sped. massive';
     public static ?string $modelLabel = 'Mail';
-    protected static ?string $navigationIcon = 'fluentui-mail-inbox-arrow-down-20-o';
+    protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20-o';
     protected static ?string $navigationLabel = 'Gestione posta sped. massive';
     protected static ?string $navigationGroup = 'Pec Massiva';
     protected static ?int $navigationSort = 2;

@@ -46,7 +46,7 @@ class ShipmentResource extends Resource
     protected static ?string $model = Shipment::class;
     public static ?string $pluralModelLabel = 'Spedizioni';
     public static ?string $modelLabel = 'Spedizione';
-    protected static ?string $navigationIcon = 'fluentui-send-20-o';
+    protected static ?string $navigationIcon = 'fluentui-mail-arrow-up-20-o';
     protected static ?string $navigationLabel = 'Spedizioni';
     protected static ?string $navigationGroup = 'Pec Massiva';
     protected static ?int $navigationSort = 1;
