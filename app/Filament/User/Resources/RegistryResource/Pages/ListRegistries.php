@@ -39,6 +39,11 @@ class ListRegistries extends ListRecords
                         return false;
                     }
 
+                    Notification::make()
+                        ->title('Stampa avviata')
+                        ->success()
+                        ->send();
+
                     return response()
                         ->streamDownload(function () use ($records, $search, $filters) {
                             echo Pdf::loadHTML(
@@ -51,11 +56,6 @@ class ListRegistries extends ListRecords
                                 ->setPaper('A4', 'landscape')
                                 ->stream();
                         }, "Registro protocollo.pdf");
-
-                    Notification::make()
-                        ->title('Stampa avviata')
-                        ->success()
-                        ->send();
                 }),
             // ExportAction::make('esporta')
             //     ->icon('heroicon-s-table-cells')

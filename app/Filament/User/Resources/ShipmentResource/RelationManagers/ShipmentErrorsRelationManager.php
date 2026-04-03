@@ -4,13 +4,17 @@ namespace App\Filament\User\Resources\ShipmentResource\RelationManagers;
 
 use App\Enums\ShipmentErrorType;
 use App\Filament\User\Resources\RecipientResource;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Forms;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Support\Colors\Color;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Blade;
 
 class ShipmentErrorsRelationManager extends RelationManager
 {
@@ -76,7 +80,45 @@ class ShipmentErrorsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                // Tables\Actions\CreateAction::make(),
+                Tables\Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa elenco errori')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($livewire) {
+
+                        $shipment = $this->getOwnerRecord();
+
+                        $records = $livewire->getFilteredTableQuery()
+                                    ->orderBy('created_at', 'asc')
+                                    ->get();
+
+                        if(count($records) === 0){
+                            Notification::make()
+                                ->title('Nessun elemento da stampare')
+                                ->warning()
+                                ->send();
+                            return false;
+                        }
+
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
+
+                        return response()
+                            ->streamDownload(function () use ($records, $shipment) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.shipment_errors', [
+                                        'shipment' => $shipment,
+                                        'errors' => $records,
+                                    ])
+                                )
+                                    ->setPaper('A4', 'landscape')
+                                    ->stream();
+                            }, "Errori spedizione_$shipment->id.pdf");
+                }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
