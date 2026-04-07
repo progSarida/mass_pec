@@ -6,6 +6,7 @@ use App\Enums\MailType;
 use App\Enums\PecStatus;
 use App\Models\Account;
 use App\Models\RegistryReceiver;
+use App\Models\User;
 use DateTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -29,7 +30,7 @@ class DownloadEmailsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $user = \App\Models\User::find($this->userId);
+        $user = User::find($this->userId);
         if (!$user) {
             Log::error("User non trovato", ['id' => $this->userId]);
             return;
@@ -49,7 +50,7 @@ class DownloadEmailsJob implements ShouldQueue
             try {
                 DB::beginTransaction();
 
-                $downloaded = $this->downloadFromAccount($account);
+                $downloaded = $this->downloadFromAccount($account, $user);
                 $totalDownloaded += $downloaded;
                 $accountsProcessed++;
 
@@ -116,7 +117,7 @@ class DownloadEmailsJob implements ShouldQueue
         }
     }
 
-    private function downloadFromAccount(Account $account): int
+    private function downloadFromAccount(Account $account, User $user): int
     {
         $downloaded = 0;
 
@@ -139,6 +140,22 @@ class DownloadEmailsJob implements ShouldQueue
         try {
             $mailbox = $connection->getMailbox('INBOX');
             $messages = $mailbox->getMessages();
+            $count = count($messages);
+
+            if($count == 0)
+                $body = "Nessuna mail trovata da scaricare dall'account {$account->public_name}";
+            else if ($count == 1)
+                $body = "Trovata una mail da scaricare dall'account {$account->public_name}";
+            else if ($count > 1)
+                $body = "Trovate " . $count . " email da scaricare dall'account {$account->public_name}";
+
+            Log::info($body);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Inizio download')
+                ->body($body)
+                ->success()
+                ->sendToDatabase($user);
 
             foreach ($messages as $message) {
                 try {

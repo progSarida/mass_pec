@@ -7,6 +7,7 @@ use App\Enums\MailboxType;
 use App\Enums\MailType;
 use App\Models\Account;
 use App\Models\ArchivedReceiver;
+use App\Models\User;
 use DateTime;
 use Ddeboer\Imap\Server;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -32,7 +33,7 @@ class DownloadArchivedEmailsJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $user = \App\Models\User::find($this->userId);
+        $user = User::find($this->userId);
         if (!$user) {
             Log::error("User non trovato", ['id' => $this->userId]);
             return;
@@ -52,7 +53,7 @@ class DownloadArchivedEmailsJob implements ShouldQueue
             try {
                 DB::beginTransaction();
 
-                $downloaded = $this->downloadFromAccount($account, $this->box);
+                $downloaded = $this->downloadFromAccount($account, $this->box, $user);
                 $totalDownloaded += $downloaded;
                 $accountsProcessed++;
 
@@ -119,7 +120,7 @@ class DownloadArchivedEmailsJob implements ShouldQueue
         }
     }
 
-    private function downloadFromAccount(Account $account, $box): int
+    private function downloadFromAccount(Account $account, $box, User $user): int
     {
         $downloaded = 0;
 
@@ -142,6 +143,22 @@ class DownloadArchivedEmailsJob implements ShouldQueue
         try {
             $mailbox = $connection->getMailbox($box);
             $messages = $mailbox->getMessages();
+            $count = count($messages);
+
+            if($count == 0)
+                $body = "Nessuna mail trovata da scaricare dall'account {$account->public_name}";
+            else if ($count == 1)
+                $body = "Trovata una mail da scaricare dall'account {$account->public_name}";
+            else if ($count > 1)
+                $body = "Trovate " . $count . " email da scaricare dall'account {$account->public_name}";
+
+            Log::info($body);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Inizio download')
+                ->body($body)
+                ->success()
+                ->sendToDatabase($user);
 // $i = 1;                                                                                                             // indice per test
             foreach ($messages as $message) {
 // if($i > 5)  continue;                                                                                               // blocco per test

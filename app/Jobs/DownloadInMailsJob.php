@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Sender;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,7 +25,7 @@ class DownloadInMailsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $user = \App\Models\User::find($this->userId);
+        $user = User::find($this->userId);
         if (!$user) {
             Log::error("User non trovato", ['id' => $this->userId]);
             return;
@@ -38,7 +39,7 @@ class DownloadInMailsJob implements ShouldQueue
                 throw new \Exception("Nessun mittente configurato. Inserire i dati nella pagina Mittente.");
             }
 
-            $downloaded = $this->downloadFromSender($sender);
+            $downloaded = $this->downloadFromSender($sender, $user);
 
             DB::commit();
 
@@ -55,7 +56,7 @@ class DownloadInMailsJob implements ShouldQueue
         }
     }
 
-    private function downloadFromSender(Sender $sender): int
+    private function downloadFromSender(Sender $sender, User $user): int
     {
         $downloaded = 0;
 
@@ -76,6 +77,22 @@ class DownloadInMailsJob implements ShouldQueue
         try {
             $mailbox = $connection->getMailbox('INBOX');
             $messages = $mailbox->getMessages();
+            $count = count($messages);
+
+            if($count == 0)
+                $body = "Nessuna mail trovata da scaricare dall'account {$sender->public_name}";
+            else if ($count == 1)
+                $body = "Trovata una mail da scaricare dall'account {$sender->public_name}";
+            else if ($count > 1)
+                $body = "Trovate " . $count . " email da scaricare dall'account {$sender->public_name}";
+
+            Log::info($body);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Inizio download')
+                ->body($body)
+                ->success()
+                ->sendToDatabase($user);
 
             foreach ($messages as $message) {
                 try {
