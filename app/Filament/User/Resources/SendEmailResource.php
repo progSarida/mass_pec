@@ -80,7 +80,6 @@ class SendEmailResource extends Resource
                         $msg = $get('body');
                         $set('body', $msg . '<br><br><br>' . $text);
                     })
-                    ->dehydrated(false)
                     ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                 Forms\Components\Select::make('mail_type')

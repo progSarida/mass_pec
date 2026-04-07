@@ -124,7 +124,7 @@ class EditRegistry extends EditRecord
                         $record->isOutgoingEmail()
                         && !$record->send_date
                         && $record->account_id
-                        && $record->registryReceivers
+                        && $record->registryReceivers->count() > 0
                     )
                     ->requiresConfirmation()
                     ->modalHeading('Conferma invio email')

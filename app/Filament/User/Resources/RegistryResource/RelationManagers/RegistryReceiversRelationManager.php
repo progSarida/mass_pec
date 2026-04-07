@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources\RegistryResource\RelationManagers;
 
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
+use App\Models\Recipient;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Placeholder;
@@ -43,7 +44,14 @@ class RegistryReceiversRelationManager extends RelationManager
                 Forms\Components\TextInput::make('address')
                     ->label('Destinatario')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->rule(function () {
+                        return function (string $attribute, $value, \Closure $fail) {
+                            if (!Recipient::findByEmail($value)) {
+                                $fail('Questa email non è associata a nessun interlocutore.');
+                            }
+                        };
+                    }),
                 Section::make('Ricevute')
                     ->collapsed(fn($record) => !$record)
                     ->visible(fn($record) => $record)
@@ -139,6 +147,7 @@ class RegistryReceiversRelationManager extends RelationManager
                     ->mutateFormDataUsing(function (array $data) {
                         $registry = $this->getOwnerRecord();
 
+                        $data['recipient_id'] = Recipient::findByEmail($data['address'])?->id;
                         $data['protocol_number'] = $registry->protocol_number;
                         $data['pec_status'] = PecStatus::WAITING;
 

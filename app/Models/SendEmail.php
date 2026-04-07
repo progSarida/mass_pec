@@ -11,6 +11,9 @@ class SendEmail extends Model
 {
     protected $fillable = [
         'account_id',
+        'signature_id',
+        'mail_type',
+        'office_type_id',
         'recipients',
         'subject',
         'body',
