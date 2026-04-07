@@ -7,17 +7,17 @@ use App\Filament\User\Resources\InMailResource;
 use App\Models\InMail;
 use App\Models\Registry;
 use App\Models\ScopeType;
-use App\Models\Sender;
+use Exception;
 use Filament\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
 
 class EditInMail extends EditRecord
 {
@@ -238,39 +238,93 @@ class EditInMail extends EditRecord
                 //     Storage::disk($disk)->put($newFilePath, Storage::disk($disk)->get($file));
                 // }
 
+                // Spostamento allegati senza watermark
+                // foreach ($files as $file) {
+                //     $fileName = basename($file);
+                //     $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_RIC_' . $fileName;
+                //     $finalPath = $newPath . '/' . $newFileName;
+
+                //     try {
+                //         // Usiamo lo Stream per bypassare i limiti del comando COPY di S3
+                //         $stream = $storage->readStream($file);
+
+                //         if ($stream === null) {
+                //             throw new \Exception("Impossibile leggere il file sorgente: $file");
+                //         }
+
+                //         // Scriviamo il file nella nuova posizione
+                //         // Il terzo parametro 'visibility' assicura che il nuovo file sia scrivibile
+                //         $result = $storage->writeStream($finalPath, $stream, [
+                //             'visibility' => 'private'
+                //         ]);
+
+                //         if (is_resource($stream)) {
+                //             fclose($stream);
+                //         }
+
+                //         if (!$result) {
+                //             throw new \Exception("Scrittura fallita per: $finalPath");
+                //         }
+
+                //         Log::info("File copiato con successo: $finalPath");
+
+                //     } catch (\Exception $e) {
+                //         Log::error("Errore durante la copia stream: " . $e->getMessage());
+                //         // Fallback estremo se lo stream fallisce (usa più RAM)
+                //         $storage->put($finalPath, $storage->get($file));
+                //     }
+                // }
+
+                // Spostamento allegati con watermark
                 foreach ($files as $file) {
                     $fileName = basename($file);
-                    $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_RIC_' . $fileName;
+                    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                    $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
                     $finalPath = $newPath . '/' . $newFileName;
 
                     try {
-                        // Usiamo lo Stream per bypassare i limiti del comando COPY di S3
-                        $stream = $storage->readStream($file);
+                        if ($extension === 'pdf') {
+                            // Caso PDF: Scarichiamo in memoria, applichiamo watermark e ricarichiamo
+                            $pdfContent = $storage->get($file);
+                            $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber);
 
-                        if ($stream === null) {
-                            throw new \Exception("Impossibile leggere il file sorgente: $file");
+                            $storage->put($finalPath, $watermarkedPdf, [
+                                'visibility' => 'private',
+                                'ContentType' => 'application/pdf',
+                            ]);
+                            Log::info("PDF con watermark creato su S3: $finalPath");
+                        } else {
+                            // Caso NON PDF: Usiamo lo Stream per file grandi (ottimo per S3)
+                            $stream = $storage->readStream($file);
+
+                            if ($stream === null) {
+                                throw new Exception("Impossibile leggere lo stream sorgente: $file");
+                            }
+
+                            $result = $storage->writeStream($finalPath, $stream, [
+                                'visibility' => 'private'
+                            ]);
+
+                            if (is_resource($stream)) {
+                                fclose($stream);
+                            }
+
+                            if (!$result) {
+                                throw new Exception("Scrittura stream fallita per: $finalPath");
+                            }
+                            Log::info("File non-PDF copiato via stream su S3: $finalPath");
                         }
 
-                        // Scriviamo il file nella nuova posizione
-                        // Il terzo parametro 'visibility' assicura che il nuovo file sia scrivibile
-                        $result = $storage->writeStream($finalPath, $stream, [
-                            'visibility' => 'private'
-                        ]);
+                    } catch (Exception $e) {
+                        Log::error("Errore durante il trasferimento su S3 per {$fileName}: " . $e->getMessage());
 
-                        if (is_resource($stream)) {
-                            fclose($stream);
+                        // Fallback: Tentativo di copia diretta (lato server S3) se lo stream/watermark fallisce
+                        try {
+                            $storage->copy($file, $finalPath);
+                            Log::info("Fallback: file copiato tramite S3 Copy dopo errore.");
+                        } catch (Exception $fallbackEx) {
+                            Log::error("Anche il fallback è fallito: " . $fallbackEx->getMessage());
                         }
-
-                        if (!$result) {
-                            throw new \Exception("Scrittura fallita per: $finalPath");
-                        }
-
-                        Log::info("File copiato con successo: $finalPath");
-
-                    } catch (\Exception $e) {
-                        Log::error("Errore durante la copia stream: " . $e->getMessage());
-                        // Fallback estremo se lo stream fallisce (usa più RAM)
-                        $storage->put($finalPath, $storage->get($file));
                     }
                 }
             } else {
@@ -328,5 +382,56 @@ class EditInMail extends EditRecord
             return $newIndex;
         }
         return 1;
+    }
+
+    private static function addProtocolWatermarkBottom(string $pdfContent, string $protocolNumber): string
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'pdf_wm');
+        file_put_contents($tempFile, $pdfContent);
+
+        // Utilizziamo il namespace corretto per FPDI
+        $pdf = new Fpdi();
+
+        try {
+            $pageCount = $pdf->setSourceFile($tempFile);
+
+            $pdf->SetAutoPageBreak(false);
+
+            for ($n = 1; $n <= $pageCount; $n++) {
+                // 1. Importiamo la pagina n
+                $tplIdx = $pdf->importPage($n);
+                $specs = $pdf->getImportedPageSize($tplIdx);
+
+                // 2. Aggiungiamo la pagina mantenendo orientamento e dimensioni originali
+                // Questo crea la pagina n nel nuovo PDF
+                $pdf->AddPage($specs['orientation'], [$specs['width'], $specs['height']]);
+
+                // 3. "Stampiamo" il contenuto originale sulla pagina appena creata
+                $pdf->useTemplate($tplIdx);
+
+                // 4. Ora scriviamo il watermark SOPRA il contenuto appena inserito
+                $pdf->SetFont('Arial', 'B', 9);
+                $pdf->SetTextColor(80, 80, 80);
+
+                $text = "Protocollo N. " . $protocolNumber . " del " . now()->format('d/m/Y');
+
+                // Calcolo posizione basso a destra
+                $cellWidth = 100;
+                $x = $specs['width'] - $cellWidth - 10; // 10mm dal bordo destro
+                $y = $specs['height'] - 7;            // 10mm dal bordo inferiore
+
+                $pdf->SetXY($x, $y);
+                $pdf->Cell($cellWidth, 5, $text, 0, 0, 'R');
+            }
+
+            $output = $pdf->Output('S');
+
+            if (file_exists($tempFile)) unlink($tempFile);
+
+            return $output;
+        } catch (\Exception $e) {
+            if (file_exists($tempFile)) unlink($tempFile);
+            throw $e;
+        }
     }
 }

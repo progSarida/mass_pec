@@ -3,7 +3,6 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\MailType;
-use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Filament\User\Resources\SendEmailResource\Pages;
 use App\Models\Account;

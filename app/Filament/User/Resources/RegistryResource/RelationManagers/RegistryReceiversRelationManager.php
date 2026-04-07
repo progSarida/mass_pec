@@ -3,7 +3,6 @@
 namespace App\Filament\User\Resources\RegistryResource\RelationManagers;
 
 use App\Enums\PecStatus;
-use App\Enums\RegistryOriginType;
 use App\Models\Recipient;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;

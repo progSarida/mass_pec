@@ -22,6 +22,8 @@
         "owenvoke/blade-fontawesome": "^2.9",
         "phpmailer/phpmailer": "^7.0",
         "phpoffice/phpspreadsheet": "^5.2",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "webklex/php-imap": "^6.2"
     },
     "require-dev": {
