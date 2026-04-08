@@ -44,8 +44,10 @@ class ListDailySummaries extends ListRecords
                 ->action(function ($livewire) {
                     try {
                         DB::beginTransaction();
+                        $today = now()->format('Y-m-d');
                         // Ottieni le date che necessitano di essere processate
                         $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                            ->whereDate('created_at', '<', $today)
                             ->orderBy('date', 'asc')
                             ->distinct()
                             ->pluck('date');

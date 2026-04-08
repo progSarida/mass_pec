@@ -22,6 +22,7 @@ class Registry extends Model
         'parent_id',
         'is_email',
         'scope_type_id',
+        'interested_parties',
         'uid',
         'message_id',
         'sender_id',                // id tabella recipients
@@ -47,6 +48,7 @@ class Registry extends Model
     protected $casts = [
         'flow_type' => FlowType::class,
         'registry_origin_type' => RegistryOriginType::class,
+        'interested_parties' => 'array',
         // 'recipients' => 'array',
         'send_date' => 'datetime',
         'receive_date' => 'datetime',
@@ -154,6 +156,7 @@ class Registry extends Model
             if($registry->flow_type == FlowType::INTERNAL){
                 $lastIndex = Registry::where('flow_type', 'internal')->max('flow_index');
                 $registry->flow_index = ++$lastIndex;
+                $registry->from = '-';
             }
             $registry->register_user_id = Auth::user()->id;
         });

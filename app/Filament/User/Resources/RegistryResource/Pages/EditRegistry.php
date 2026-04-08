@@ -22,7 +22,9 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
 
 class EditRegistry extends EditRecord
 {
@@ -77,43 +79,140 @@ class EditRegistry extends EditRecord
                     $this->redirect(RegistryResource::getUrl('edit', ['record' => $nextIRegistry->id]));
                 }),
             Actions\ActionGroup::make([
-                Action::make('uploadFile')
+                Action::make('addFile')
                     ->label('Carica File')
                     ->icon('heroicon-o-document-arrow-up')
-                    ->visible(fn($record) => $record->flow_type == FlowType::INTERNAL )
+                    ->visible(fn($record) => $record->flow_type == FlowType::INTERNAL)
                     ->color('info')
                     ->modalSubmitActionLabel('Carica')
                     ->form([
                         FileUpload::make('attachments')
                             ->label('Seleziona File')
                             ->multiple()
+                            // Manteniamo la tua logica di directory e nomi
                             ->directory(fn ($record) => $record->attachment_path)
                             ->getUploadedFileNameForStorageUsing(function ($file, $record) {
-                                $disk = config('filesystems.default');
-                                $directory = $record->attachment_path;
-
                                 $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                                 $extension = $file->getClientOriginalExtension();
-
                                 $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . '_INT_';
-
                                 $finalName = $prefix . $filename . '.' . $extension;
-                                $counter = 1;
 
-                                while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                                $disk = config('filesystems.default');
+                                $counter = 1;
+                                while (Storage::disk($disk)->exists($record->attachment_path . '/' . $finalName)) {
                                     $finalName = $prefix . $filename . '_' . $counter . '.' . $extension;
                                     $counter++;
                                 }
-
                                 return $finalName;
                             })
                             ->required(),
                     ])
-                    ->action(function (array $data) {
+                    ->action(function (array $data, $record) {
+                        // 1. Recuperiamo il disco corretto
+                        $disk = config('filesystems.default');
+                        $storage = Storage::disk($disk);
+
+                        // 2. Otteniamo l'array dei file.
+                        // Attenzione: Filament a seconda della config potrebbe passarti un array o una stringa JSON
+                        $attachments = $data['attachments'] ?? [];
+
+                        if (!is_array($attachments)) {
+                            $attachments = [$attachments];
+                        }
+
+                        foreach ($attachments as $filePath) {
+                            // Pulizia percorso (alcuni driver aggiungono slash iniziali)
+                            $filePath = ltrim($filePath, '/');
+
+                            if (!$storage->exists($filePath)) {
+                                Log::warning("File non trovato per watermark: " . $filePath);
+                                continue;
+                            }
+
+                            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+                            if ($extension === 'pdf') {
+                                try {
+                                    // Leggiamo il contenuto
+                                    $pdfContent = $storage->get($filePath);
+
+                                    // Usiamo il numero di protocollo dal record
+                                    $protocolNumber = $record->protocol_number ?? 'N/A';
+
+                                    // Applichiamo il watermark
+                                    $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber);
+
+                                    // Sovrascriviamo
+                                    $storage->put($filePath, $watermarkedPdf, [
+                                        'visibility' => 'private',
+                                        'ContentType' => 'application/pdf',
+                                    ]);
+
+                                    Log::info("Watermark applicato con successo a: " . $filePath);
+
+                                } catch (\Exception $e) {
+                                    Log::error("Errore watermark su {$filePath}: " . $e->getMessage());
+                                }
+                            }
+                        }
+
+                        // Fondamentale: Se l'azione deve salvare i percorsi nel database,
+                        // assicurati che il record sia aggiornato se non lo fa Filament in automatico
+                        // $record->attachments = array_merge($record->attachments ?? [], $attachments);
+                        // $record->save();
+
                         Notification::make()
                             ->title('Caricamento completato')
+                            ->body('I file PDF sono stati protocollati correttamente.')
                             ->success()
                             ->send();
+                    }),
+
+                Action::make('subFile')
+                    ->label('Elimina file')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->visible(fn($record) => $record->flow_type == FlowType::INTERNAL)
+                    ->form([
+                        Select::make('file_to_delete')
+                            ->label('Seleziona il file da eliminare')
+                            ->options(function ($record) {
+                                if (!$record || !$record->attachment_path) {
+                                    return [];
+                                }
+
+                                $files = Storage::files($record->attachment_path);
+
+                                return collect($files)->mapWithKeys(function ($file) {
+                                    return [$file => basename($file)];
+                                })->toArray();
+                            })
+                            ->required()
+                            ->native(false)
+                            ->searchable(),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('Elimina allegato')
+                    ->modalDescription('Questa azione non può essere annullata.')
+                    ->modalSubmitActionLabel('Elimina')
+                    ->modalCancelActionLabel('Annulla')
+                    ->action(function (array $data) {
+                        $file = $data['file_to_delete'];
+
+                        if (Storage::exists($file)) {
+                            Storage::delete($file);
+
+                            Notification::make()
+                                ->title('File eliminato con successo')
+                                ->body('Il file ' . basename($file) . ' è stato eliminato.')
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('File non trovato')
+                                ->warning()
+                                ->send();
+                        }
                     }),
 
                 Actions\Action::make('send')
@@ -241,7 +340,7 @@ class EditRegistry extends EditRecord
                                         && Storage::exists($record->attachment_path)
                                         && !$record->send_date
                                         && $record->account_id
-                                        && $record->registryReceivers;
+                                        && $record->registryReceivers->count() > 0;
                             }
                         )
                         ->form([
@@ -665,5 +764,56 @@ class EditRegistry extends EditRecord
     {
         $recipient = Recipient::findByEmail($from);
         return $recipient?->id;
+    }
+
+    private static function addProtocolWatermarkBottom(string $pdfContent, string $protocolNumber): string
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'pdf_wm');
+        file_put_contents($tempFile, $pdfContent);
+
+        // Utilizziamo il namespace corretto per FPDI
+        $pdf = new Fpdi();
+
+        try {
+            $pageCount = $pdf->setSourceFile($tempFile);
+
+            $pdf->SetAutoPageBreak(false);
+
+            for ($n = 1; $n <= $pageCount; $n++) {
+                // 1. Importiamo la pagina n
+                $tplIdx = $pdf->importPage($n);
+                $specs = $pdf->getImportedPageSize($tplIdx);
+
+                // 2. Aggiungiamo la pagina mantenendo orientamento e dimensioni originali
+                // Questo crea la pagina n nel nuovo PDF
+                $pdf->AddPage($specs['orientation'], [$specs['width'], $specs['height']]);
+
+                // 3. "Stampiamo" il contenuto originale sulla pagina appena creata
+                $pdf->useTemplate($tplIdx);
+
+                // 4. Ora scriviamo il watermark SOPRA il contenuto appena inserito
+                $pdf->SetFont('Arial', 'B', 9);
+                $pdf->SetTextColor(80, 80, 80);
+
+                $text = "Protocollo N. " . $protocolNumber . " del " . now()->format('d/m/Y');
+
+                // Calcolo posizione basso a destra
+                $cellWidth = 100;
+                $x = $specs['width'] - $cellWidth - 10; // 10mm dal bordo destro
+                $y = $specs['height'] - 7;            // 10mm dal bordo inferiore
+
+                $pdf->SetXY($x, $y);
+                $pdf->Cell($cellWidth, 5, $text, 0, 0, 'R');
+            }
+
+            $output = $pdf->Output('S');
+
+            if (file_exists($tempFile)) unlink($tempFile);
+
+            return $output;
+        } catch (\Exception $e) {
+            if (file_exists($tempFile)) unlink($tempFile);
+            throw $e;
+        }
     }
 }

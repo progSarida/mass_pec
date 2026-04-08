@@ -140,13 +140,6 @@ class RegistryResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 2])
                             ->default(static::newProtocol()),
 
-                        Checkbox::make('is_email')
-                            ->label('Posta elettronica')
-                            ->live()
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-
                         Select::make('flow_type')
                             ->label('Corrispondenza')
                             ->required()
@@ -162,6 +155,14 @@ class RegistryResource extends Resource
                                     $set('flow_index', 1);
                                 }
                             })
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+
+                        Checkbox::make('is_email')
+                            ->label('Posta elettronica')
+                            ->live()
+                            ->visible(fn($record) => $record->flow_type !== FlowType::INTERNAL)
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                         TextInput::make('flow_index')
@@ -227,6 +228,7 @@ class RegistryResource extends Resource
                             ->label('Email mittente')
                             ->required()
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value || $get('flow_type') == FlowType::ISSUED->value)
                             ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Select::make('sender_id')
@@ -300,6 +302,46 @@ class RegistryResource extends Resource
                                 return collect($values)->mapWithKeys(fn ($id) => [$id => static::labelRecipient($id)])->toArray();
                             }),
 
+                        Select::make('interested_parties')
+                            ->label('Altre parti interessate')
+                            ->multiple()
+                            ->searchable()
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::INTERNAL->value)
+                            ->placeholder('Seleziona le parti interessate')
+                            ->columnSpan(['sm' => 'full', 'md' => 15])
+                            ->getSearchResultsUsing(function (string $search) {
+                                if (strlen($search) < 3) {
+                                    return [];
+                                }
+                                $words = array_filter(explode(' ', $search));
+                                $query = Recipient::query();
+
+                                if (!empty($words)) {
+                                    $query->where(function ($q) use ($words) {
+                                        foreach ($words as $word) {
+                                            $q->where(function ($subQuery) use ($word) {
+                                                $subQuery->where('description', 'like', "%{$word}%")
+                                                    ->orWhere('resp_surname', 'like', "%{$word}%")
+                                                    ->orWhere('resp_name', 'like', "%{$word}%");
+                                            });
+                                        }
+                                    });
+                                }
+
+                                return $query
+                                    ->limit(50)
+                                    ->get()
+                                    ->mapWithKeys(function ($item) {
+                                        return [$item->id => $item->description];
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelsUsing(function ($values) {
+                                return collect($values)
+                                    ->mapWithKeys(fn ($id) => [$id => Recipient::find($id)?->description ?? "ID: {$id}"])
+                                    ->toArray();
+                            }),
+
                         TextInput::make('subject')
                             ->label('Oggetto')
                             ->required()
@@ -332,7 +374,7 @@ class RegistryResource extends Resource
 
                         RichEditor::make('body')
                             ->label('Messaggio')
-                            ->required()
+                            ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->default('') // Fondamentale per evitare l'errore "property not found"
                             ->columnSpanFull(),

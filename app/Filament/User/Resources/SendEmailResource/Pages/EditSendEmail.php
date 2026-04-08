@@ -340,7 +340,7 @@ class EditSendEmail extends EditRecord
                 'uid' => '#send_email' . $record->id,
                 'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $record->id,
                 'sender_id' => $record->sender_id,                                                                  // GESTIONE
-                'from' => $record->account->public_name,
+                'from' => $record->account->address,
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'receive_date' => null,
