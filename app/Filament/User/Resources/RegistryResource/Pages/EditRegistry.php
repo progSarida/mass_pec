@@ -356,8 +356,8 @@ class EditRegistry extends EditRecord
 
                                     $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                                     $extension = $file->getClientOriginalExtension();
-
-                                    $finalName = $filename . '.' . $extension;
+                                    $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . "_{$record->flow_type->getExt()}_";
+                                    $finalName = $prefix . $filename . '.' . $extension;
                                     $counter = 1;
 
                                     while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {

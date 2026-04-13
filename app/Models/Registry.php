@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
 
 class Registry extends Model
 {
@@ -163,8 +164,56 @@ class Registry extends Model
 
         static::created(function ($registry) {
             $disk = config('filesystems.default');
-            if ($registry->attachment_path && !Storage::disk($disk)->exists($registry->attachment_path)) {
-                Storage::disk($disk)->makeDirectory($registry->attachment_path);
+            $storage = Storage::disk($disk);
+
+            if ($registry->attachment_path && !$storage->exists($registry->attachment_path)) {
+                $storage->makeDirectory($registry->attachment_path);
+            }
+
+            $files = $storage->files('registry/0');
+
+            foreach ($files as $file) {
+                $fileName = basename($file);
+                $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . "_{$registry->flow_type->getExt()}_" . $fileName;
+                $finalPath = rtrim($registry->attachment_path, '/') . '/' . $newFileName;
+
+                try {
+                    if ($extension === 'pdf') {
+                        // PDF: applica watermark
+                        $pdfContent = $storage->get($file);
+                        $watermarkedPdf = static::addProtocolWatermarkBottom(
+                            $pdfContent,
+                            $registry->protocol_number,
+                            $registry  // Passa il registry invece di $record
+                        );
+
+                        $storage->put($finalPath, $watermarkedPdf, [
+                            'visibility' => 'private',
+                            'ContentType' => 'application/pdf',
+                        ]);
+
+                        // Elimina il file originale
+                        $storage->delete($file);
+
+                        Log::info("PDF con watermark creato: $finalPath");
+                    } else {
+                        // Non-PDF: spostamento semplice
+                        $storage->move($file, $finalPath);
+                        Log::info("File non-PDF spostato: $finalPath");
+                    }
+
+                } catch (\Exception $e) {
+                    Log::error("Errore durante lo spostamento/watermark per {$fileName}: " . $e->getMessage());
+
+                    // Fallback: spostamento semplice senza watermark
+                    try {
+                        $storage->move($file, $finalPath);
+                        Log::warning("Fallback: file spostato senza watermark");
+                    } catch (\Exception $fallbackEx) {
+                        Log::error("Anche il fallback è fallito: " . $fallbackEx->getMessage());
+                    }
+                }
             }
         });
 
@@ -197,5 +246,61 @@ class Registry extends Model
             }
         });
 
+    }
+
+    private static function addProtocolWatermarkBottom(string $pdfContent, string $protocolNumber, $record): string
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'pdf_wm');
+        file_put_contents($tempFile, $pdfContent);
+
+        // Utilizziamo il namespace corretto per FPDI
+        $pdf = new Fpdi();
+
+        try {
+            $pageCount = $pdf->setSourceFile($tempFile);
+
+            $pdf->SetAutoPageBreak(false);
+
+            for ($n = 1; $n <= $pageCount; $n++) {
+                // 1. Importiamo la pagina n
+                $tplIdx = $pdf->importPage($n);
+                $specs = $pdf->getImportedPageSize($tplIdx);
+
+                // 2. Aggiungiamo la pagina mantenendo orientamento e dimensioni originali
+                // Questo crea la pagina n nel nuovo PDF
+                $pdf->AddPage($specs['orientation'], [$specs['width'], $specs['height']]);
+
+                // 3. "Stampiamo" il contenuto originale sulla pagina appena creata
+                $pdf->useTemplate($tplIdx);
+
+                // 4. Ora scriviamo il watermark SOPRA il contenuto appena inserito
+                $pdf->SetFont('Arial', 'B', 9);
+                $pdf->SetTextColor(80, 80, 80);
+
+                $name = Company::first()->name;
+                $text = "Protocollo N. " . $protocolNumber . " del " . $record->created_at->format('d/m/Y');
+                $flow = $record->flow_type->getLetter();
+
+                // Calcolo posizione basso a destra
+                $cellWidth = 65;
+                $x = $specs['width'] - $cellWidth - 10; // 10mm dal bordo destro
+                $y = $specs['height'] - 12;            // 10mm dal bordo inferiore
+
+                $pdf->SetXY($x, $y);
+                $pdf->Cell($cellWidth-5, 5, $name, 1, 0, 'L');
+                $pdf->Cell(5, 5, $flow, 1, 0, 'C');
+                $pdf->SetXY($x, $y+5);
+                $pdf->Cell($cellWidth, 5, $text, 1, 0, 'R');
+            }
+
+            $output = $pdf->Output('S');
+
+            if (file_exists($tempFile)) unlink($tempFile);
+
+            return $output;
+        } catch (\Exception $e) {
+            if (file_exists($tempFile)) unlink($tempFile);
+            throw $e;
+        }
     }
 }

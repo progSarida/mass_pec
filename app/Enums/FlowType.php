@@ -65,4 +65,13 @@ enum FlowType: string implements HasLabel, HasIcon, HasColor
             self::INTERNAL => 'I',
         };
     }
+
+    public function getExt(): string
+    {
+        return match($this) {
+            self::RECEIVED => 'RIC',
+            self::ISSUED => 'INV',
+            self::INTERNAL => 'INT',
+        };
+    }
 }

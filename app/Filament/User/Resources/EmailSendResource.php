@@ -14,6 +14,7 @@ use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -233,6 +234,36 @@ class EmailSendResource extends Resource
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 4]),
+
+                FileUpload::make('attachments')
+                    ->label('Carica allegati')
+                    ->multiple()
+                    ->directory('email_send/0')
+                    ->preserveFilenames()
+                    ->visible(fn($record) => !$record)
+                    ->getUploadedFileNameForStorageUsing(function ($file) {
+                        $disk = config('filesystems.default');
+                        $directory = 'email_send/0';
+                        // creo cartella temporanea se non esiste
+                        if (!Storage::disk($disk)->exists('email_send/0')) {
+                            Storage::disk($disk)->makeDirectory('email_send/0');
+                        }
+                        // Estraiamo nome e estensione originali
+                        $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                        $extension = $file->getClientOriginalExtension();
+
+                        $finalName = $filename . '.' . $extension;
+                        $counter = 1;
+
+                        // Finché esiste un file con questo nome, incrementiamo il suffisso
+                        while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                            $finalName = $filename . '_' . $counter . '.' . $extension;
+                            $counter++;
+                        }
+
+                        return $finalName;
+                    })
+                    ->columnSpanFull(),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)

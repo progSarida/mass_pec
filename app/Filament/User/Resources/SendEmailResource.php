@@ -14,6 +14,7 @@ use App\Models\SendEmail;
 use App\Models\Signature;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -250,35 +251,35 @@ class SendEmailResource extends Resource
                     ->required()
                     ->columnSpanFull(),
 
-                // FileUpload::make('attachments')
-                //     ->label('Carica allegati')
-                //     ->multiple()
-                //     ->directory('send_email/0')
-                //     ->preserveFilenames()
-                //     ->visible(fn($record) => !$record)
-                //     ->getUploadedFileNameForStorageUsing(function ($file) {
-                //         $disk = config('filesystems.default');
-                //         $directory = 'send_email/0';
-                //         // creo cartella temporanea se non esiste
-                //         if (!Storage::disk($disk)->exists('send_email/0')) {
-                //             Storage::disk($disk)->makeDirectory('send_email/0');
-                //         }
-                //         // Estraiamo nome e estensione originali
-                //         $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                //         $extension = $file->getClientOriginalExtension();
+                FileUpload::make('attachments')
+                    ->label('Carica allegati')
+                    ->multiple()
+                    ->directory('send_email/0')
+                    ->preserveFilenames()
+                    ->visible(fn($record) => !$record)
+                    ->getUploadedFileNameForStorageUsing(function ($file) {
+                        $disk = config('filesystems.default');
+                        $directory = 'send_email/0';
+                        // creo cartella temporanea se non esiste
+                        if (!Storage::disk($disk)->exists('send_email/0')) {
+                            Storage::disk($disk)->makeDirectory('send_email/0');
+                        }
+                        // Estraiamo nome e estensione originali
+                        $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                        $extension = $file->getClientOriginalExtension();
 
-                //         $finalName = $filename . '.' . $extension;
-                //         $counter = 1;
+                        $finalName = $filename . '.' . $extension;
+                        $counter = 1;
 
-                //         // Finché esiste un file con questo nome, incrementiamo il suffisso
-                //         while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
-                //             $finalName = $filename . '_' . $counter . '.' . $extension;
-                //             $counter++;
-                //         }
+                        // Finché esiste un file con questo nome, incrementiamo il suffisso
+                        while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                            $finalName = $filename . '_' . $counter . '.' . $extension;
+                            $counter++;
+                        }
 
-                //         return $finalName;
-                //     })
-                //     ->columnSpanFull(),
+                        return $finalName;
+                    })
+                    ->columnSpanFull(),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)

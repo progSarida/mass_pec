@@ -21,6 +21,7 @@ use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
@@ -160,7 +161,7 @@ class RegistryResource extends Resource
                         Checkbox::make('is_email')
                             ->label('Posta elettronica')
                             ->live()
-                            ->visible(fn($record) => $record->flow_type !== FlowType::INTERNAL)
+                            ->visible(fn($record) => $record?->flow_type !== FlowType::INTERNAL)
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -454,6 +455,36 @@ class RegistryResource extends Resource
                     ->relationship('registerUser', 'name')
                     ->visible(fn($record) => $record)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
+
+                FileUpload::make('attachments')
+                    ->label('Carica allegati')
+                    ->multiple()
+                    ->directory('registry/0')
+                    ->preserveFilenames()
+                    ->visible(fn($record) => !$record)
+                    ->getUploadedFileNameForStorageUsing(function ($file) {
+                        $disk = config('filesystems.default');
+                        $directory = 'registry/0';
+                        // creo cartella temporanea se non esiste
+                        if (!Storage::disk($disk)->exists('registry/0')) {
+                            Storage::disk($disk)->makeDirectory('registry/0');
+                        }
+                        // Estraiamo nome e estensione originali
+                        $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                        $extension = $file->getClientOriginalExtension();
+
+                        $finalName = $filename . '.' . $extension;
+                        $counter = 1;
+
+                        // Finché esiste un file con questo nome, incrementiamo il suffisso
+                        while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                            $finalName = $filename . '_' . $counter . '.' . $extension;
+                            $counter++;
+                        }
+
+                        return $finalName;
+                    })
+                    ->columnSpanFull(),
 
                 Section::make('Allegati')
                     ->collapsed(fn($record) => $record)

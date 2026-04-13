@@ -115,17 +115,17 @@ class Email extends Model
                 if ($mail->attachment_path && !Storage::disk($disk)->exists($mail->attachment_path)) {
                     Storage::disk($disk)->makeDirectory($mail->attachment_path);                        // creo la cartella degli allegati
                 }
-                // $files = Storage::disk($disk)->files('email_send/0');
-                // foreach ($files as $file) {
-                //     // Estraiamo solo il nome del file (es: immagine.jpg)
-                //     $fileName = basename($file);
+                $files = Storage::disk($disk)->files('email_send/0');
+                foreach ($files as $file) {
+                    // Estraiamo solo il nome del file (es: immagine.jpg)
+                    $fileName = basename($file);
 
-                //     // Definiamo il percorso di destinazione completo
-                //     $finalPath = rtrim($mail->attachment_path, '/') . '/' . $fileName;
+                    // Definiamo il percorso di destinazione completo
+                    $finalPath = rtrim($mail->attachment_path, '/') . '/' . $fileName;
 
-                //     // 2. Spostiamo il file
-                //     Storage::disk($disk)->move($file, $finalPath);
-                // }
+                    // 2. Spostiamo il file
+                    Storage::disk($disk)->move($file, $finalPath);
+                }
             }
         });
 
