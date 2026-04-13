@@ -5,6 +5,7 @@ namespace App\Filament\User\Resources\SendEmailResource\Pages;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Filament\User\Resources\SendEmailResource;
+use App\Models\Company;
 use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
@@ -211,7 +212,7 @@ class EditSendEmail extends EditRecord
                     ->form([
                         Select::make('scope_type_id')
                             ->label('Settore interno')
-                            ->options(ScopeType::pluck('name', 'id'))
+                            ->options(ScopeType::orderBy('position', 'asc')->pluck('name', 'id'))
                             ->searchable()
                             ->placeholder('Seleziona il settore interno della registrazione'),
                         Select::make('manage_registry_type')
@@ -440,7 +441,7 @@ class EditSendEmail extends EditRecord
                         if ($extension === 'pdf') {
                             // Caso PDF: Scarichiamo in memoria, applichiamo watermark e ricarichiamo
                             $pdfContent = $storage->get($file);
-                            $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber);
+                            $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber, $record);
 
                             $storage->put($finalPath, $watermarkedPdf, [
                                 'visibility' => 'private',
@@ -553,7 +554,7 @@ class EditSendEmail extends EditRecord
         return $recipient?->id;
     }
 
-    private static function addProtocolWatermarkBottom(string $pdfContent, string $protocolNumber): string
+    private static function addProtocolWatermarkBottom(string $pdfContent, string $protocolNumber, $record): string
     {
         $tempFile = tempnam(sys_get_temp_dir(), 'pdf_wm');
         file_put_contents($tempFile, $pdfContent);
@@ -582,15 +583,20 @@ class EditSendEmail extends EditRecord
                 $pdf->SetFont('Arial', 'B', 9);
                 $pdf->SetTextColor(80, 80, 80);
 
-                $text = "Protocollo N. " . $protocolNumber . " del " . now()->format('d/m/Y');
+                $name = Company::first()->name;
+                $text = "Protocollo N. " . $protocolNumber . " del " . $record->created_at->format('d/m/Y');
+                $flow = $record->flow_type->getLetter();
 
                 // Calcolo posizione basso a destra
-                $cellWidth = 100;
+                $cellWidth = 65;
                 $x = $specs['width'] - $cellWidth - 10; // 10mm dal bordo destro
-                $y = $specs['height'] - 7;            // 10mm dal bordo inferiore
+                $y = $specs['height'] - 12;            // 10mm dal bordo inferiore
 
                 $pdf->SetXY($x, $y);
-                $pdf->Cell($cellWidth, 5, $text, 0, 0, 'R');
+                $pdf->Cell($cellWidth-5, 5, $name, 1, 0, 'L');
+                $pdf->Cell(5, 5, $flow, 1, 0, 'C');
+                $pdf->SetXY($x, $y+5);
+                $pdf->Cell($cellWidth, 5, $text, 1, 0, 'R');
             }
 
             $output = $pdf->Output('S');

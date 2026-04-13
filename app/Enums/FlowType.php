@@ -56,4 +56,13 @@ enum FlowType: string implements HasLabel, HasIcon, HasColor
             self::INTERNAL => false,
         };
     }
+
+    public function getLetter(): string
+    {
+        return match($this) {
+            self::RECEIVED => 'E',
+            self::ISSUED => 'U',
+            self::INTERNAL => 'I',
+        };
+    }
 }

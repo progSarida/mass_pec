@@ -604,7 +604,7 @@ class RegistryResource extends Resource
                 //     ->sortable(),
 
                 TextColumn::make('sender_info') // Usa un nome descrittivo
-                    ->label('Mittente')
+                    ->label('Mittente/Parti')
                     ->state(function ($record): string {
                         // Usiamo state() invece di formatStateUsing se la colonna non esiste nel DB
                         if ($record->sender_id && $record->sender) {
@@ -612,6 +612,14 @@ class RegistryResource extends Resource
                         }
                         if ($record->account_id && $record->account) {
                             return $record->account->public_name ?? '';
+                        }
+                        if ($record->interested_parties && !empty($record->interested_parties)) {
+                            // Recupera solo la colonna 'description' per ottimizzare la query
+                            $descriptions = Recipient::whereIn('id', $record->interested_parties)
+                                ->pluck('description') // Estrae solo i valori della colonna 'description'
+                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+
+                            return 'Sarida srl, ' . $descriptions;
                         }
                         return '';
                     })
@@ -623,7 +631,17 @@ class RegistryResource extends Resource
                         });
                     })
                     ->sortable()
-                    // ->tooltip(fn ($record) => $record?->from)
+                    ->tooltip(function ($record): string {
+                        if ($record->interested_parties && !empty($record->interested_parties)) {
+                            // Recupera solo la colonna 'description' per ottimizzare la query
+                            $descriptions = Recipient::whereIn('id', $record->interested_parties)
+                                ->pluck('description') // Estrae solo i valori della colonna 'description'
+                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+
+                            return 'Sarida srl, ' . $descriptions;
+                        }
+                        return '';
+                    })
                     ->limit(250),
 
                 Tables\Columns\TextColumn::make('receivers')

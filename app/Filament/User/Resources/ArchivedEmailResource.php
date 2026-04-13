@@ -256,10 +256,10 @@ class ArchivedEmailResource extends Resource
                     ->tooltip(fn ($record) => $record->flow_type->getLabel())
                     ->toggleable(isToggledHiddenByDefault: false),
 
-                TextColumn::make('protocol_number')
-                    ->label('Protocollo')
-                    ->searchable()
-                    ->sortable(),
+                // TextColumn::make('protocol_number')
+                //     ->label('Protocollo')
+                //     ->searchable()
+                //     ->sortable(),
 
                 TextColumn::make('sender_info') // Usa un nome descrittivo
                     ->label('Mittente')
