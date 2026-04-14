@@ -662,7 +662,7 @@ class EditShipment extends EditRecord
                         if ($extension === 'pdf') {
                             // Caso PDF: Scarichiamo in memoria, applichiamo watermark e ricarichiamo
                             $pdfContent = $storage->get($file);
-                            $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber, $record);
+                            $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber, $registry);
 
                             $storage->put($finalPath, $watermarkedPdf, [
                                 'visibility' => 'private',
