@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Support\Colors\Color;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,38 +25,85 @@ class ListDailySummaries extends ListRecords
     {
         return [
             // Actions\CreateAction::make(),
+
+            Actions\Action::make('print')
+                ->icon('heroicon-o-printer')
+                ->label('Stampa')
+                ->tooltip('Stampa elenco registri')
+                ->color(Color::rgb('rgb(255, 0, 0)'))
+                ->action(function ($livewire) {
+                    $records = $livewire->getFilteredTableQuery()
+                                ->orderBy('created_at', 'asc')
+                                ->get();
+                    $filters = $livewire->tableFilters ?? [];
+                    $search = $livewire->tableSearch ?? null;
+
+                    if(count($records) === 0){
+                        Notification::make()
+                            ->title('Nessun elemento da stampare')
+                            ->warning()
+                            ->send();
+                        return false;
+                    }
+
+                    Notification::make()
+                        ->title('Stampa avviata')
+                        ->success()
+                        ->send();
+
+                    return response()
+                        ->streamDownload(function () use ($records, $search, $filters) {
+                            echo Pdf::loadHTML(
+                                Blade::render('print.dailies', [
+                                    'registries' => $records,
+                                    'search' => $search,
+                                    'filters' => $filters,
+                                ])
+                            )
+                                ->setPaper('A4', 'landscape')
+                                ->stream();
+                        }, "Registri giornalieri.pdf");
+                }),
+
             Actions\Action::make('daily')
                 ->icon('heroicon-o-printer')
                 ->label('Crea registro giornaliero')
-                ->visible(function () {
-                    // Ottieni tutte le date distinte dai registries (solo data, senza ora)
-                    $registryDates = Registry::selectRaw('DATE(created_at) as date')
-                        ->distinct()
-                        ->pluck('date');
+                // ->visible(function () {
+                //     Ottieni tutte le date distinte dai registries (solo data, senza ora)
+                //     $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                //         ->distinct()
+                //         ->pluck('date');
 
-                    // Ottieni tutte le date già processate in DailySummary
-                    $processedDates = DailySummary::pluck('registration_date')
-                        ->map(fn($date) => $date->format('Y-m-d'));
+                //     Ottieni tutte le date già processate in DailySummary
+                //     $processedDates = DailySummary::pluck('registration_date')
+                //         ->map(fn($date) => $date->format('Y-m-d'));
 
-                    // Verifica se ci sono date con registries ma senza DailySummary
-                    return $registryDates->diff($processedDates)->isNotEmpty();
-                })
+                //     Verifica se ci sono date con registries ma senza DailySummary
+                //     return $registryDates->diff($processedDates)->isNotEmpty();
+                // })
+                ->visible(fn () => DailySummary::whereNull('file_date')->count() > 1)
                 ->tooltip('Stampa registro giornaliero')
                 ->action(function ($livewire) {
                     try {
                         DB::beginTransaction();
-                        $today = now()->format('Y-m-d');
-                        // Ottieni le date che necessitano di essere processate
-                        $registryDates = Registry::selectRaw('DATE(created_at) as date')
-                            ->whereDate('created_at', '<', $today)
-                            ->orderBy('date', 'asc')
-                            ->distinct()
-                            ->pluck('date');
 
-                        $processedDates = DailySummary::pluck('registration_date')
+                        $datesToProcess = DailySummary::whereNull('file_date')->pluck('registration_date')
                             ->map(fn($date) => $date->format('Y-m-d'));
 
-                        $datesToProcess = $registryDates->diff($processedDates);
+                        // if ($datesToProcess->isEmpty()) {
+                        //     $today = now()->format('Y-m-d');
+                        //     // Ottieni le date che necessitano di essere processate
+                        //     $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                        //         ->whereDate('created_at', '<', $today)
+                        //         ->orderBy('date', 'asc')
+                        //         ->distinct()
+                        //         ->pluck('date');
+
+                        //     $processedDates = DailySummary::pluck('registration_date')
+                        //         ->map(fn($date) => $date->format('Y-m-d'));
+
+                        //     $datesToProcess = $registryDates->diff($processedDates);
+                        // }
 
                         if ($datesToProcess->isEmpty()) {
                             Notification::make()
@@ -112,18 +160,18 @@ class ListDailySummaries extends ListRecords
                             Storage::put($storagePath . '/' . $pdfFilename, $pdfContent);
 
                             // Genera XLSX in memoria
-                            $xlsxContent = $this->generateExcel($records, $dateFormatted, $protocolYear, $fromNumber, $toNumber);
+                            $xlsxContent = self::generateExcel($records, $dateFormatted, $protocolYear, str_pad($fromNumber, 5, '0', STR_PAD_LEFT), str_pad($toNumber, 5, '0', STR_PAD_LEFT));
 
                             // Salva XLSX su Storage
                             Storage::put($storagePath . '/' . $xlsxFilename, $xlsxContent);
 
                             // Crea record DailySummary
-                            DailySummary::create([
-                                'registration_date' => $date,
+                            DailySummary::where('registration_date', $date)->update([
                                 'filename' => $dateFormatted,
+                                'file_date' => now(),
                                 'from_protocol' => "{$protocolYear}-". Str::padLeft($fromNumber, 5, '0'),
                                 'to_protocol' => "{$protocolYear}-" . Str::padLeft($toNumber, 5, '0'),
-                                'presevation_state' => null,
+                                'preservation_state' => PreservationState::NOT_SENT,
                             ]);
 
                             $processedCount++;

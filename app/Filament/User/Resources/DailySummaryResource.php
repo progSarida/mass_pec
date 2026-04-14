@@ -6,6 +6,8 @@ use App\Enums\PreservationState;
 use App\Filament\User\Resources\DailySummaryResource\Pages;
 use App\Filament\User\Resources\DailySummaryResource\RelationManagers;
 use App\Models\DailySummary;
+use App\Models\Registry;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
@@ -58,7 +60,7 @@ class DailySummaryResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('filename')
                     ->label('Nome file'),
-                Tables\Columns\TextColumn::make('created_at')
+                Tables\Columns\TextColumn::make('file_date')
                     ->label('Data e ora creazione')
                     ->dateTime('d/m/Y H:i:s')
                     ->sortable(),
@@ -170,7 +172,7 @@ class DailySummaryResource extends Resource
                     })
                     ->indicateUsing(function (array $data): ?string {
                         if (!empty($data['protocol'])) {
-                            return "Protocollo: " . $data['protocol'];
+                            return "Protocollo: " . str_pad($data['protocol'], 5, '0', STR_PAD_LEFT);
                         }
                         return null;
                     }),
@@ -220,6 +222,78 @@ class DailySummaryResource extends Resource
                             !empty($record->filename) &&
                             Storage::disk(config('filesystems.default'))->exists("daily_summaries/{$record->filename}.xlsx");
                     }),
+
+                Tables\Actions\Action::make('create_daily')
+                    ->label('Crea registro')
+                    ->color('danger')
+                    ->action(function ($record) {
+                        try {
+                            $date = $record->registration_date->format('Y-m-d');
+                            $records = Registry::whereDate('created_at', $date)
+                                ->orderBy('created_at', 'asc')
+                                ->get();
+
+                            if ($records->isEmpty()) {
+                                return;;
+                            }
+
+                            // Determina i numeri di protocollo min e max
+                            $protocolYear = Str::beforeLast($records[0]->protocol_number, '-');
+
+                            $protocolNumbers = $records->map(function ($record) {
+                                // Prende tutto dopo l'ultimo "-" e lo converte in intero
+                                return (int) Str::afterLast($record->protocol_number, '-');
+                            });
+
+                            $fromNumber = $protocolNumbers->min();   // numero più piccolo (es. 21)
+                            $toNumber   = $protocolNumbers->max();   // numero più grande (es. 45)
+
+                            // Genera nome file
+                            $dateFormatted = \Carbon\Carbon::parse($date)->format('Ymd');
+                            $pdfFilename = "{$dateFormatted}.pdf";
+                            $xlsxFilename = "{$dateFormatted}.xlsx";
+
+                            // Path relativo per Storage
+                            $storagePath = 'daily_summaries';
+
+                            // Genera PDF
+                            $pdf = Pdf::loadView('print.daily_summary', [
+                                'registries' => $records,
+                                'date' => $dateFormatted,
+                                'year' => $protocolYear,
+                                'fromNumber' => $fromNumber,
+                                'toNumber' => $toNumber,
+                            ])
+                            ->setPaper('A4', 'landscape');
+
+                            // Salva PDF su Storage (funziona sia con local che S3)
+                            $pdfContent = $pdf->output();
+
+                            Storage::put($storagePath . '/' . $pdfFilename, $pdfContent);
+
+                            // Genera XLSX in memoria
+                            $xlsxContent = self::generateExcel($records, $dateFormatted, $protocolYear, str_pad($fromNumber, 5, '0', STR_PAD_LEFT), str_pad($toNumber, 5, '0', STR_PAD_LEFT));
+
+                            // Salva XLSX su Storage
+                            Storage::put($storagePath . '/' . $xlsxFilename, $xlsxContent);
+
+                            // Crea record DailySummary
+                            DailySummary::where('registration_date', $date)->update([
+                                'filename' => $dateFormatted,
+                                'file_date' => now(),
+                                'from_protocol' => "{$protocolYear}-". Str::padLeft($fromNumber, 5, '0'),
+                                'to_protocol' => "{$protocolYear}-" . Str::padLeft($toNumber, 5, '0'),
+                                'preservation_state' => PreservationState::NOT_SENT,
+                            ]);
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->tooltip('Errore durante la creazione del registro giornaliero')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->visible(fn ($record) => !$record->file_date)
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -261,5 +335,105 @@ class DailySummaryResource extends Resource
 
         // Prende solo le ultime 5 cifre (o meno) e le completa con zeri a sinistra fino a 5 cifre
         return str_pad(substr($numbers, -5), 5, '0', STR_PAD_LEFT);
+    }
+
+
+
+    private static function generateExcel($records, $dateFormatted, $protocolYear, $fromNumber, $toNumber)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Formatta la data per il display
+        $displayDate = \Carbon\Carbon::parse($dateFormatted)->format('d/m/Y');
+
+        // Header
+        $sheet->setCellValue('A1', 'Registro Protocollo Giornaliero');
+        $sheet->mergeCells('A1:F1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+        $sheet->setCellValue('A2', "Data: {$displayDate}");
+        $sheet->mergeCells('A2:F2');
+
+        $sheet->setCellValue('A3', "Dal n. {$protocolYear}-{$fromNumber} al n. {$protocolYear}-{$toNumber}");
+        $sheet->mergeCells('A3:F3');
+
+        // Column headers
+        $row = 5;
+        $headers = [
+            'A' => 'N. Protocollo',
+            'B' => 'Tipo',
+            'C' => 'Data Registrazione',
+            'D' => 'Data Atto',
+            'E' => 'Interlocutore',
+            'F' => 'Oggetto'
+        ];
+
+        foreach ($headers as $col => $header) {
+            $sheet->setCellValue($col . $row, $header);
+            $sheet->getStyle($col . $row)->getFont()->setBold(true);
+            $sheet->getStyle($col . $row)->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFE0E0E0');
+        }
+
+        // Data rows
+        $row = 6;
+        foreach ($records as $record) {
+            // Determina l'interlocutore
+            $recipient = '';
+            if ($record->flow_type == \App\Enums\FlowType::ISSUED) {
+                $recipient = $record->registryReceivers?->pluck('recipient.description')->join(', ');
+            } else if ($record->flow_type == \App\Enums\FlowType::RECEIVED) {
+                $recipient = $record->sender?->description ?? '';
+            }
+
+            $sheet->setCellValue('A' . $row, $record->protocol_number);
+            $sheet->setCellValue('B' . $row, $record->flow_type?->getLabel() ?? '');
+            $sheet->setCellValue('C' . $row, $record->created_at->format('d/m/Y H:i'));
+
+            $dataAtto = $record->send_date
+                ? $record->send_date->format('d/m/Y')
+                : ($record->receive_date ? $record->receive_date->format('d/m/Y') : '');
+            $sheet->setCellValue('D' . $row, $dataAtto);
+
+            $sheet->setCellValue('E' . $row, $recipient);
+            $sheet->setCellValue('F' . $row, $record->subject ?? '');
+
+            // Word wrap per la colonna oggetto
+            $sheet->getStyle('F' . $row)->getAlignment()->setWrapText(true);
+
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'E') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Imposta larghezza fissa per la colonna Oggetto
+        $sheet->getColumnDimension('F')->setWidth(50);
+
+        // Bordi per tutta la tabella
+        $lastRow = $row - 1;
+        $sheet->getStyle('A5:F' . $lastRow)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['argb' => 'FF000000'],
+                ],
+            ],
+        ]);
+
+        // Genera il contenuto in memoria e restituiscilo
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+        // Usa un buffer temporaneo per catturare l'output
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+
+        return $content;
     }
 }

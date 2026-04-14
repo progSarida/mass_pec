@@ -6,7 +6,6 @@ use App\Models\DailySummary;
 use App\Models\Registry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
-use Illuminate\Support\Facades\Auth;
 
 class CustomDashboard extends BaseDashboard
 {
@@ -30,8 +29,17 @@ class CustomDashboard extends BaseDashboard
             $datesToProcess = $registryDates->diff($processedDates);
 
             $list = '';
-            foreach($datesToProcess as $date)
+            foreach($datesToProcess as $date){
                 $list .= \Carbon\Carbon::parse($date)->format('d/m/Y') . '<br>';
+                DailySummary::create([
+                    'registration_date' => $date,
+                    'filename' => null,
+                    'file_date' => null,
+                    'from_protocol' => null,
+                    'to_protocol' => null,
+                    'preservation_state' => null,
+                ]);
+            }
 
             if ($datesToProcess->isNotEmpty()) {
                 Notification::make()

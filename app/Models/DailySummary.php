@@ -10,6 +10,7 @@ class DailySummary extends Model
     protected $fillable = [
         'registration_date',
         'filename',
+        'file_date',
         'from_protocol',
         'to_protocol',
         'preservation_state',
@@ -17,6 +18,7 @@ class DailySummary extends Model
 
     protected $casts = [
         'registration_date' => 'date',
+        'file_date' => 'datetime',
         'preservation_state' => PreservationState::class,
     ];
 
