@@ -531,6 +531,7 @@ class EditRegistry extends EditRecord
                                 modifyQueryUsing: fn ($query) => $query
                                     ->where('send', true)
                                     ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                                    ->orderBy('position', 'asc')
                             )
                             ->preload(),
                     ])
@@ -596,6 +597,7 @@ class EditRegistry extends EditRecord
                                 modifyQueryUsing: fn ($query) => $query
                                     ->where('send', true)
                                     ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                                    ->orderBy('position', 'asc')
                             )
                             ->preload(),
                     ])

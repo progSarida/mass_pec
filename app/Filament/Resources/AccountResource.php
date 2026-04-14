@@ -38,15 +38,19 @@ class AccountResource extends Resource
         return $form
             ->columns(12)
             ->schema([
-                TextInput::make('public_name')->label('Denominazione casella')->columnSpan(6)
+                TextInput::make('public_name')->label('Denominazione casella')->columnSpan(5)
                     ->required(),
-                TextInput::make('address')->label('Indirizzo@email')->columnSpan(6)
+                TextInput::make('address')->label('Indirizzo@email')->columnSpan(5)
                     ->required()
                     ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, callable $set) {
                         $set('username', $state);
                         $set('out_username', $state);
                     }),
+                TextInput::make('position')->label('Posizione')->columnSpan(2)
+                    ->numeric()
+                    ->minValue(1)
+                    ->required(),
                 Select::make('management_type')->label('Tipo gestione')->columnSpan(4)
                     ->required()
                     ->options(ManagementType::class),
@@ -124,7 +128,11 @@ class AccountResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('position', 'asc')
             ->columns([
+                TextColumn::make('position')
+                    ->label('Posizione')
+                    ->sortable(),
                 TextColumn::make('public_name')
                     ->label('Nome')
                     ->searchable(),

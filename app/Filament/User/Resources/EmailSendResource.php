@@ -57,6 +57,7 @@ class EmailSendResource extends Resource
                             ->where('mail_type', MailType::MAIL)
                             ->where('send', true)
                             ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                            ->orderBy('position', 'asc')
                     )
                     ->afterStateUpdated(function ($state, Set $set){
                         $account = Account::find($state);
@@ -444,7 +445,7 @@ class EmailSendResource extends Resource
                 SelectFilter::make('receiving_mail')
                     ->label('Account')
                     ->preload()
-                    ->options(fn () => Account::where('mail_type', MailType::MAIL)->pluck('public_name', 'address')),
+                    ->options(fn () => Account::where('mail_type', MailType::MAIL)->orderBy('position', 'asc')->pluck('public_name', 'address')),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

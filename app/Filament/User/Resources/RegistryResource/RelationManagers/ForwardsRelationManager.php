@@ -129,7 +129,12 @@ class ForwardsRelationManager extends RelationManager
 
                         Select::make('account_id')
                             ->label('Mittente')
-                            ->relationship(name: 'account', titleAttribute: 'public_name')
+                            ->relationship(
+                                name: 'account',
+                                titleAttribute: 'public_name',
+                                modifyQueryUsing: fn (Builder $query) => $query
+                                    ->orderBy('position', 'asc')
+                            )
                             ->required()
                             ->visible(fn($record) => $record && $record->account_id)
                             ->columnSpan(['sm' => 'full', 'md' => 8]),

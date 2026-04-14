@@ -100,7 +100,12 @@ class ArchivedEmailResource extends Resource
 
                         Select::make('account_id')
                             ->label('Mittente')
-                            ->relationship(name: 'account', titleAttribute: 'public_name')
+                            ->relationship(
+                                name: 'account',
+                                titleAttribute: 'public_name',
+                                modifyQueryUsing: fn (Builder $query) => $query
+                                    ->orderBy('position', 'asc')
+                            )
                             ->required()
                             ->searchable()
                             ->visible(fn(Get $get) => $get('flow_type') == FlowType::ISSUED->value)

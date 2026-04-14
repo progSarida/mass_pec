@@ -72,7 +72,7 @@ class ListArchivedEmails extends ListRecords
                         ->label('Account')
                         ->live()
                         ->required()
-                        ->options(Auth::user()->accounts->where('mail_type', MailType::PEC)->where('download', true)->pluck('public_name', 'id')),
+                        ->options(Auth::user()->accounts->where('mail_type', MailType::PEC)->where('download', true)->orderBy('position', 'asc')->pluck('public_name', 'id')),
                     Select::make('year')
                         ->label('Periodo')
                         ->required()
@@ -120,7 +120,7 @@ class ListArchivedEmails extends ListRecords
                         ->label('Account')
                         ->live()
                         ->required()
-                        ->options(Auth::user()->accounts->where('mail_type', MailType::PEC)->where('download', true)->pluck('public_name', 'id')),
+                        ->options(Auth::user()->accounts->where('mail_type', MailType::PEC)->where('download', true)->orderBy('position', 'asc')->pluck('public_name', 'id')),
                     Select::make('year')
                         ->label('Periodo')
                         ->required()

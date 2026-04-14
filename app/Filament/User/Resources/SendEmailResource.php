@@ -56,6 +56,7 @@ class SendEmailResource extends Resource
                             ->where('mail_type', MailType::PEC)
                             ->where('send', true)
                             ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                            ->orderBy('position', 'asc')
                     )
                     ->afterStateUpdated(function ($state, Set $set){
                         $account = Account::find($state);

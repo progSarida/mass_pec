@@ -212,7 +212,7 @@ class EmailReceiveResource extends Resource
                 TextColumn::make('receiving_mail')
                     ->label('Account')
                     ->state(function ($record) {
-                        return Account::where('mail_type', MailType::PEC)->where('address', $record->receiving_mail)->first()->public_name;
+                        return Account::where('mail_type', MailType::PEC)->where('address', $record->receiving_mail)->first()?->public_name;
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -368,7 +368,7 @@ class EmailReceiveResource extends Resource
                 SelectFilter::make('receiving_mail')
                     ->label('Account')
                     ->preload()
-                    ->options(fn () => Account::where('mail_type', MailType::MAIL)->pluck('public_name', 'address')),
+                    ->options(fn () => Account::where('mail_type', MailType::MAIL)->orderBy('position', 'asc')->pluck('public_name', 'address')),
                 SelectFilter::make('missing_sender')
                     ->label('Mittenti mancanti')
                     ->placeholder('Includi')

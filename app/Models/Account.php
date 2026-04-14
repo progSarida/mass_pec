@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Crypt;
 class Account extends Model
 {
     protected $fillable = [
+        'position',
         'download',
         'send',
         'management_type',
