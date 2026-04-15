@@ -26,4 +26,30 @@ enum RegistryOriginType: string implements HasLabel
             self::REPLY => 'Risposta',
         };
     }
+
+    public function showRich(): bool
+    {
+        return match($this) {
+            self::SHIPMENT => false,
+            self::IN_MAIL => false,
+            self::DOWNLOAD_EMAIL => false,
+            self::SEND_EMAIL => false,
+            self::MANUAL => true,
+            self::FORWARD => false,
+            self::REPLY => true,
+        };
+    }
+
+    public function showArea(): bool
+    {
+        return match($this) {
+            self::SHIPMENT => true,
+            self::IN_MAIL => true,
+            self::DOWNLOAD_EMAIL => true,
+            self::SEND_EMAIL => true,
+            self::MANUAL => false,
+            self::FORWARD => true,
+            self::REPLY => false,
+        };
+    }
 }

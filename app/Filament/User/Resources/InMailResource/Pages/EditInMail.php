@@ -281,7 +281,8 @@ class EditInMail extends EditRecord
                     $fileName = basename($file);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
                     $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
-                    $finalPath = $newPath . '/' . $newFileName;
+                    $append = static::getAppend($extension);
+                    $finalPath = $newPath . $append . $newFileName;
 
                     try {
                         if ($extension === 'pdf') {
@@ -348,6 +349,21 @@ class EditInMail extends EditRecord
             Log::error("Errore protocollazione email: " . $e->getMessage() . ' - Linea: ' . $e->getLine());
             throw $e;
         }
+    }
+
+    private static function getAppend($extension): string
+    {
+        $append = '';
+        switch($extension) {
+            case 'xml':
+            case 'eml':
+            case 'p7s':
+                $append = '/tech/';
+                break;
+            default:
+                $append = '/';
+        }
+        return $append;
     }
 
     private static function newProtocol(): string

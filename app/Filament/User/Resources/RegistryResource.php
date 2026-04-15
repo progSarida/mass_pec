@@ -26,6 +26,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -380,10 +381,18 @@ class RegistryResource extends Resource
 
                         RichEditor::make('body')
                             ->label('Messaggio')
+                            ->visible(fn ($record) => $record?->registry_origin_type?->showRich())
                             ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->default('') // Fondamentale per evitare l'errore "property not found"
                             ->columnSpanFull(),
+
+                        Textarea::make('body')
+                            ->label('Messaggio')
+                            ->visible(fn ($record) => $record?->registry_origin_type?->showArea())
+                            ->rows(10)
+                            ->columnSpan('full')
+                            ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
                             ]),
 
                 DateTimePicker::make('receive_date')
@@ -577,6 +586,45 @@ class RegistryResource extends Resource
                                 }
 
                                 $files = Storage::files($record?->attachment_path . '/related');
+
+                                if (empty($files)) {
+                                    return 'Nessun allegato.';
+                                }
+
+                                return new HtmlString(
+                                    collect($files)->map(function ($file) {
+                                        $name = basename($file);
+                                        $url = Storage::temporaryUrl($file, now()->addMinutes(15));
+                                        return <<<HTML
+                                        <div class="flex items-center gap-2 py-1">
+                                            <span class="text-gray-400 text-xs">📎</span>
+                                            <a href="{$url}" target="_blank" class="text-sm text-blue-600 hover:underline hover:text-blue-800 transition">
+                                                {$name}
+                                            </a>
+                                        </div>
+                                        HTML;
+                                    })->implode('')
+                                );
+                            })
+                            ->columnSpan('full'),
+                    ]),
+
+                Section::make('Allegati tecnici')
+                    ->collapsed(fn($record) => $record)
+                    ->visible(function ($record) {
+                        $files = Storage::files($record?->attachment_path . '/tech');
+                        if (empty($files)) { return false; }
+                        return true;
+                    })
+                    ->schema([
+                        Placeholder::make('tech')
+                            ->label('')
+                            ->content(function ($record) {
+                                if (!$record || !$record?->attachment_path) {
+                                    return 'Nessuna cartella allegati tecnici trovata.';
+                                }
+
+                                $files = Storage::files($record?->attachment_path . '/tech');
 
                                 if (empty($files)) {
                                     return 'Nessun allegato.';
