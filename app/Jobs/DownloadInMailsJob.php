@@ -40,12 +40,12 @@ class DownloadInMailsJob implements ShouldQueue
                 throw new \Exception("Nessun mittente configurato. Inserire i dati nella pagina Mittente.");
             }
 
-            $downloaded = $this->downloadFromSender($sender, $user);
+            [$downloaded, $deleted, $skipped] = $this->downloadFromSender($sender, $user);
 
             DB::commit();
 
             // Notifica finale
-            $this->sendNotification($user, $downloaded);
+            $this->sendNotification($user, $downloaded, $deleted, $skipped);
 
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -57,9 +57,11 @@ class DownloadInMailsJob implements ShouldQueue
         }
     }
 
-    private function downloadFromSender(Sender $sender, User $user): int
+    private function downloadFromSender(Sender $sender, User $user): array
     {
         $downloaded = 0;
+        $deleted = 0;
+        $skipped = 0;
 
         $host = $sender->in_mail_server;
         $port = (int)$sender->in_mail_port;
@@ -103,6 +105,8 @@ class DownloadInMailsJob implements ShouldQueue
                     // Skip ricevute PEC
                     if ($this->isOfficialPecReceipt($rawHeaders)) {
                         Log::info("Ignorata ricevuta PEC: UID {$uid}");
+                        $receiptDeleted = $this->handleDeletion($message, $sender, $date);
+                        if($receiptDeleted) {$deleted++;} else {$skipped++;}
                         continue;
                     }
 
@@ -112,7 +116,8 @@ class DownloadInMailsJob implements ShouldQueue
                     // Skip già scaricata
                     if ($this->isAlreadyDownloaded($sender, $message_id, $date)) {
                         Log::info("Ignorata mail già scaricata: Message-ID {$message_id}");
-                        $this->handleDeletion($message, $sender, $date);
+                        $emailDeleted = $this->handleDeletion($message, $sender, $date);
+                        if($emailDeleted) {$deleted++;} else {$skipped++;}
                         continue;
                     }
 
@@ -160,7 +165,7 @@ class DownloadInMailsJob implements ShouldQueue
             throw $e;
         }
 
-        return $downloaded;
+        return [$downloaded, $deleted, $skipped];
     }
 
     private function isOfficialPecReceipt($rawHeaders): bool
@@ -279,15 +284,16 @@ class DownloadInMailsJob implements ShouldQueue
         return $text;
     }
 
-    private function handleDeletion($message, $sender, $date): void
+    private function handleDeletion($message, $sender, $date): bool
     {
-        if (!$sender->delete || !$date) return;
+        if (!$sender->delete || !$date) return false;
 
         try {
             if ($sender->delete_after_days) {
                 $deleteDate = now()->subDays($sender->delete_after_days)->startOfDay();
                 if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
                     $message->delete();
+                    return true;
                 }
             }
         } catch (\Throwable $e) {
@@ -295,6 +301,7 @@ class DownloadInMailsJob implements ShouldQueue
                 'error' => $e->getMessage()
             ]);
         }
+        return false;
     }
 
     private function getSenderId($from): ?int
@@ -309,13 +316,15 @@ class DownloadInMailsJob implements ShouldQueue
         return iconv('UTF-8', 'UTF-8//IGNORE', $string);
     }
 
-    private function sendNotification($user, $downloaded): void
+    private function sendNotification($user, $downloaded, $deleted, $skipped): void
     {
         $body = $downloaded === 0
             ? "Nessuna nuova email da scaricare."
             : ($downloaded === 1
                 ? "È stata scaricata con successo 1 email."
                 : "Sono state scaricate con successo {$downloaded} email.");
+        $body .= "<br>Saltate {$skipped} email.";
+        $body .= "<br>Eliminate {$deleted} email.";
 
         \Filament\Notifications\Notification::make()
             ->title('Download completato')

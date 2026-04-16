@@ -90,10 +90,7 @@ class InMailResource extends Resource
 
                         RichEditor::make('body')
                             ->label('Messaggio')
-                            ->visible(fn ($record) =>
-                                $record?->registry_origin_type?->showRich() ||
-                                ($record && static::containsHtml($record->eml_body ?? $record->body))
-                            )
+                            ->visible(fn ($record) => ($record && static::containsHtml($record->eml_body ?? $record->body)))
                             // ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
                             ->disabled()
                             ->default('')
@@ -108,10 +105,7 @@ class InMailResource extends Resource
 
                         Textarea::make('body')
                             ->label('Messaggio')
-                            ->visible(fn ($record) =>
-                                $record?->registry_origin_type?->showArea() &&
-                                !($record && static::containsHtml($record->eml_body ?? $record->body))
-                            )
+                            ->visible(fn ($record) => !($record && static::containsHtml($record->eml_body ?? $record->body)))
                             ->rows(10)
                             ->disabled()
                             ->columnSpan('full')

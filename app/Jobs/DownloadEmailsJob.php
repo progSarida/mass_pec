@@ -44,6 +44,8 @@ class DownloadEmailsJob implements ShouldQueue
             : $user->accounts->where('mail_type', MailType::PEC)->where('download', true);                  // account scaricabili associati all'utente
 
         $totalDownloaded = 0;
+        $totalDeleted = 0;
+        $totalSkipped = 0;
         $accountsProcessed = 0;
         $accountsFailed = 0;
         $errors = [];
@@ -52,14 +54,17 @@ class DownloadEmailsJob implements ShouldQueue
             try {
                 DB::beginTransaction();
 
-                $downloaded = $this->downloadFromAccount($account, $user);
+                [$downloaded, $deleted, $skipped] = $this->downloadFromAccount($account, $user);
                 $totalDownloaded += $downloaded;
+                $totalDeleted += $deleted;
+                $totalSkipped += $skipped;
                 $accountsProcessed++;
 
                 DB::commit();
 
                 Log::info("Scaricate {$downloaded} email dall'account {$account->username}");
-
+                Log::info("Saltate {$skipped} email dall'account {$account->username}");
+                Log::info("Eliminate {$deleted} email dall'account {$account->username}");
             } catch (\Throwable $e) {
                 DB::rollBack();
                 $accountsFailed++;
@@ -80,10 +85,10 @@ class DownloadEmailsJob implements ShouldQueue
         }
 
         // Notifica finale con riepilogo
-        $this->sendFinalNotification($user, $totalDownloaded, $accountsProcessed, $accountsFailed, $errors);
+        $this->sendFinalNotification($user, $totalDownloaded, $totalDeleted, $totalSkipped, $accountsProcessed, $accountsFailed, $errors);
     }
 
-    private function sendFinalNotification($user, $totalDownloaded, $accountsProcessed, $accountsFailed, $errors): void
+    private function sendFinalNotification($user, $totalDownloaded, $totalDeleted, $totalSkipped, $accountsProcessed, $accountsFailed, $errors): void
     {
         if ($accountsFailed > 0 && $accountsProcessed === 0) {
             // Tutti gli account sono falliti
@@ -96,7 +101,9 @@ class DownloadEmailsJob implements ShouldQueue
         } elseif ($accountsFailed > 0) {
             // Alcuni account sono falliti
             $body = "Scaricate {$totalDownloaded} email da {$accountsProcessed} account.";
-            $body .= " {$accountsFailed} account hanno avuto errori.";
+            $body .= "<br>Saltate {$totalSkipped} email.";
+            $body .= "<br>Eliminate {$totalDeleted} email.";
+            $body .= "<br>{$accountsFailed} account hanno avuto errori.";
 
             \Filament\Notifications\Notification::make()
                 ->title('Download completato con errori')
@@ -110,6 +117,8 @@ class DownloadEmailsJob implements ShouldQueue
                 : ($totalDownloaded === 1
                     ? "È stata scaricata con successo 1 email."
                     : "Sono state scaricate con successo {$totalDownloaded} email.");
+            $body .= "<br>Saltate {$totalSkipped} email.";
+            $body .= "<br>Eliminate {$totalDeleted} email.";
 
             \Filament\Notifications\Notification::make()
                 ->title('Download completato')
@@ -119,9 +128,11 @@ class DownloadEmailsJob implements ShouldQueue
         }
     }
 
-    private function downloadFromAccount(Account $account, User $user): int
+    private function downloadFromAccount(Account $account, User $user): array
     {
         $downloaded = 0;
+        $deleted = 0;
+        $skipped = 0;
 
         $host = $account->in_mail_server;
         $port = (int)$account->in_mail_port;
@@ -141,15 +152,22 @@ class DownloadEmailsJob implements ShouldQueue
 
         try {
             $mailbox = $connection->getMailbox('INBOX');
-            $messages = $mailbox->getMessages();
-            $count = count($messages);
+            $allMessages = $mailbox->getMessages();
+
+            // Filtra i messaggi successivi alla data limite
+            $messages = collect($allMessages)->filter(function ($message) use ($limitDate) {
+                $messageDate = $message->getDate();
+                return $messageDate && $messageDate >= $limitDate;
+            })->values();
+
+            $count = $messages->count();
 
             if($count == 0)
-                $body = "Nessuna mail trovata da scaricare dall'account {$account->public_name}";
+                $body = "Nessuna mail trovata nella casella dell'account {$account->address}";
             else if ($count == 1)
-                $body = "Trovata una mail da scaricare dall'account {$account->public_name}";
+                $body = "Trovata una mail nella casella dell'account {$account->address}";
             else if ($count > 1)
-                $body = "Trovate " . $count . " email da scaricare dall'account {$account->public_name}";
+                $body = "Trovate {$count} email nella casella dell'account {$account->address}";
 
             Log::info($body);
 
@@ -164,9 +182,9 @@ class DownloadEmailsJob implements ShouldQueue
                     $messageDate = $message->getDate(); // Ottieni l'oggetto DateTime
 
                     // Se la data del messaggio è inferiore al limite, saltalo
-                    if (!$messageDate || $messageDate < $limitDate) {
-                        continue;
-                    }
+                    // if (!$messageDate || $messageDate < $limitDate) {
+                    //     continue;
+                    // }
 
                     $uid = $message->getNumber();
                     $rawHeaders = $message->getRawHeaders();
@@ -176,8 +194,10 @@ class DownloadEmailsJob implements ShouldQueue
                     // Skip ricevute PEC
                     if ($this->isOfficialPecReceipt($rawHeaders)) {
                         // controllo cancellazione solo se tutte le mail inviate del protocollo hanno un esito
-                        if($this->isDeletable($message->getSubject() ?? '(senza oggetto)'))
-                            $this->handleDeletion($message, $account, $message->getDate()?->format('Y-m-d H:i:s'), $from);
+                        if($this->isDeletable($message->getSubject() ?? '(senza oggetto)')){
+                            $receiptDeleted = $this->handleDeletion($message, $account, $message->getDate()?->format('Y-m-d H:i:s'), $from);
+                            if($receiptDeleted) {$deleted++;} else {$skipped++;}
+                        }
                         Log::info("UID: {$uid} - È ricevuta EPC");
                         continue;
                     }
@@ -190,7 +210,8 @@ class DownloadEmailsJob implements ShouldQueue
 
                     if ($skip) {
                         Log::info("Ignorata mail già scaricata/protocollata: UID {$uid}, Message-ID {$message_id}, Ricevente {$account->address}");
-                        $this->handleDeletion($message, $account, $date, $from);
+                        $emailDeleted = $this->handleDeletion($message, $account, $date, $from);
+                        if($emailDeleted) {$deleted++;} else {$skipped++;}
                         continue;
                     }
 
@@ -200,7 +221,8 @@ class DownloadEmailsJob implements ShouldQueue
 
                     Log::info("Email salvata: UID {$uid}, ID {$inMail->id}");
 
-                    $this->handleDeletion($message, $account, $date, $from);
+                    $emailDeleted = $this->handleDeletion($message, $account, $date, $from);
+                    if($emailDeleted) {$deleted++;}
 
                 } catch (\Throwable $e) {
                     // Log errore sul singolo messaggio ma continua con il prossimo
@@ -231,7 +253,7 @@ class DownloadEmailsJob implements ShouldQueue
             throw $e; // Rilancia l'eccezione per il catch nel metodo handle
         }
 
-        return $downloaded;
+        return [$downloaded, $deleted, $skipped];
     }
 
     private function isOfficialPecReceipt($rawHeaders): bool
@@ -348,8 +370,8 @@ class DownloadEmailsJob implements ShouldQueue
 
                 $inMail->update(['eml_body' => substr($this->sanitizeUtf8($testo_semplice), 0, 10000)]);
 
-                Log::info("Testo semplice: " . ($testo_semplice ?: '[NESSUN TESTO SEMPLICE]'));
-                Log::info("Testo HTML: " . ($html ?? '[NESSUN HTML]'));
+                // Log::info("Testo semplice: " . ($testo_semplice ?: '[NESSUN TESTO SEMPLICE]'));
+                // Log::info("Testo HTML: " . ($html ?? '[NESSUN HTML]'));
             }
         }
 
@@ -375,9 +397,9 @@ class DownloadEmailsJob implements ShouldQueue
         return $text;
     }
 
-    private function handleDeletion($message, $account, $date, $from): void
+    private function handleDeletion($message, $account, $date, $from): bool
     {
-        if (!$account->delete || !$date) return;
+        if (!$account->delete || !$date) return false;
         $messageId = $message->getId();
         try {
             Log::info("Controllo cancellazione ID {$messageId}");
@@ -386,13 +408,16 @@ class DownloadEmailsJob implements ShouldQueue
                 if (\Carbon\Carbon::parse($date)->lt($deleteDate)) {
                     Log::info("Cancellato ID {$messageId}");
                     $message->delete();
+                    return true;
                 }
             }
+            return false;
         } catch (\Throwable $e) {
             Log::warning("Errore eliminazione messaggio ID {$messageId}", [
                 'error' => $e->getMessage()
             ]);
         }
+        return false;
     }
 
     private function getSenderId($from): ?int
