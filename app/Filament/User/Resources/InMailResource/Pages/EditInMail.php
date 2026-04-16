@@ -33,14 +33,34 @@ class EditInMail extends EditRecord
     protected function getHeaderActions(): array
     {
         $currentInMail = $this->record;
-        $previousCInMail = InMail::where('created_at', '<=', $currentInMail->created_at)->where('id', '!=', $currentInMail->id)
+        $previousCInMail = InMail::where('created_at', '<=', $currentInMail->created_at)->where('id', '<', $currentInMail->id)
                                 ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
-        $nextCInMail = InMail::where('created_at', '>=', $currentInMail->created_at)->where('id', '!=', $currentInMail->id)
+        $nextCInMail = InMail::where('created_at', '>=', $currentInMail->created_at)->where('id', '>', $currentInMail->id)
                                 ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
-        $previousRInMail = InMail::where('receive_date', '<=', $currentInMail->receive_date)->where('id', '!=', $currentInMail->id)
-                                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
-        $nextRInMail = InMail::where('receive_date', '>=', $currentInMail->receive_date)->where('id', '!=', $currentInMail->id)
-                                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        // $previousRInMail = InMail::where('receive_date', '<=', $currentInMail->receive_date)->where('id', '<', $currentInMail->id)
+        //                         ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+        // $nextRInMail = InMail::where('receive_date', '>=', $currentInMail->receive_date)->where('id', '>', $currentInMail->id)
+        //                         ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        $previousRInMail = null;
+        $nextRInMail = null;
+        if (!empty($currentInMail->receive_date)) {
+
+            $previousRInMail = InMail::whereNotNull('receive_date')
+                ->where('receive_date', '<', $currentInMail->receive_date)
+                ->orWhere(function ($query) use ($currentInMail) {
+                    $query->where('receive_date', $currentInMail->receive_date)
+                        ->where('id', '<', $currentInMail->id);
+                })
+                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+
+            $nextRInMail = InMail::whereNotNull('receive_date')
+                ->where('receive_date', '>', $currentInMail->receive_date)
+                ->orWhere(function ($query) use ($currentInMail) {
+                    $query->where('receive_date', $currentInMail->receive_date)
+                        ->where('id', '>', $currentInMail->id);
+                })
+                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        }
         return [
             // Actions\DeleteAction::make(),
             // Scorrimento cronologico
@@ -203,6 +223,7 @@ class EditInMail extends EditRecord
                 'from' => $record->from,
                 'subject' => $record->subject,
                 'body' => $record->body,
+                'eml_body' => $record->eml_body,
                 'receive_date' => $record->receive_date,
                 'account_id' => null,
                 'send_date' => null,

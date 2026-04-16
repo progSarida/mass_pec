@@ -31,6 +31,7 @@ class Registry extends Model
         'from',
         'subject',
         'body',
+        'eml_body',
         'receive_date',
         'account_id',
         // 'recipients',

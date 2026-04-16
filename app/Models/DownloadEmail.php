@@ -17,6 +17,7 @@ class DownloadEmail extends Model
         'from',
         'subject',
         'body',
+        'eml_body',
         'receive_date',
         'attachment_path',
         'download_user_id',

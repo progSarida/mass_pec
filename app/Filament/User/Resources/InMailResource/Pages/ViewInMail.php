@@ -30,14 +30,34 @@ class ViewInMail extends ViewRecord
     protected function getHeaderActions(): array
     {
         $currentInMail = $this->record;
-        $previousCInMail = InMail::where('created_at', '<=', $currentInMail->created_at)->where('id', '!=', $currentInMail->id)
+        $previousCInMail = InMail::where('created_at', '<=', $currentInMail->created_at)->where('id', '<', $currentInMail->id)
                                 ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
-        $nextCInMail = InMail::where('created_at', '>=', $currentInMail->created_at)->where('id', '!=', $currentInMail->id)
+        $nextCInMail = InMail::where('created_at', '>=', $currentInMail->created_at)->where('id', '>', $currentInMail->id)
                                 ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
-        $previousRInMail = InMail::where('receive_date', '<=', $currentInMail->receive_date)->where('id', '!=', $currentInMail->id)
-                                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
-        $nextRInMail = InMail::where('receive_date', '>=', $currentInMail->receive_date)->where('id', '!=', $currentInMail->id)
-                                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        // $previousRInMail = InMail::where('receive_date', '<=', $currentInMail->receive_date)->where('id', '<', $currentInMail->id)
+        //                         ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+        // $nextRInMail = InMail::where('receive_date', '>=', $currentInMail->receive_date)->where('id', '>', $currentInMail->id)
+        //                         ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        $previousRInMail = null;
+        $nextRInMail = null;
+        if (!empty($currentInMail->receive_date)) {
+
+            $previousRInMail = InMail::whereNotNull('receive_date')
+                ->where('receive_date', '<', $currentInMail->receive_date)
+                ->orWhere(function ($query) use ($currentInMail) {
+                    $query->where('receive_date', $currentInMail->receive_date)
+                        ->where('id', '<', $currentInMail->id);
+                })
+                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+
+            $nextRInMail = InMail::whereNotNull('receive_date')
+                ->where('receive_date', '>', $currentInMail->receive_date)
+                ->orWhere(function ($query) use ($currentInMail) {
+                    $query->where('receive_date', $currentInMail->receive_date)
+                        ->where('id', '>', $currentInMail->id);
+                })
+                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        }
         return [
             Actions\Action::make('back')
                 ->label('Indietro')

@@ -34,10 +34,34 @@ class EditDownloadEmail extends EditRecord
     protected function getHeaderActions(): array
     {
         $currentDownloadEmail = $this->record;
-        $previousCDownloadEmail = DownloadEmail::where('created_at', '<=', $currentDownloadEmail->created_at)->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
-        $nextCDownloadEmail = DownloadEmail::where('created_at', '>=', $currentDownloadEmail->created_at)->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
-        $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
-        $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        $previousCDownloadEmail = DownloadEmail::where('created_at', '<=', $currentDownloadEmail->created_at)->where('id', '<', $currentDownloadEmail->id)
+                                ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
+        $nextCDownloadEmail = DownloadEmail::where('created_at', '>=', $currentDownloadEmail->created_at)->where('id', '>', $currentDownloadEmail->id)
+                                ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
+        // $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->where('id', '<', $currentDownloadEmail->id)
+        //                         ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+        // $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->where('id', '>', $currentDownloadEmail->id)
+        //                         ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        $previousRDownloadEmail = null;
+        $nextRDownloadEmail = null;
+        if (!empty($currentDownloadEmail->receive_date)) {
+
+            $previousRDownloadEmail = DownloadEmail::whereNotNull('receive_date')
+                ->where('receive_date', '<', $currentDownloadEmail->receive_date)
+                ->orWhere(function ($query) use ($currentDownloadEmail) {
+                    $query->where('receive_date', $currentDownloadEmail->receive_date)
+                        ->where('id', '<', $currentDownloadEmail->id);
+                })
+                ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
+
+            $nextRDownloadEmail = DownloadEmail::whereNotNull('receive_date')
+                ->where('receive_date', '>', $currentDownloadEmail->receive_date)
+                ->orWhere(function ($query) use ($currentDownloadEmail) {
+                    $query->where('receive_date', $currentDownloadEmail->receive_date)
+                        ->where('id', '>', $currentDownloadEmail->id);
+                })
+                ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
+        }
         return [
             // Actions\DeleteAction::make(),
             // Scorrimento cronologico
@@ -203,6 +227,7 @@ class EditDownloadEmail extends EditRecord
                 'from' => $record->from,
                 'subject' => $record->subject,
                 'body' => $record->body,
+                'eml_body' => $record->eml_body,
                 'receive_date' => $record->receive_date,
                 'account_id' => null,
                 'send_date' => null,
@@ -288,7 +313,7 @@ class EditDownloadEmail extends EditRecord
                 foreach ($files as $file) {
                     $fileName = basename($file);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                    $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
+                    $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_RIC_' . $fileName;
                     $append = static::getAppend($extension);
                     $finalPath = $newPath . $append . $newFileName;
 

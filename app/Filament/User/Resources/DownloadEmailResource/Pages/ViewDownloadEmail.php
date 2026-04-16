@@ -31,13 +31,13 @@ class ViewDownloadEmail extends ViewRecord
     protected function getHeaderActions(): array
     {
         $currentDownloadEmail = $this->record;
-        $previousCDownloadEmail = DownloadEmail::where('created_at', '<=', $currentDownloadEmail->created_at)->where('id', '!=', $currentDownloadEmail->id)
+        $previousCDownloadEmail = DownloadEmail::where('created_at', '<=', $currentDownloadEmail->created_at)->where('id', '<', $currentDownloadEmail->id)
                                 ->orderBy('created_at', 'desc')->orderBy('id', 'desc')->first();
-        $nextCDownloadEmail = DownloadEmail::where('created_at', '>=', $currentDownloadEmail->created_at)->where('id', '!=', $currentDownloadEmail->id)
+        $nextCDownloadEmail = DownloadEmail::where('created_at', '>=', $currentDownloadEmail->created_at)->where('id', '>', $currentDownloadEmail->id)
                                 ->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first();
-        // $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
+        // $previousRDownloadEmail = DownloadEmail::where('receive_date', '<=', $currentDownloadEmail->receive_date)->where('id', '<', $currentDownloadEmail->id)
         //                         ->orderBy('receive_date', 'desc')->orderBy('id', 'desc')->first();
-        // $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->where('id', '!=', $currentDownloadEmail->id)
+        // $nextRDownloadEmail = DownloadEmail::where('receive_date', '>=', $currentDownloadEmail->receive_date)->where('id', '>', $currentDownloadEmail->id)
         //                         ->orderBy('receive_date', 'asc')->orderBy('id', 'asc')->first();
         $previousRDownloadEmail = null;
         $nextRDownloadEmail = null;

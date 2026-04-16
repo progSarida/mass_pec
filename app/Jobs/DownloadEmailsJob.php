@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\RegistryReceiver;
 use App\Models\User;
 use DateTime;
+use eXorus\PhpMimeMailParser\Parser;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,6 +17,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Ddeboer\Imap\Server;
+use ZBateson\MailMimeParser\MailMimeParser;
 
 class DownloadEmailsJob implements ShouldQueue
 {
@@ -319,14 +321,58 @@ class DownloadEmailsJob implements ShouldQueue
 
         foreach ($message->getAttachments() as $attachment) {
             $originalName = $attachment->getFilename();
+            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
             $content = $attachment->getDecodedContent();
             \Illuminate\Support\Facades\Storage::put("{$folderPath}/{$safeName}", $content);
+
+            if ($extension == 'eml') {
+                $parser = new MailMimeParser();
+                $disk = config('filesystems.default');
+                $storage = \Illuminate\Support\Facades\Storage::disk($disk);
+                $content = $storage->get("{$folderPath}/{$safeName}");
+                $message = $parser->parse($content, false);
+
+                // 1. Prova a prendere il testo semplice
+                $testo_semplice = $message->getTextContent();
+
+                // 2. Se non c'è testo semplice, estrai dal HTML e converti in testo pulito
+                if (empty($testo_semplice)) {
+                    $html = $message->getHtmlContent();
+
+                    if (!empty($html)) {
+                        // Converte HTML → testo semplice (rimuove tag, converte entità, ecc.)
+                        $testo_semplice = $this->htmlToPlainText($html);
+                    }
+                }
+
+                $inMail->update(['eml_body' => substr($this->sanitizeUtf8($testo_semplice), 0, 10000)]);
+
+                Log::info("Testo semplice: " . ($testo_semplice ?: '[NESSUN TESTO SEMPLICE]'));
+                Log::info("Testo HTML: " . ($html ?? '[NESSUN HTML]'));
+            }
         }
 
         $inMail->update(['attachment_path' => $folderPath]);
 
         return $inMail;
+    }
+
+    private function htmlToPlainText(string $html): string
+    {
+        // Opzione 1: Usa strip_tags + entity decode (semplice)
+        $text = strip_tags($html);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Opzione 2: Migliore (consigliata) - usa una libreria leggera
+        // composer require soundasleep/html2text
+        // $text = \Html2Text\Html2Text::convert($html);
+
+        // Pulizia extra
+        $text = preg_replace('/\s+/', ' ', $text);   // riduce spazi multipli
+        $text = trim($text);
+
+        return $text;
     }
 
     private function handleDeletion($message, $account, $date, $from): void

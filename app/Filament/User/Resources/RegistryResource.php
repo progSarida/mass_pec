@@ -379,21 +379,47 @@ class RegistryResource extends Resource
                             ->disabled()
                             ->dehydrated(false),
 
+                        // RichEditor::make('body')
+                        //     ->label('Messaggio')
+                        //     ->visible(fn ($record) => $record?->registry_origin_type?->showRich())
+                        //     ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
+                        //     ->disabled(fn ($record) => $record?->isIngoingEmail())
+                        //     ->default('') // Fondamentale per evitare l'errore "property not found"
+                        //     ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
+                        //     ->columnSpanFull(),
+
                         RichEditor::make('body')
                             ->label('Messaggio')
-                            ->visible(fn ($record) => $record?->registry_origin_type?->showRich())
+                            ->visible(fn ($record) =>
+                                $record?->registry_origin_type?->showRich() ||
+                                ($record && static::containsHtml($record->eml_body ?? $record->body))
+                            )
                             ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->default('') // Fondamentale per evitare l'errore "property not found"
+                            ->default('')
+                            ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
                             ->columnSpanFull(),
+
+                        // Textarea::make('body')
+                        //     ->label('Messaggio')
+                        //     ->visible(fn ($record) => $record?->registry_origin_type?->showArea())
+                        //     ->rows(10)
+                        //     ->disabled(fn ($record) => $record?->isIngoingEmail())
+                        //     ->columnSpan('full')
+                        //     ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? 'Nessun contenuto'))
 
                         Textarea::make('body')
                             ->label('Messaggio')
-                            ->visible(fn ($record) => $record?->registry_origin_type?->showArea())
+                            ->visible(fn ($record) =>
+                                $record?->registry_origin_type?->showArea() &&
+                                !($record && static::containsHtml($record->eml_body ?? $record->body))
+                            )
                             ->rows(10)
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan('full')
-                            ->formatStateUsing(fn ($state) => $state ?? 'Nessun contenuto'),
-                            ]),
+                            ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? 'Nessun contenuto'))
+
+                ]),
 
                 DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
@@ -1317,5 +1343,21 @@ class RegistryResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->with('shipment');
+    }
+
+    /**
+     * Verifica se il contenuto contiene tag HTML
+     */
+    private static function containsHtml(?string $content): bool
+    {
+        if (empty($content)) {
+            return false;
+        }
+
+        // Rimuove spazi bianchi e confronta con la versione stripped
+        $stripped = strip_tags($content);
+
+        // Se dopo aver rimosso i tag il contenuto è diverso, significa che c'erano tag HTML
+        return $content !== $stripped;
     }
 }
