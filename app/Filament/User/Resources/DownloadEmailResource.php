@@ -3,7 +3,6 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\MailType;
-use App\Enums\ManageRegistryType;
 use App\Models\Account;
 use App\Models\Recipient;
 use Filament\Forms;
@@ -13,7 +12,6 @@ use Filament\Forms\Set;
 use Filament\Tables;
 use App\Models\Registry;
 use Filament\Forms\Form;
-use App\Models\ScopeType;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -21,7 +19,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use App\Models\DownloadEmail;
 use Filament\Resources\Resource;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Facades\Log;
@@ -30,7 +27,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -116,16 +112,16 @@ class DownloadEmailResource extends Resource
                         //     ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? 'Nessun contenuto')),
 
                         RichEditor::make('body')
-                        ->label('Messaggio')
-                        ->visible(fn ($record) =>
-                            $record?->registry_origin_type?->showRich() ||
-                            ($record && static::containsHtml($record->eml_body ?? $record->body))
-                        )
-                        // ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
-                        ->disabled()
-                        ->default('')
-                        ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
-                        ->columnSpanFull(),
+                            ->label('Messaggio')
+                            ->visible(fn ($record) =>
+                                $record?->registry_origin_type?->showRich() ||
+                                ($record && static::containsHtml($record->eml_body ?? $record->body))
+                            )
+                            // ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
+                            ->disabled()
+                            ->default('')
+                            ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
+                            ->columnSpanFull(),
 
                         // Textarea::make('body')
                         //     ->label('Messaggio')

@@ -5,17 +5,8 @@ namespace App\Filament\User\Resources\InMailResource\Pages;
 use Filament\Actions;
 use App\Filament\User\Resources\InMailResource;
 use App\Models\InMail;
-use App\Models\Registry;
-use App\Models\ScopeType;
-use Illuminate\Support\Facades\DB;
-use Filament\Forms\Components\Select;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ViewInMail extends ViewRecord
 {

@@ -3,18 +3,9 @@
 namespace App\Filament\User\Resources\DownloadEmailResource\Pages;
 
 use Filament\Actions;
-use App\Models\Registry;
-use App\Models\ScopeType;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
-use Filament\Forms\Components\Select;
-use Illuminate\Support\Facades\Storage;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use App\Filament\User\Resources\DownloadEmailResource;
 use App\Models\DownloadEmail;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Support\Htmlable;
 
 class ViewDownloadEmail extends ViewRecord

@@ -2,16 +2,15 @@
 
 namespace App\Filament\User\Resources;
 
-use App\Enums\ManageRegistryType;
 use App\Filament\User\Resources\InMailResource\Pages;
 use App\Models\InMail;
 use App\Models\Recipient;
 use App\Models\Registry;
-use App\Models\ScopeType;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Form;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
@@ -28,8 +27,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -92,16 +89,16 @@ class InMailResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 12]),
 
                         RichEditor::make('body')
-                        ->label('Messaggio')
-                        ->visible(fn ($record) =>
-                            $record?->registry_origin_type?->showRich() ||
-                            ($record && static::containsHtml($record->eml_body ?? $record->body))
-                        )
-                        ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
-                        ->disabled(fn ($record) => $record?->isIngoingEmail())
-                        ->default('')
-                        ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
-                        ->columnSpanFull(),
+                            ->label('Messaggio')
+                            ->visible(fn ($record) =>
+                                $record?->registry_origin_type?->showRich() ||
+                                ($record && static::containsHtml($record->eml_body ?? $record->body))
+                            )
+                            // ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
+                            ->disabled()
+                            ->default('')
+                            ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
+                            ->columnSpanFull(),
 
                         // Textarea::make('body')
                         //     ->label('Messaggio')
@@ -116,7 +113,7 @@ class InMailResource extends Resource
                                 !($record && static::containsHtml($record->eml_body ?? $record->body))
                             )
                             ->rows(10)
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->disabled()
                             ->columnSpan('full')
                             ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? 'Nessun contenuto'))
                     ]),
