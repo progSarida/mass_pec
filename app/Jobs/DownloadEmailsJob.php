@@ -51,6 +51,7 @@ class DownloadEmailsJob implements ShouldQueue
         $errors = [];
 
         foreach ($accounts as $account) {
+            $errorMsg = '';
             try {
                 DB::beginTransaction();
 
@@ -69,7 +70,7 @@ class DownloadEmailsJob implements ShouldQueue
                 DB::rollBack();
                 $accountsFailed++;
 
-                $errorMsg = "Errore account {$account->username}: " . $e->getMessage();
+                $errorMsg = "Errore account {$account->address}: " . $e->getMessage();
                 $errors[] = $errorMsg;
 
                 Log::error("Errore download email da account", [
@@ -82,10 +83,44 @@ class DownloadEmailsJob implements ShouldQueue
                 // Continua con il prossimo account invece di interrompere tutto
                 continue;
             }
+
+            // Notifica account
+            $this->sendAccopuntNotification($user, $downloaded, $deleted, $skipped, $account, $errorMsg);
+
+            sleep(5);
         }
 
         // Notifica finale con riepilogo
-        $this->sendFinalNotification($user, $totalDownloaded, $totalDeleted, $totalSkipped, $accountsProcessed, $accountsFailed, $errors);
+        // $this->sendFinalNotification($user, $totalDownloaded, $totalDeleted, $totalSkipped, $accountsProcessed, $accountsFailed, $errors);
+    }
+
+    private function sendAccopuntNotification($user, $totalDownloaded, $totalDeleted, $totalSkipped, $account, $errorMsg): void
+    {
+        if ($errorMsg !== '') {
+            Log::error($errorMsg);
+            // Tutti gli account sono falliti
+            \Filament\Notifications\Notification::make()
+                ->title('Download email fallito')
+                ->body($errorMsg)
+                ->danger()
+                ->persistent()
+                ->sendToDatabase($user);
+        } else {
+            // Tutto ok
+            $body = $totalDownloaded === 0
+                ? "Nessuna nuova email da scaricare."
+                : ($totalDownloaded === 1
+                    ? "È stata scaricata con successo 1 email."
+                    : "Sono state scaricate con successo {$totalDownloaded} email.");
+            $body .= "<br>Saltate {$totalSkipped} email.";
+            $body .= "<br>Eliminate {$totalDeleted} email.";
+
+            \Filament\Notifications\Notification::make()
+                ->title("Download completato ({$account->address})")
+                ->body($body)
+                ->success()
+                ->sendToDatabase($user);
+        }
     }
 
     private function sendFinalNotification($user, $totalDownloaded, $totalDeleted, $totalSkipped, $accountsProcessed, $accountsFailed, $errors): void
@@ -163,16 +198,16 @@ class DownloadEmailsJob implements ShouldQueue
             $count = $messages->count();
 
             if($count == 0)
-                $body = "Nessuna mail trovata nella casella dell'account {$account->address}";
+                $body = "Nessuna mail trovata";
             else if ($count == 1)
-                $body = "Trovata una mail nella casella dell'account {$account->address}";
+                $body = "Trovata una mail";
             else if ($count > 1)
-                $body = "Trovate {$count} email nella casella dell'account {$account->address}";
+                $body = "Trovate {$count} email";
 
             Log::info($body);
 
             \Filament\Notifications\Notification::make()
-                ->title('Inizio download')
+                ->title("Inizio download ({$account->address})")
                 ->body($body)
                 ->success()
                 ->sendToDatabase($user);
