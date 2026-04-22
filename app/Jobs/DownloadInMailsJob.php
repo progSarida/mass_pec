@@ -323,7 +323,7 @@ class DownloadInMailsJob implements ShouldQueue
             : ($downloaded === 1
                 ? "È stata scaricata con successo 1 email."
                 : "Sono state scaricate con successo {$downloaded} email.");
-        $body .= "<br>Saltate {$skipped} email.";
+        $body .= "<br>Già scaricate {$skipped} email.";
         $body .= "<br>Eliminate {$deleted} email.";
 
         \Filament\Notifications\Notification::make()

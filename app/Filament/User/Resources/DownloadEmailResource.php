@@ -72,10 +72,6 @@ class DownloadEmailResource extends Resource
                             })
                             ->columnSpan(['sm' => 'full', 'md' => 'full']),
 
-                        TextInput::make('from')
-                            ->label('Email mittente')
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-
                         Select::make('sender_id')
                             ->label('Mittente')
                             ->hintAction(
@@ -100,6 +96,10 @@ class DownloadEmailResource extends Resource
                             ->live()
                             ->searchable()
                             ->relationship(name: 'sender', titleAttribute: 'description')
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+
+                        TextInput::make('from')
+                            ->label('Email mittente')
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('subject')

@@ -506,7 +506,7 @@ class CreateShipment extends CreateRecord
 
     //         if ($emailsHtml !== '') {
     //             $html .= '<div class="border rounded-xl p-4 bg-white shadow-sm ring-1 ring-gray-200">';
-    //             $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . ' (' . $recipient->city->province->code . ')' . '</div>';
+    //             $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . ' (' . $recipient->city?->province->code . ')' . '</div>';
     //             $html .= $emailsHtml;
     //             $html .= '</div>';
     //         }
@@ -630,7 +630,7 @@ class CreateShipment extends CreateRecord
 
             if ($emailsHtml !== '') {
                 $html .= '<div class="border rounded-xl p-4 bg-white shadow-sm ring-1 ring-gray-200">';
-                $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . ' (' . $recipient->city->province->code . ')' . '</div>';
+                $html .= '<div class="mb-2 pb-2 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-blue-700">' . e($recipient->description) . ' (' . $recipient->city?->province->code . ')' . '</div>';
                 $html .= $emailsHtml;
                 $html .= '</div>';
             }

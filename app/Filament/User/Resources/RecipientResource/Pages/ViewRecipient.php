@@ -24,11 +24,11 @@ class ViewRecipient extends ViewRecord
         $previousDRecipient = Recipient::where('description', '<', $currentRecipient->description)->orderBy('description', 'desc')->first();
         $nextDRecipient = Recipient::where('description', '>', $currentRecipient->description)->orderBy('description', 'asc')->first();
         $previousPRecipient = Recipient::whereHas('city', function ($query) use ($currentRecipient) {
-            $query->where('province_id', $currentRecipient->city->province_id);
+            $query->where('province_id', $currentRecipient->city?->province_id);
         })
         ->where('id', '<', $currentRecipient->id)->orderBy('id', 'desc')->first();
         $nextPRecipient = Recipient::whereHas('city', function ($query) use ($currentRecipient) {
-            $query->where('province_id', $currentRecipient->city->province_id);
+            $query->where('province_id', $currentRecipient->city?->province_id);
         })
         ->where('id', '>', $currentRecipient->id)->orderBy('id', 'asc')->first();
         return [

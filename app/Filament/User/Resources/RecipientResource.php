@@ -179,7 +179,7 @@ class RecipientResource extends Resource
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('city_id')->label('Comune')
-                    ->required()
+                    // ->required()
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
@@ -208,7 +208,7 @@ class RecipientResource extends Resource
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_cap')->label('Cap')
                     // ->disabled(fn ($state) => !str_contains($state, 'xx'))
-                    ->default(fn ($record) => $record?->city_cap ?? $record?->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
+                    ->default(fn ($record) => $record?->city_cap ?? $record?->city?->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
                 Section::make('Responsabile')
@@ -644,7 +644,7 @@ class RecipientResource extends Resource
                 TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_cap')->label('Cap')
                     // ->disabled(fn ($state) => !str_contains($state, 'xx'))
-                    ->default(fn ($record) => $record?->city_cap ?? $record?->city->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
+                    ->default(fn ($record) => $record?->city_cap ?? $record?->city?->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
                 TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
                 Section::make('Responsabile')

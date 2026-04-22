@@ -78,7 +78,7 @@ class EmailReceiveJob implements ShouldQueue
                 DB::commit();
 
                 Log::info("Scaricate {$downloaded} email dall'account {$account->username}");
-                Log::info("Saltate {$skipped} email dall'account {$account->username}");
+                Log::info("Già scaricate {$skipped} email dall'account {$account->username}");
                 Log::info("Eliminate {$deleted} email dall'account {$account->username}");
 
             } catch (\Throwable $e) {
@@ -117,7 +117,7 @@ class EmailReceiveJob implements ShouldQueue
         } elseif ($accountsFailed > 0) {
             // Alcuni account sono falliti
             $body = "Scaricate {$totalDownloaded} email da {$accountsProcessed} account.";
-            $body .= "<br>Saltate {$totalSkipped} email.";
+            $body .= "<br>Già scaricate {$totalSkipped} email.";
             $body .= "<br>Eliminate {$totalDeleted} email.";
             $body .= "<br>{$accountsFailed} account hanno avuto errori.";
 
@@ -133,7 +133,7 @@ class EmailReceiveJob implements ShouldQueue
                 : ($totalDownloaded === 1
                     ? "È stata scaricata con successo 1 email."
                     : "Sono state scaricate con successo {$totalDownloaded} email.");
-            $body .= "<br>Saltate {$totalSkipped} email.";
+            $body .= "<br>Già scaricate {$totalSkipped} email.";
             $body .= "<br>Eliminate {$totalDeleted} email.";
 
             \Filament\Notifications\Notification::make()
