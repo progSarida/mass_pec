@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources\RegistryResource\RelationManagers;
 
 use App\Enums\PecStatus;
+use App\Enums\RecipientType;
 use App\Models\City;
 use App\Models\Recipient;
 use Filament\Forms;
@@ -12,9 +13,11 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
@@ -45,49 +48,63 @@ class RegistryReceiversRelationManager extends RelationManager
             ->schema([
                 Forms\Components\Group::make()
                     ->columns(12)
-                    ->relationship('recipient') // <--- IMPORTANTE: sposta il contesto su Recipient
+                    ->relationship('recipient')                                                         // sposto il contesto su Recipient
                     ->disabled()
                     ->schema([
-                        TextInput::make('description')->label('Descrizione') // Senza "recipient."
-                            ->required()
-                            ->live(debounce: 500)
-                            ->columnSpan('full'),
-
-                        Select::make('admin_type_id')->label('Tipo interlocutore')
-                            ->relationship(name: 'adminType', titleAttribute: 'name') // Ora lo trova!
-                            ->searchable()
-                            ->preload()
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-
-                        Select::make('istat_type_id')->label('Tipo Istat')
-                            ->relationship(name: 'istatType', titleAttribute: 'name')
-                            ->searchable()
-                            ->preload()
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
-
-                        TextInput::make('code_ipa')->label('Codice Ipa')
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-
-                        TextInput::make('acronym')->label('Acronimo')
-                            ->columnSpan(['sm' => 'full', 'md' => 3]),
-
-                        Select::make('city_id')->label('Comune')
-                            ->required()
-                            ->relationship(name: 'city', titleAttribute: 'name')
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateHydrated(function (callable $set, $state) {
-                                if ($state) {
-                                    $city = City::find($state);
-                                    if ($city) {
-                                        $set('city_code', $city->code);
-                                        $set('city_province', $city->province?->code);
-                                        $set('city_region', $city->province?->region?->name);
-                                    }
-                                }
-                            })
-                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                TextInput::make('description')->label('Nome e Cognome/Denominazione')
+                    ->required()
+                    ->live(debounce: 500)
+                    ->columnSpan(['sm' => 'full', 'md' => 9]),
+                Select::make('recipient_type')->label('Natura interlocutore')
+                    ->options(RecipientType::getOptions())
+                    ->required()
+                    ->live()
+                    ->preload()
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                Select::make('admin_type_id')->label('Tipo interlocutore')
+                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
+                    ->relationship(
+                        name: 'adminType',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query) => $query->orderBy('position', 'asc')
+                        )
+                    ->searchable()
+                    ->preload()
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                Select::make('istat_type_id')->label('Tipo Istat')
+                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
+                    ->relationship(name: 'istatType', titleAttribute: 'name')
+                    ->searchable()
+                    ->preload()
+                    ->columnSpan(['sm' => 'full', 'md' => 6]),
+                TextInput::make('tax_code')->label('Codice fiscale')
+                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) === RecipientType::PERSON)
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                TextInput::make('vat_code')->label('Partita IVA')
+                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                TextInput::make('code_ipa')->label('Codice Ipa')
+                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) === RecipientType::PUBLIC)
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                TextInput::make('acronym')->label('Acronimo')
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
+                TextInput::make('address')->label('Indirizzo')
+                    // ->required()
+                    ->columnSpan(['sm' => 'full', 'md' => 8]),
+                Select::make('city_id')->label('Comune')
+                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
+                    ->relationship(name: 'city', titleAttribute: 'name')
+                    ->searchable()
+                    ->preload()
+                    ->live()
+                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_cap')->label('Cap')
+                    ->disabled(fn ($state) => $state == null || preg_match('/^\d{5}$/', $state))
+                    ->default(fn ($record) => $record?->city_cap ?? $record?->city?->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
+                TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
                     ])->columnSpan('full'),
                 Forms\Components\TextInput::make('address')
                     ->label('Indirizzo')

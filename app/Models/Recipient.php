@@ -11,8 +11,11 @@ class Recipient extends Model
 {
     protected $fillable = [
         'description',
+        'recipient_type',
         'admin_type_id',
         'istat_type_id',
+        'tax_code',
+        'vat_code',
         'code_ipa',
         'acronym',
         'city_id',

@@ -6,7 +6,6 @@ use App\Filament\User\Resources\RecipientResource;
 use App\Models\Recipient;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\Log;
 
 class CreateRecipient extends CreateRecord
 {
