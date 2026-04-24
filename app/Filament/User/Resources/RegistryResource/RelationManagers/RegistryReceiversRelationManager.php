@@ -3,11 +3,14 @@
 namespace App\Filament\User\Resources\RegistryResource\RelationManagers;
 
 use App\Enums\PecStatus;
+use App\Models\City;
 use App\Models\Recipient;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
@@ -40,17 +43,56 @@ class RegistryReceiversRelationManager extends RelationManager
     {
         return $form
             ->schema([
+                Forms\Components\Group::make()
+                    ->columns(12)
+                    ->relationship('recipient') // <--- IMPORTANTE: sposta il contesto su Recipient
+                    ->disabled()
+                    ->schema([
+                        TextInput::make('description')->label('Descrizione') // Senza "recipient."
+                            ->required()
+                            ->live(debounce: 500)
+                            ->columnSpan('full'),
+
+                        Select::make('admin_type_id')->label('Tipo interlocutore')
+                            ->relationship(name: 'adminType', titleAttribute: 'name') // Ora lo trova!
+                            ->searchable()
+                            ->preload()
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+
+                        Select::make('istat_type_id')->label('Tipo Istat')
+                            ->relationship(name: 'istatType', titleAttribute: 'name')
+                            ->searchable()
+                            ->preload()
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+
+                        TextInput::make('code_ipa')->label('Codice Ipa')
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+
+                        TextInput::make('acronym')->label('Acronimo')
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+
+                        Select::make('city_id')->label('Comune')
+                            ->required()
+                            ->relationship(name: 'city', titleAttribute: 'name')
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->afterStateHydrated(function (callable $set, $state) {
+                                if ($state) {
+                                    $city = City::find($state);
+                                    if ($city) {
+                                        $set('city_code', $city->code);
+                                        $set('city_province', $city->province?->code);
+                                        $set('city_region', $city->province?->region?->name);
+                                    }
+                                }
+                            })
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                    ])->columnSpan('full'),
                 Forms\Components\TextInput::make('address')
-                    ->label('Destinatario')
+                    ->label('Indirizzo')
                     ->required()
-                    ->maxLength(255)
-                    ->rule(function () {
-                        return function (string $attribute, $value, \Closure $fail) {
-                            if (!Recipient::findByEmail($value)) {
-                                $fail('Questa email non è associata a nessun interlocutore.');
-                            }
-                        };
-                    }),
+                    ->maxLength(255),
                 Section::make('Ricevute')
                     ->collapsed(fn($record) => !$record)
                     ->visible(fn($record) => $record)
@@ -142,6 +184,7 @@ class RegistryReceiversRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
+                    ->modalHeading('Aggiungi Nuovo Destinatario')
                     ->visible(fn() => !$this->getOwnerRecord()->send_date)
                     ->mutateFormDataUsing(function (array $data) {
                         $registry = $this->getOwnerRecord();
@@ -154,8 +197,10 @@ class RegistryReceiversRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->modalHeading('Destinatario'),
                 Tables\Actions\EditAction::make()
+                    ->modalHeading('Destinatario')
                     ->visible(fn($record) => $record->pec_status === PecStatus::WAITING),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn($record) => $record->pec_status === PecStatus::WAITING),
