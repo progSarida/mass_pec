@@ -206,6 +206,45 @@ class DownloadEmailResource extends Resource
                             })
                             ->columnSpan('full'),
                     ]),
+
+                Section::make('Allegati tecnici')
+                    ->collapsed(fn($record) => $record)
+                    ->visible(function ($record) {
+                        $files = Storage::files($record?->attachment_path . '/tech');
+                        if (empty($files)) { return false; }
+                        return true;
+                    })
+                    ->schema([
+                        Placeholder::make('tech')
+                            ->label('')
+                            ->content(function ($record) {
+                                if (!$record || !$record?->attachment_path) {
+                                    return 'Nessuna cartella allegati tecnici trovata.';
+                                }
+
+                                $files = Storage::files($record?->attachment_path . '/tech');
+
+                                if (empty($files)) {
+                                    return 'Nessun allegato.';
+                                }
+
+                                return new HtmlString(
+                                    collect($files)->map(function ($file) {
+                                        $name = basename($file);
+                                        $url = Storage::temporaryUrl($file, now()->addMinutes(15));
+                                        return <<<HTML
+                                        <div class="flex items-center gap-2 py-1">
+                                            <span class="text-gray-400 text-xs">📎</span>
+                                            <a href="{$url}" target="_blank" class="text-sm text-blue-600 hover:underline hover:text-blue-800 transition">
+                                                {$name}
+                                            </a>
+                                        </div>
+                                        HTML;
+                                    })->implode('')
+                                );
+                            })
+                            ->columnSpan('full'),
+                    ]),
             ]);
     }
 

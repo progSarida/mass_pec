@@ -381,13 +381,14 @@ class DownloadEmailsJob implements ShouldQueue
             $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
             $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
             $content = $attachment->getDecodedContent();
-            \Illuminate\Support\Facades\Storage::put("{$folderPath}/{$safeName}", $content);
+            $append = static::getAppend($extension);
+            \Illuminate\Support\Facades\Storage::put("{$folderPath}{$append}{$safeName}", $content);
 
             if ($extension == 'eml') {
                 $parser = new MailMimeParser();
                 $disk = config('filesystems.default');
                 $storage = \Illuminate\Support\Facades\Storage::disk($disk);
-                $content = $storage->get("{$folderPath}/{$safeName}");
+                $content = $storage->get("{$folderPath}{$append}{$safeName}");
                 $message = $parser->parse($content, false);
 
                 // 1. Prova a prendere il testo semplice
@@ -413,6 +414,21 @@ class DownloadEmailsJob implements ShouldQueue
         $inMail->update(['attachment_path' => $folderPath]);
 
         return $inMail;
+    }
+
+    private static function getAppend($extension): string
+    {
+        $append = '';
+        switch($extension) {
+            case 'xml':
+            case 'eml':
+            case 'p7s':
+                $append = '/tech/';
+                break;
+            default:
+                $append = '/';
+        }
+        return $append;
     }
 
     private function htmlToPlainText(string $html): string
