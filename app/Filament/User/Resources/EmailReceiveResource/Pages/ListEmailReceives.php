@@ -25,7 +25,7 @@ class ListEmailReceives extends ListRecords
                 ->color('warning')
                 ->requiresConfirmation()
                 ->modalHeading('Scarica email e ricevute')
-                ->modalDescription('Verranno scaricate tutte le mail degli account previsti e processate le ricevute PEC in background')
+                ->modalDescription('Verranno scaricate tutte le mail degli account previsti e processate le ricevute PEC in background; puoi continuare a lavorare, verrai avvisato con una notifica al termine')
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
