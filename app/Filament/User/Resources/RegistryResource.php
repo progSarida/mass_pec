@@ -3,6 +3,7 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\FlowType;
+use App\Enums\MailType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
@@ -11,6 +12,7 @@ use App\Filament\User\Resources\RegistryResource\RelationManagers;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\ForwardsRelationManager;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RepliesRelationManager;
+use App\Models\Account;
 use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
@@ -230,7 +232,12 @@ class RegistryResource extends Resource
                             ->label('Email mittente')
                             ->required()
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value || $get('flow_type') == FlowType::ISSUED->value)
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
+
+                        Placeholder::make('')
+                            ->label('')
+                            ->visible(fn(Get $get) => $get('flow_type') !== FlowType::RECEIVED->value)
                             ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Select::make('sender_id')
@@ -940,9 +947,48 @@ class RegistryResource extends Resource
                 //     ->icon('heroicon-o-folder-open')
                 //     ->color('primary'),
             ])
-            ->filtersFormWidth('lg')
-            ->filtersFormColumns(2)
+            ->filtersFormWidth('5xl')
+            ->filtersFormColumns(3)
             ->filters([
+                SelectFilter::make('flow_type')
+                    ->label('Corrispondenza')
+                    ->options(FlowType::class)
+                    // ->searchable()
+                    ->columnSpan(1),
+                SelectFilter::make('registry_origin_type')
+                    ->label('Origine')
+                    ->options(RegistryOriginType::class)
+                    // ->searchable()
+                    ->columnSpan(1),
+                SelectFilter::make('account_id')
+                    ->label('Account')
+                    ->options(Account::where('mail_type', MailType::PEC)->pluck('public_name', 'id'))
+                    ->query(function (Builder $query, array $data): Builder {
+                        $accountId = $data['value'] ?? null;
+
+                        if (!$accountId) {
+                            return $query;
+                        }
+
+                        $account = Account::find($accountId);
+
+                        return $query->where(function ($q) use ($accountId, $account) {
+                            $q->where('account_id', $accountId)
+                            ->orWhere('receiving_mail', $account->address);
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $accountId = $data['value'] ?? null;
+
+                        if (!$accountId) {
+                            return [];
+                        }
+
+                        $account = Account::find($accountId);
+
+                        return ['Account: ' . $account->public_name];
+                    })
+                    ->columnSpan(1),
                 SelectFilter::make('sender')
                     ->label('Mittente')
                     ->multiple()
@@ -986,7 +1032,34 @@ class RegistryResource extends Resource
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
                     ->columnSpan(2),
+                SelectFilter::make('is_email')
+                    ->label('Tipo')
+                    ->options([
+                        'si' => 'Posta elettronica',
+                        'no' => 'Posta ordinaria',
+                    ])
+                    ->placeholder('Tutta')
+                    ->query(function (Builder $query, array $data): Builder {
+                        // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
+                        $value = $data['value'] ?? null;
 
+                        // Se non è selezionato nulla, non applichiamo filtri alla query
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        if ($value === 'si') {
+                            // Mostra Registry relativo ad una comunicazione tramite posta elettronica
+                            return $query->where('is_email', true);
+                        }
+
+                        if ($value === 'no') {
+                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
+                            return $query->where('is_email', false);
+                        }
+
+                        return $query;
+                    }),
                 SelectFilter::make('recipient')
                     ->label('Destinatario')
                     ->multiple()
@@ -1026,39 +1099,11 @@ class RegistryResource extends Resource
                         return ['Destinatari: ' . implode(', ', $recipients)];
                     })
                     ->columnSpan(2),
-
-                SelectFilter::make('flow_type')
-                    ->label('Corrispondenza')
-                    ->options(FlowType::class)
-                    ->searchable(),
-                SelectFilter::make('is_email')
-                    ->label('Tipo')
-                    ->options([
-                        'si' => 'Posta elettronica',
-                        'no' => 'Posta ordinaria',
-                    ])
-                    ->placeholder('Tutta')
-                    ->query(function (Builder $query, array $data): Builder {
-                        // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
-                        $value = $data['value'] ?? null;
-
-                        // Se non è selezionato nulla, non applichiamo filtri alla query
-                        if (blank($value)) {
-                            return $query;
-                        }
-
-                        if ($value === 'si') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta elettronica
-                            return $query->where('is_email', true);
-                        }
-
-                        if ($value === 'no') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
-                            return $query->where('is_email', false);
-                        }
-
-                        return $query;
-                    }),
+                SelectFilter::make('manage_registry_type')
+                    ->label('Gestione')
+                    ->options(ManageRegistryType::class)
+                    ->multiple()
+                    ->columnSpan(1),
                 Filter::make('registration_date_range')
                     ->columns(2)
                     ->form([
@@ -1090,6 +1135,11 @@ class RegistryResource extends Resource
                         return null;
                     })
                     ->columnSpan(2),
+                SelectFilter::make('register_user_id')
+                    ->label('Registrato da')
+                    ->options(fn () => User::pluck('name', 'id')->toArray())
+                    ->searchable()
+                    ->columnSpan(1),
                 Filter::make('send_date_range')
                     ->columns(2)
                     ->form([
@@ -1121,16 +1171,6 @@ class RegistryResource extends Resource
                         return null;
                     })
                     ->columnSpan(2),
-                SelectFilter::make('registry_origin_type')
-                    ->label('Origine')
-                    ->options(RegistryOriginType::class)
-                    ->searchable()
-                    ->columnSpan(1),
-                SelectFilter::make('register_user_id')
-                    ->label('Registrato da')
-                    ->options(fn () => User::pluck('name', 'id')->toArray())
-                    ->searchable()
-                    ->columnSpan(1),
                 SelectFilter::make('esito_invio')
                     ->label('Esito invio')
                     ->options([
@@ -1183,11 +1223,6 @@ class RegistryResource extends Resource
 
                         return $query;
                     })
-                    ->columnSpan(1),
-                SelectFilter::make('manage_registry_type')
-                    ->label('Gestione')
-                    ->options(ManageRegistryType::class)
-                    ->multiple()
                     ->columnSpan(1),
             ])
             ->actions([
