@@ -55,7 +55,7 @@ class DownloadEmailResource extends Resource
                     ->columns(12)
                     ->schema([
                         Placeholder::make('')
-                            ->content(fn ($record): string => Account::where('mail_type', MailType::PEC)->where('address', $record->receiving_mail)->first()?->public_name)
+                            ->content(fn ($record): string => Account::where('mail_type', MailType::PEC)->where('address', $record?->receiving_mail)->first()?->public_name ?? '')
                             ->extraAttributes(function ($record) {
                                 $baseClasses = 'text-lg font-semibold border pb-1 pt-2';
 
@@ -70,6 +70,7 @@ class DownloadEmailResource extends Resource
                                     'class' => $baseClasses . ' ' . implode(' ', $customClasses),
                                 ];
                             })
+                            ->visible(fn($record) => $record)
                             ->columnSpan(['sm' => 'full', 'md' => 'full']),
 
                         Select::make('sender_id')

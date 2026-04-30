@@ -13,6 +13,7 @@ use App\Models\Company;
 use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -21,8 +22,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Colors\Color;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
@@ -667,6 +670,29 @@ class EditRegistry extends EditRecord
                             'manage_registry_date' => $manageRegistryDate,
                         ]);
                     }),
+                // Actions\Action::make('print')
+                //     ->icon('heroicon-o-printer')
+                //     ->label('Stampa')
+                //     ->tooltip('Stampa elenco registri')
+                //     ->color(Color::rgb('rgb(255, 0, 0)'))
+                //     ->action(function ($record) {
+                //         Notification::make()
+                //             ->title('Stampa avviata')
+                //             ->success()
+                //             ->send();
+
+                //         return response()
+                //             ->streamDownload(function () use ($record) {
+                //                 echo Pdf::loadHTML(
+                //                     Blade::render('print.registry', [
+                //                         'company' => Company::first(),
+                //                         'registry' => $record,
+                //                     ])
+                //                 )
+                //                     ->setPaper('A4', 'portrait')
+                //                     ->stream();
+                //             }, "Registri giornalieri.pdf");
+                //     }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')
