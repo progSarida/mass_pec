@@ -13,7 +13,6 @@ use App\Filament\User\Resources\RegistryResource\RelationManagers\ForwardsRelati
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RepliesRelationManager;
 use App\Models\Account;
-use App\Models\AdminType;
 use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
@@ -193,6 +192,11 @@ class RegistryResource extends Resource
                             ->required()
                             ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->relationship('scopeType', 'name')
+                            ->relationship(
+                                name: 'scopeType',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn ($query) => $query->orderBy('position', 'asc')
+                            )
                             ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                         TextInput::make('parent_reply')
@@ -422,6 +426,7 @@ class RegistryResource extends Resource
                         RichEditor::make('body')
                             ->label('Messaggio')
                             ->visible(fn ($record) =>
+                                !$record ||
                                 $record?->registry_origin_type?->showRich() ||
                                 ($record && static::containsHtml($record->eml_body ?? $record->body))
                             )
