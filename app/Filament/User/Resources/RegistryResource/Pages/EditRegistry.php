@@ -670,29 +670,29 @@ class EditRegistry extends EditRecord
                             'manage_registry_date' => $manageRegistryDate,
                         ]);
                     }),
-                // Actions\Action::make('print')
-                //     ->icon('heroicon-o-printer')
-                //     ->label('Stampa')
-                //     ->tooltip('Stampa elenco registri')
-                //     ->color(Color::rgb('rgb(255, 0, 0)'))
-                //     ->action(function ($record) {
-                //         Notification::make()
-                //             ->title('Stampa avviata')
-                //             ->success()
-                //             ->send();
+                Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa elenco registri')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($record) {
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
 
-                //         return response()
-                //             ->streamDownload(function () use ($record) {
-                //                 echo Pdf::loadHTML(
-                //                     Blade::render('print.registry', [
-                //                         'company' => Company::first(),
-                //                         'registry' => $record,
-                //                     ])
-                //                 )
-                //                     ->setPaper('A4', 'portrait')
-                //                     ->stream();
-                //             }, "Registri giornalieri.pdf");
-                //     }),
+                        return response()
+                            ->streamDownload(function () use ($record) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.registry', [
+                                        'company' => Company::first(),
+                                        'registry' => $record,
+                                    ])
+                                )
+                                    ->setPaper('A4', 'portrait')
+                                    ->stream();
+                            }, "Voce protocollo_{$record->protocol_number}.pdf");
+                    }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')

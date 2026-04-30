@@ -17,6 +17,7 @@ use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
 use App\Models\Registry;
+use App\Models\Sender;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
@@ -62,15 +63,6 @@ class RegistryResource extends Resource
     {
         return $form
             ->columns(15)
-            // ->disabled(function ($record, $livewire) {
-            //     $operation = $livewire instanceof \Filament\Resources\Pages\ViewRecord
-            //                     ? 'view'
-            //                     : 'create';
-            //     if ($operation === 'view') { return true; }                                             // disabilito in view
-            //     if (!$record) { return false; }                                                         // non disabilito in create
-            //     return !$record->isOutgoingEmail()                                                      // disabilito in edit se non è una mail in uscita o
-            //         || ($record->isOutgoingEmail() && $record->send_date);                              // disabilito in edit se è una mail in uscita ed è stata inviata
-            // })
             ->disabled(function ($record, $livewire) {
                 // 1. Sempre disabilitato in View
                 if ($livewire instanceof \Filament\Resources\Pages\ViewRecord) {
@@ -90,8 +82,26 @@ class RegistryResource extends Resource
                 // NOTA: Non mettiamo il blocco per le mail ricevute qui,
                 // altrimenti bloccheremmo anche 'other_senders'.
                 return false;
-        })
+            })
             ->schema([
+                Placeholder::make('')
+                    ->content(fn ($record): string => Account::where('mail_type', MailType::PEC)->where('address', $record?->receiving_mail)->first()?->public_name ?? '')
+                    ->extraAttributes(function ($record) {
+                        $baseClasses = 'text-lg font-semibold border pb-1 pt-2';
+
+                        $customClasses = [
+                            'rounded-lg',           // Arrotondamento angoli
+                            'text-center',          // Testo centrato
+                            "bg-gray-100",          // Colore di sfondo dinamico
+                            'text-gray-900',        // Assicura che il testo sia leggibile su sfondi chiari
+                        ];
+
+                        return [
+                            'class' => $baseClasses . ' ' . implode(' ', $customClasses),
+                        ];
+                    })
+                    ->visible(fn($record) => $record && $record->flow_type == FlowType::RECEIVED)
+                    ->columnSpan(['sm' => 'full', 'md' => 'full']),
                 Placeholder::make('manage_registry_type')
                         ->label('')
                         // ->visible(fn($record) => $record && filled($record->pi_validation_id))
@@ -270,7 +280,14 @@ class RegistryResource extends Resource
                             )
                             ->required()
                             ->searchable()
-                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::ISSUED->value)
+                            ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && !$record?->shipment_id)
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+
+                        TextInput::make('shipper')
+                            ->label('Mittente')
+                            ->required()
+                            ->formatStateUsing(fn ($state) => $state ?? Sender::first()?->public_name)
+                            ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && $record?->shipment_id)
                             ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                         Select::make('other_senders')
@@ -855,7 +872,7 @@ class RegistryResource extends Resource
                         [$sent, $accepted, $delivered] = explode(',', $state);
                         $count = $record->registryReceivers()->count();
 
-                        if($sent == 0) return 'gray';
+                        if($sent == 0) return 'danger';
 
                         if($sent == $count) {                                                                               // tutte le mail inviate
                             if($sent == $delivered) return 'success';                                                       // numero inviate = numero consegnate
