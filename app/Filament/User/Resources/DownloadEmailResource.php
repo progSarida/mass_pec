@@ -96,7 +96,13 @@ class DownloadEmailResource extends Resource
                             )
                             ->live()
                             ->searchable()
-                            ->relationship(name: 'sender', titleAttribute: 'description')
+                            ->relationship(
+                                name: 'sender',
+                                titleAttribute: 'description',
+                                modifyQueryUsing: fn ($query) => $query->with('adminType')
+                            )
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->description . ($record->adminType ? ' - ' . $record->adminType?->name : ''))
+                            ->getOptionLabelsUsing(fn ($record) => $record->description . ($record->adminType ? ' - ' . $record->adminType?->name : ''))
                             ->columnSpan(['sm' => 'full', 'md' => 6]),
 
                         TextInput::make('from')

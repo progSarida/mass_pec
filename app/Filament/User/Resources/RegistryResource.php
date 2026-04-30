@@ -13,6 +13,7 @@ use App\Filament\User\Resources\RegistryResource\RelationManagers\ForwardsRelati
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RepliesRelationManager;
 use App\Models\Account;
+use App\Models\AdminType;
 use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
@@ -238,18 +239,6 @@ class RegistryResource extends Resource
                                     ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
                             ),
 
-                        TextInput::make('from')
-                            ->label('Email mittente')
-                            ->required()
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
-                            ->columnSpan(['sm' => 'full', 'md' => 7]),
-
-                        Placeholder::make('')
-                            ->label('')
-                            ->visible(fn(Get $get) => $get('flow_type') !== FlowType::RECEIVED->value)
-                            ->columnSpan(['sm' => 'full', 'md' => 7]),
-
                         Select::make('sender_id')
                             ->label('Mittente')
                             // ->hintAction(
@@ -263,7 +252,13 @@ class RegistryResource extends Resource
                             //         ->hidden(fn ($livewire) => !$livewire instanceof \App\Filament\User\Resources\RegistryResource\Pages\CreateRegistry)
                             // )
                             ->disabled(fn ($record) => $record?->isIngoingEmail() && $record->sender_id)
-                            ->relationship(name: 'sender', titleAttribute: 'description')
+                            ->relationship(
+                                name: 'sender',
+                                titleAttribute: 'description',
+                                modifyQueryUsing: fn ($query) => $query->with('adminType')
+                            )
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->description . ($record->adminType ? ' - ' . $record->adminType?->name : ''))
+                            ->getOptionLabelsUsing(fn ($record) => $record->description . ($record->adminType ? ' - ' . $record->adminType?->name : ''))
                             ->required()
                             ->live()
                             ->searchable()
@@ -289,6 +284,18 @@ class RegistryResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ?? Sender::first()?->public_name)
                             ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && $record?->shipment_id)
                             ->columnSpan(['sm' => 'full', 'md' => 8]),
+
+                        TextInput::make('from')
+                            ->label('Email mittente')
+                            ->required()
+                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
+
+                        Placeholder::make('')
+                            ->label('')
+                            ->visible(fn(Get $get) => $get('flow_type') !== FlowType::RECEIVED->value)
+                            ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Select::make('other_senders')
                             ->label('Altri mittenti')
