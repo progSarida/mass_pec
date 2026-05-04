@@ -161,7 +161,7 @@ class ParentChildLinkRelationManager extends RelationManager
                     ->color('info')
                     ->tooltip('Apri il protocollo collegato')
                     ->url(function (Registry $record) {
-                        return RegistryResource::getUrl('edit', ['record' => $record->id]);
+                        return RegistryResource::getUrl('view', ['record' => $record->id]);
                     })
                     ->openUrlInNewTab(true),
                 Tables\Actions\Action::make('detach')
