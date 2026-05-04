@@ -6,6 +6,7 @@ use App\Enums\FlowType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
+use App\Enums\RelationshipType;
 use App\Filament\User\Resources\RegistryResource;
 use App\Jobs\DownloadReceiptsJob;
 use App\Models\Account;
@@ -548,7 +549,7 @@ class EditRegistry extends EditRecord
                             'flow_type' => 'issued',
                             'flow_index' => static::newIndex('issued'),
                             'registry_origin_type' => 'reply',
-                            'parent_id' => $record->id,
+                            // 'parent_id' => $record->id,
                             'is_email' => true,
                             'scope_type_id' => $record->scope_type_id,
                             'uid' => '#reply' . $protocolNumber,
@@ -569,6 +570,12 @@ class EditRegistry extends EditRecord
                             'manage_registry_type' => ManageRegistryType::NONE,
                         ]);
 
+                        // Creazione collegamento
+                        $newRegistry->parentRegistries()->attach($record->id, [
+                            'relationship_type' => RelationshipType::REPLY->value
+                        ]);
+
+                        // Creazione destinatario
                         RegistryReceiver::create([
                             'registry_id' => $newRegistry->id,
                             'protocol_number' => $protocolNumber,
@@ -614,7 +621,7 @@ class EditRegistry extends EditRecord
                             'flow_type' => 'issued',
                             'flow_index' => static::newIndex('issued'),
                             'registry_origin_type' => 'forward',
-                            'parent_id' => $record->id,
+                            // 'parent_id' => $record->id,
                             'is_email' => true,
                             'scope_type_id' => $record->scope_type_id,
                             'uid' => '#forward' . $protocolNumber,
@@ -634,6 +641,12 @@ class EditRegistry extends EditRecord
                             'register_user_id' => Auth::user()->id,
                             'manage_registry_type' => ManageRegistryType::NONE,
                         ]);
+
+                        // Creazione collegamento
+                        $newRegistry->parentRegistries()->attach($record->id, [
+                            'relationship_type' => RelationshipType::FORWARD->value
+                        ]);
+
                         $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
                     }),
 
@@ -693,6 +706,67 @@ class EditRegistry extends EditRecord
                                     ->stream();
                             }, "Voce protocollo_{$record->protocol_number}.pdf");
                     }),
+                // Actions\Action::make('link')
+                //     ->label('Collega a voce')
+                //     ->icon('fluentui-document-text-link-20-o')
+                //     ->color('primary')
+                //     ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')))
+                //     ->requiresConfirmation()
+                //     ->modalHeading('Collega')
+                //     // ->modalDescription('')
+                //     ->modalSubmitActionLabel('Protocolla')
+                //     ->form([
+                //         Select::make('parent_id')
+                //             ->label('Voce da collegare')
+                //             ->searchable()
+                //             ->placeholder('Seleziona la voce da collegare')
+                //             ->getSearchResultsUsing(function (string $search) {
+                //                 $query = Registry::whereNotNull('sender_id');
+                //                 $query = Registry::whereRaw('1 = 1');
+
+                //                 if (is_numeric($search)) {
+                //                     // Trasforma "125" in "00125"
+                //                     $searchPadded = str_pad($search, 5, '0', STR_PAD_LEFT);
+
+                //                     $query->where(function ($q) use ($searchPadded, $search) {
+                //                         // Cerca esattamente il finale "-00125"
+                //                         // $q->where('protocol_number', 'like', "%-{$searchPadded}");
+                //                         $q->where('protocol_number', 'like', "%{$search}%");
+                //                     });
+                //                 } else {
+                //                     $query->where('protocol_number', 'like', "%{$search}%");
+                //                 }
+
+                //                 return $query->limit(50)
+                //                     ->get()
+                //                     ->mapWithKeys(fn ($registry) => [
+                //                         $registry->id => $registry->protocol_number . ' - ' . $registry->flow_type->getLabel()
+                //                     ]);
+                //             })
+                //             ->getOptionLabelUsing(function ($value): ?string {
+                //                 $registry = Registry::find($value);
+                //                 return $registry ? $registry->protocol_number . ' - ' . $registry->flow_type->getLabel() : null;
+                //             }),
+                //     ])
+                //     ->action(function ($record, $data) {
+                //         try {
+
+                //             static::registerEmail($record, $data);
+                //             Notification::make()
+                //                 ->title('Voce collegata')
+                //                 // ->body('')
+                //                 ->success()
+                //                 ->send();
+                //             $resource = $this->getResource();
+                //             return $this->redirect($resource::getUrl('index'));
+                //         } catch (\Exception $e) {
+                //             Notification::make()
+                //                 ->title('Errore registrazione')
+                //                 ->body($e->getMessage())
+                //                 ->danger()
+                //                 ->send();
+                //         }
+                //     }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')

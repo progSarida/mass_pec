@@ -9,9 +9,8 @@ use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
-use App\Filament\User\Resources\RegistryResource\RelationManagers\ForwardsRelationManager;
+use App\Filament\User\Resources\RegistryResource\RelationManagers\ParentChildLinkRelationManager;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
-use App\Filament\User\Resources\RegistryResource\RelationManagers\RepliesRelationManager;
 use App\Models\Account;
 use App\Models\Province;
 use App\Models\Recipient;
@@ -199,49 +198,49 @@ class RegistryResource extends Resource
                             )
                             ->columnSpan(['sm' => 'full', 'md' => 5]),
 
-                        TextInput::make('parent_reply')
-                            ->label('Risposta a')
-                            ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::REPLY)
-                            ->disabled()
-                            ->formatStateUsing(function ($record) {
-                                    $parent = $record?->registry;
-                                    return "[{$parent?->from}] $record?->subject";
-                                })
-                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
-                            ->suffixAction(
-                                Action::make('goToParent')
-                                    ->icon('heroicon-m-arrow-top-right-on-square')
-                                    ->tooltip('Vai alla mail originale')
-                                    ->url(function ($record) {
-                                        $parent = $record?->registry;
-                                        return $parent
-                                            ? RegistryResource::getUrl('edit', ['record' => $parent])
-                                            : null;
-                                    })
-                                    ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
-                            ),
+                        // TextInput::make('parent_reply')
+                        //     ->label('Risposta a')
+                        //     ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::REPLY)
+                        //     ->disabled()
+                        //     ->formatStateUsing(function ($record) {
+                        //             $parent = $record?->registry;
+                        //             return "[{$parent?->from}] {$parent?->subject} - {$parent?->receive_date?->format('d/m/Y H:m:s')}";
+                        //         })
+                        //     ->columnSpan(['sm' => 'full', 'md' => 'full'])
+                        //     ->suffixAction(
+                        //         Action::make('goToParent')
+                        //             ->icon('heroicon-m-arrow-top-right-on-square')
+                        //             ->tooltip('Vai alla mail originale')
+                        //             ->url(function ($record) {
+                        //                 $parent = $record?->registry;
+                        //                 return $parent
+                        //                     ? RegistryResource::getUrl('edit', ['record' => $parent])
+                        //                     : null;
+                        //             })
+                        //             ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
+                        //     ),
 
-                        TextInput::make('forward_reply')
-                            ->label('Inoltro di')
-                            ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::FORWARD)
-                            ->disabled()
-                            ->formatStateUsing(function ($record) {
-                                    $parent = $record?->registry;
-                                    return "[{$parent?->from}] $record?->subject";
-                                })
-                            ->columnSpan(['sm' => 'full', 'md' => 'full'])
-                            ->suffixAction(
-                                Action::make('goToParent')
-                                    ->icon('heroicon-m-arrow-top-right-on-square')
-                                    ->tooltip('Vai alla mail originale')
-                                    ->url(function ($record) {
-                                        $parent = $record?->registry;
-                                        return $parent
-                                            ? RegistryResource::getUrl('edit', ['record' => $parent])
-                                            : null;
-                                    })
-                                    ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
-                            ),
+                        // TextInput::make('forward_reply')
+                        //     ->label('Inoltro di')
+                        //     ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::FORWARD)
+                        //     ->disabled()
+                        //     ->formatStateUsing(function ($record) {
+                        //             $parent = $record?->registry;
+                        //             return "[{$parent?->from}] $record?->subject";
+                        //         })
+                        //     ->columnSpan(['sm' => 'full', 'md' => 'full'])
+                        //     ->suffixAction(
+                        //         Action::make('goToParent')
+                        //             ->icon('heroicon-m-arrow-top-right-on-square')
+                        //             ->tooltip('Vai alla mail originale')
+                        //             ->url(function ($record) {
+                        //                 $parent = $record?->registry;
+                        //                 return $parent
+                        //                     ? RegistryResource::getUrl('edit', ['record' => $parent])
+                        //                     : null;
+                        //             })
+                        //             ->hidden(fn ($record) => !$record?->parent_id) // Nascondi se non c'è un parent
+                        //     ),
 
                         Select::make('sender_id')
                             ->label('Mittente')
@@ -1270,8 +1269,9 @@ class RegistryResource extends Resource
     {
         return [
             RegistryReceiversRelationManager::class,
-            ForwardsRelationManager::class,
-            RepliesRelationManager::class,
+            // ForwardsRelationManager::class,
+            // RepliesRelationManager::class,
+            ParentChildLinkRelationManager::class,
         ];
     }
 

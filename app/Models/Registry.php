@@ -6,6 +6,7 @@ use App\Enums\FlowType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
+use App\Enums\RelationshipType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -105,6 +106,31 @@ class Registry extends Model
     {
         return $this->hasMany(Registry::class, 'parent_id', 'id')
                     ->where('registry_origin_type', RegistryOriginType::FORWARD);
+    }
+
+    public function parentRegistries()
+    {
+        return $this->belongsToMany(Registry::class, 'registry_relationships', 'child_id', 'parent_id')
+                    ->withPivot('relationship_type')
+                    ->withTimestamps();
+    }
+
+    public function childRegistries()
+    {
+        return $this->belongsToMany(Registry::class, 'registry_relationships', 'parent_id', 'child_id')
+                    ->withPivot('relationship_type')
+                    ->withTimestamps();
+    }
+
+    // Helper utili
+    public function repliesAsChild()
+    {
+        return $this->parentRegistries()->wherePivot('relationship_type', RelationshipType::REPLY->value);
+    }
+
+    public function forwardsAsChild()
+    {
+        return $this->parentRegistries()->wherePivot('relationship_type', RelationshipType::FORWARD->value);
     }
 
     public function checkReceipts(){
