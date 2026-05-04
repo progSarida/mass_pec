@@ -7,7 +7,6 @@ use App\Enums\MailProtocolType;
 use App\Enums\MailType;
 use App\Enums\ManagementType;
 use App\Filament\Resources\SenderResource\Pages;
-use App\Filament\Resources\SenderResource\RelationManagers;
 use App\Models\Sender;
 use Filament\Forms;
 use Filament\Forms\Components\Checkbox;
@@ -20,8 +19,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SenderResource extends Resource
 {

@@ -84,7 +84,7 @@ class SendEmailResource extends Resource
                     ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                 Forms\Components\Select::make('mail_type')
-                    ->label('Tipo mail')
+                    ->label('Filtro tipo mail')
                     // ->required()
                     // ->visible(fn($record, Get $get) => !$record || !$get('recipients'))
                     ->options(
@@ -101,7 +101,7 @@ class SendEmailResource extends Resource
                     ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                 Forms\Components\Select::make('office_type_id')
-                    ->label('Tipo ufficio')
+                    ->label('Filtro tipo ufficio')
                     // ->required()
                     // ->visible(fn($record, Get $get) => !$record || !$get('recipients'))
                     ->options(fn () => OfficeType::orderBy('position')->pluck('name', 'id')->toArray())
