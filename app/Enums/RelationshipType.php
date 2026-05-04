@@ -2,10 +2,20 @@
 
 namespace App\Enums;
 
-enum RelationshipType: string
+use Filament\Support\Contracts\HasLabel;
+
+enum RelationshipType: string implements HasLabel
 {
     case REPLY = "reply";
     case FORWARD = "forward";
+
+    public function getLabel(): string
+    {
+        return match($this) {
+            self::FORWARD => 'Inoltro',
+            self::REPLY => 'Risposta',
+        };
+    }
 
     public function parentLabel(): string
     {

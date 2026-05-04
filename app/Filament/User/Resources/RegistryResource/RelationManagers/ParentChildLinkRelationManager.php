@@ -98,7 +98,7 @@ class ParentChildLinkRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('subject')
                     ->label('Oggetto')
-                    ->limit(100)
+                    ->limit(80)
                     ->tooltip(fn ($record) => $record->subject),
             ])
             ->defaultSort('linked_at', 'desc')
