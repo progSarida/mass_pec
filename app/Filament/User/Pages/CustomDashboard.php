@@ -23,7 +23,8 @@ class CustomDashboard extends BaseDashboard
                 ->distinct()
                 ->pluck('date');
 
-            $processedDates = DailySummary::pluck('registration_date')
+            $processedDates = DailySummary::whereNotNull('file_date')
+                ->pluck('registration_date')
                 ->map(fn($date) => $date->format('Y-m-d'));
 
             $datesToProcess = $registryDates->diff($processedDates);

@@ -73,6 +73,43 @@ class SendEmail extends Model
             }
         });
 
+        static::created(function ($mail) {
+            $mail->update([
+                'attachment_path' => 'send_email/' . $mail->id                                      // salvo il percorso della cartella degli allegati
+            ]);
+
+            $disk = config('filesystems.default');
+            $tempPath = 'send_email/0';
+            $finalPath = $mail->attachment_path;
+
+            if (!Storage::disk($disk)->exists($finalPath)) {
+                Storage::disk($disk)->makeDirectory($finalPath);                                    // creo la directory di destinazione (non necessario su S3, ma non fa male)
+            }
+
+            $files = Storage::disk($disk)->files($tempPath);
+
+            foreach ($files as $file) {
+                $fileName = basename($file);
+                $destination = rtrim($finalPath, '/') . '/' . $fileName;
+
+                // Verifica se siamo su S3
+                if (config('filesystems.default') === 's3') {
+                    // Su S3: usa copy + delete esplicito per gestire errori
+                    if (Storage::disk($disk)->copy($file, $destination)) {
+                        Storage::disk($disk)->delete($file);
+                    } else {
+                        Log::error("Impossibile spostare file su S3", [
+                            'file' => $file,
+                            'destination' => $destination
+                        ]);
+                    }
+                } else {
+                    // Su filesystem locale: move è più efficiente
+                    Storage::disk($disk)->move($file, $destination);
+                }
+            }
+        });
+
         static::updating(function ($mail) {
             //
         });

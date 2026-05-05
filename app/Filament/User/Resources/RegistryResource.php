@@ -343,6 +343,24 @@ class RegistryResource extends Resource
                                 return collect($values)->mapWithKeys(fn ($id) => [$id => static::labelRecipient($id)])->toArray();
                             }),
 
+                        Select::make('registryReceivers')
+                            ->label('Destinatari')
+                            ->multiple()
+                            // Recuperiamo i record legati a questo modello specifico
+                            ->options(function ($record) {
+                                if (!$record) return [];
+                                return $record->registryReceivers()
+                                    ->with('recipient')
+                                    ->get()
+                                    ->mapWithKeys(fn ($item) => [
+                                        $item->id => $item->recipient?->description ?  $item->recipient?->description . ' (' . $item->address . ')' : $item->address
+                                    ]);
+                            })
+                            // Impostiamo i valori selezionati di default
+                            ->formatStateUsing(fn ($record) => $record?->registryReceivers->pluck('id')->toArray())
+                            ->dehydrated(false) // Non salva nulla al submit (sola lettura)
+                            ->columnSpanFull(),
+
                         Select::make('interested_parties')
                             ->label('Altre parti interessate')
                             ->multiple()
