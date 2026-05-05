@@ -346,6 +346,7 @@ class RegistryResource extends Resource
                         Select::make('registryReceivers')
                             ->label('Destinatari')
                             ->multiple()
+                            ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && !$record?->shipment_id)
                             // Recuperiamo i record legati a questo modello specifico
                             ->options(function ($record) {
                                 if (!$record) return [];
