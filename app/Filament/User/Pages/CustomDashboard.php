@@ -67,7 +67,7 @@ class CustomDashboard extends BaseDashboard
                         Notification::make()
                             ->title('Creati registri giornalieri per le date')
                             ->body($list)
-                            ->sucess()
+                            ->success()
                             ->sendToDatabase(auth()->user())    // Salva nel DB
                             ->send();                           // Invia all'interfaccia
                     }
