@@ -287,7 +287,7 @@ class DailySummaryResource extends Resource
                             ]);
                         } catch (\Exception $e) {
                             Notification::make()
-                                ->tooltip('Errore durante la creazione del registro giornaliero')
+                                ->title('Errore durante la creazione del registro giornaliero')
                                 ->body($e->getMessage())
                                 ->danger()
                                 ->send();
