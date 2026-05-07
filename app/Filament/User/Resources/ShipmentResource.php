@@ -3,39 +3,38 @@
 namespace App\Filament\User\Resources;
 
 use App\Enums\MailType;
-use App\Enums\ManageRegistryType;
 use App\Filament\User\Resources\ShipmentResource\Pages;
 use App\Filament\User\Resources\ShipmentResource\RelationManagers;
 use App\Filament\User\Resources\ShipmentResource\RelationManagers\ShipmentErrorsRelationManager;
 use App\Models\Province;
 use App\Models\Region;
 use App\Models\Registry;
-use App\Models\ScopeType;
-use App\Models\Sender;
 use App\Models\Shipment;
 use App\Models\Signature;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Support\Colors\Color;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -464,6 +463,32 @@ class ShipmentResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     // Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('list')
+                        ->label('Stampa selezionate')
+                        // ->icon('heroicon-m-arrow-down-tray')
+                        ->icon('heroicon-o-printer')
+                        ->color(Color::rgb('rgb(255, 0, 0)'))
+                        ->openUrlInNewTab()
+                        // ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $fileName = 'Spedizioni_' . Carbon::today()->format('d-m-Y') . '.pdf';
+                            return response()
+                                ->streamDownload(function () use ($records) {
+                                    $pdf = Pdf::loadHTML(
+                                        Blade::render('print.shipments', [
+                                            'shipments' => $records,
+                                        ])
+                                    )
+                                    ->setPaper('A4', 'landscape')
+                                    ->setOptions([
+                                        'isHtml5ParserEnabled' => true, // Abilita parser HTML5 per CSS avanzato
+                                        'isPhpEnabled' => true, // Abilita PHP nel template
+                                        'isFontSubsettingEnabled' => true, // Ottimizza i font
+                                    ]);
+
+                                    echo $pdf->stream();
+                                }, $fileName);
+                        }),
                 ]),
             ]);
     }

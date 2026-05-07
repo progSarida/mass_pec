@@ -73,7 +73,7 @@ class CustomDashboard extends BaseDashboard
                     }
 
                     // Scrivo in sessione che abbiamo già inviato la notifica
-                    session()->put('daily_summary', false);
+                    session()->put('daily_summary', true);
                 } else {
                      Notification::make()
                             ->title('Nessun registro giornaliero creato')

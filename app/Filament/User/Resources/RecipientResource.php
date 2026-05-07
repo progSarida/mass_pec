@@ -4,6 +4,7 @@ namespace App\Filament\User\Resources;
 
 use App\Enums\MailType;
 use App\Enums\RecipientType;
+use App\Filament\Exports\RecipientExporter;
 use App\Filament\User\Resources\RecipientResource\Pages;
 use App\Models\AdminType;
 use App\Models\City;
@@ -12,6 +13,8 @@ use App\Models\OfficeType;
 use App\Models\Province;
 use App\Models\Recipient;
 use App\Models\Region;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -21,11 +24,14 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
+use Filament\Support\Colors\Color;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Blade;
 
 class RecipientResource extends Resource
 {
@@ -511,6 +517,38 @@ class RecipientResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('list')
+                        ->label('Stampa selezionati')
+                        // ->icon('heroicon-m-arrow-down-tray')
+                        ->icon('heroicon-o-printer')
+                        ->color(Color::rgb('rgb(255, 0, 0)'))
+                        ->openUrlInNewTab()
+                        // ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $fileName = 'Interlocutori_' . Carbon::today()->format('d-m-Y') . '.pdf';
+                            return response()
+                                ->streamDownload(function () use ($records) {
+                                    $pdf = Pdf::loadHTML(
+                                        Blade::render('print.recipients', [
+                                            'recipients' => $records,
+                                        ])
+                                    )
+                                    ->setPaper('A4', 'landscape')
+                                    ->setOptions([
+                                        'isHtml5ParserEnabled' => true, // Abilita parser HTML5 per CSS avanzato
+                                        'isPhpEnabled' => true, // Abilita PHP nel template
+                                        'isFontSubsettingEnabled' => true, // Ottimizza i font
+                                    ]);
+
+                                    echo $pdf->stream();
+                                }, $fileName);
+                        }),
+                    Tables\Actions\ExportBulkAction::make('esporta')
+                        ->icon('heroicon-s-table-cells')
+                        ->label('Esporta selezionati')
+                        ->tooltip('Esporta elenco interlocutori')
+                        ->color(Color::rgb('rgb(0, 153, 0)'))
+                        ->exporter(RecipientExporter::class)
                 ]),
             ]);
     }

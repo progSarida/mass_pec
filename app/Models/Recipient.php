@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\MailType;
+use App\Enums\RecipientType;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,7 @@ class Recipient extends Model
         // 'mail_type_5',
         // 'office_type_id_5',
         'phone',
+        'fax',
         'site',
         'url_facebook',
         'url_twitter',
@@ -54,6 +56,7 @@ class Recipient extends Model
         // 'mail_type_3' =>  MailType::class,
         // 'mail_type_4' =>  MailType::class,
         // 'mail_type_5' =>  MailType::class,
+        'recipient_type' => RecipientType::class,
     ];
 
     public function adminType(){

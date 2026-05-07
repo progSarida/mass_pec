@@ -8,6 +8,8 @@ use App\Filament\User\Resources\EmailReceiveResource\Pages;
 use App\Models\Account;
 use App\Models\Email;
 use App\Models\Recipient;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -22,6 +24,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Support\Colors\Color;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -29,6 +32,8 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
@@ -405,6 +410,32 @@ class EmailReceiveResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('list')
+                        ->label('Stampa selezionate')
+                        // ->icon('heroicon-m-arrow-down-tray')
+                        ->icon('heroicon-o-printer')
+                        ->color(Color::rgb('rgb(255, 0, 0)'))
+                        ->openUrlInNewTab()
+                        // ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $fileName = 'Email_' . Carbon::today()->format('d-m-Y') . '.pdf';
+                            return response()
+                                ->streamDownload(function () use ($records) {
+                                    $pdf = Pdf::loadHTML(
+                                        Blade::render('print.email_receives', [
+                                            'emails' => $records,
+                                        ])
+                                    )
+                                    ->setPaper('A4', 'landscape')
+                                    ->setOptions([
+                                        'isHtml5ParserEnabled' => true, // Abilita parser HTML5 per CSS avanzato
+                                        'isPhpEnabled' => true, // Abilita PHP nel template
+                                        'isFontSubsettingEnabled' => true, // Ottimizza i font
+                                    ]);
+
+                                    echo $pdf->stream();
+                                }, $fileName);
+                        }),
                 ])
             ]);
     }
