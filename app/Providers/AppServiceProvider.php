@@ -57,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
             'in_mail'  => \App\Models\InMail::class,
             'registry'   => \App\Models\Registry::class,
             'send_email'   => \App\Models\SendEmail::class,
+            'manual'   => \App\Models\ManualInsert::class,
         ]);
 
 

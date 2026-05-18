@@ -31,7 +31,7 @@ class DailySummaryResource extends Resource
     protected static ?string $navigationIcon = 'fluentui-pen-20';
     protected static ?string $navigationLabel = 'Registri giornalieri';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

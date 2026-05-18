@@ -62,27 +62,48 @@ class RegistryResource extends Resource
     {
         return $form
             ->columns(15)
-            ->disabled(function ($record, $livewire) {
-                // 1. Sempre disabilitato in View
-                if ($livewire instanceof \Filament\Resources\Pages\ViewRecord) {
-                    return true;
-                }
+            // ->disabled(function ($record, $livewire) {
+            //     // 1. Sempre disabilitato in View
+            //     if ($livewire instanceof \Filament\Resources\Pages\ViewRecord) {
+            //         return true;
+            //     }
 
-                // 2. Mai disabilitato in Create (il record non esiste ancora)
+            //     // 2. Mai disabilitato in Create (il record non esiste ancora)
+            //     if (!$record) {
+            //         return false;
+            //     }
+
+            //     // 3. Disabilita TUTTO se è in uscita ed è già stata inviata
+            //     if ($record->isOutgoingEmail() && $record->send_date) {
+            //         return true;
+            //     }
+
+            //     // NOTA: Non mettiamo il blocco per le mail ricevute qui,
+            //     // altrimenti bloccheremmo anche 'other_senders'.
+            //     return false;
+            // })
+            ->disabled(function ($record, $livewire) {
+                 // Mai disabilitato in Create
                 if (!$record) {
                     return false;
                 }
 
-                // 3. Disabilita TUTTO se è in uscita ed è già stata inviata
-                if ($record->isOutgoingEmail() && $record->send_date) {
-                    return true;
-                }
-
-                // NOTA: Non mettiamo il blocco per le mail ricevute qui,
-                // altrimenti bloccheremmo anche 'other_senders'.
-                return false;
+                return true;
             })
             ->schema([
+                Placeholder::make('')
+                    ->content(fn ($record): string => $record?->void ? "Voce annullata il {$record?->void_date?->format('d/m/Y')}: {$record?->void_reason}"  : "")
+                    ->extraAttributes(function ($record) {
+                        $baseClasses = 'text-lg font-semibold border pb-1 pt-2 rounded-lg text-center';
+
+                        return [
+                            'class' => $baseClasses,
+                            // Applichiamo lo stile inline per forzare sfondo, testo e bordo
+                            'style' => 'background-color: #fee2e2 !important; color: #7f1d1d !important; border-color: #fecaca !important;',
+                        ];
+                    })
+                    ->visible(fn($record) => $record?->void ?? false)
+                    ->columnSpan(['sm' => 'full', 'md' => 'full']),
                 Placeholder::make('')
                     ->content(fn ($record): string => Account::where('mail_type', MailType::PEC)->where('address', $record?->receiving_mail)->first()?->public_name ?? '')
                     ->extraAttributes(function ($record) {
@@ -99,7 +120,7 @@ class RegistryResource extends Resource
                             'class' => $baseClasses . ' ' . implode(' ', $customClasses),
                         ];
                     })
-                    ->visible(fn($record) => $record && $record->flow_type == FlowType::RECEIVED)
+                    ->visible(fn($record) => ($record && $record->flow_type == FlowType::RECEIVED) && $record->registry_origin_type !== RegistryOriginType::MANUAL)
                     ->columnSpan(['sm' => 'full', 'md' => 'full']),
                 Placeholder::make('manage_registry_type')
                         ->label('')
@@ -148,7 +169,7 @@ class RegistryResource extends Resource
                         TextInput::make('protocol_number')
                             ->label('Protocollo')
                             ->required()
-                            ->disabled()
+                            // ->disabled()
                             ->dehydrated()
                             ->columnSpan(['sm' => 'full', 'md' => 2])
                             ->default(static::newProtocol()),
@@ -157,7 +178,7 @@ class RegistryResource extends Resource
                             ->label('Corrispondenza')
                             ->required()
                             ->live()
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->options(FlowType::class)
                             ->afterStateUpdated(function(Set $set, $state){
                                 $lastIndex = Registry::where('flow_type', $state)->max('flow_index');
@@ -174,22 +195,21 @@ class RegistryResource extends Resource
                             ->label('Posta elettronica')
                             ->live()
                             ->visible(fn($record) => $record?->flow_type !== FlowType::INTERNAL)
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                         TextInput::make('flow_index')
                             ->label('Indice')
                             ->extraInputAttributes(['class' => 'text-right'])
                             ->required()
-                            ->disabled()
+                            // ->disabled()
                             ->dehydrated()
                             ->columnSpan(['sm' => 'full', 'md' => 2]),
 
                         Select::make('scope_type_id')
                             ->label('Settore interno')
                             ->required()
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->relationship('scopeType', 'name')
                             ->relationship(
                                 name: 'scopeType',
@@ -254,7 +274,7 @@ class RegistryResource extends Resource
                             //         ->action(fn (array $data, Recipient $recipient, Set $set) => RegistryResource::saveRecipient($data, $recipient, $set))
                             //         ->hidden(fn ($livewire) => !$livewire instanceof \App\Filament\User\Resources\RegistryResource\Pages\CreateRegistry)
                             // )
-                            ->disabled(fn ($record) => $record?->isIngoingEmail() && $record->sender_id)
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail() && $record->sender_id)
                             ->relationship(
                                 name: 'sender',
                                 titleAttribute: 'description',
@@ -265,7 +285,7 @@ class RegistryResource extends Resource
                             ->required()
                             ->live()
                             ->searchable()
-                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
+                            ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::RECEIVED->value && $record->registry_origin_type !== RegistryOriginType::MANUAL)
                             ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                         Select::make('account_id')
@@ -278,7 +298,7 @@ class RegistryResource extends Resource
                             )
                             ->required()
                             ->searchable()
-                            ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && !$record?->shipment_id)
+                            ->visible(fn(Get $get, $record) => ($get('flow_type') == FlowType::ISSUED->value && !$record?->shipment_id) && $record->is_email)
                             ->columnSpan(['sm' => 'full', 'md' => 8]),
 
                         TextInput::make('shipper')
@@ -291,8 +311,7 @@ class RegistryResource extends Resource
                         TextInput::make('from')
                             ->label('Email mittente')
                             ->required()
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
-                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
+                            ->visible(fn(Get $get, $record) => $get('flow_type') == (FlowType::RECEIVED->value || ($get('flow_type') == FlowType::ISSUED->value)) && $record->is_email)
                             ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Placeholder::make('')
@@ -301,10 +320,10 @@ class RegistryResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 7]),
 
                         Select::make('other_senders')
-                            ->label('Altri mittenti')
+                            ->label(fn($record) => $record->is_email ? 'Altri mittenti' : 'Mittenti')
                             ->multiple()
                             ->searchable()
-                            ->disabled(fn ($record) => $record?->other_senders != null)
+                            // ->disabled(fn ($record) => $record?->other_senders != null)
                             ->visible(fn(Get $get) => $get('flow_type') == FlowType::RECEIVED->value)
                             ->live()
                             ->placeholder('Seleziona altri mittenti')
@@ -405,7 +424,7 @@ class RegistryResource extends Resource
                         TextInput::make('subject')
                             ->label('Oggetto')
                             ->required()
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan(['sm' => 'full', 'md' => 15]),
 
                         // Textarea::make('body')
@@ -420,7 +439,7 @@ class RegistryResource extends Resource
                             ->options(Region::pluck('name', 'id'))
                             ->formatStateUsing(fn ($record) => $record?->shipment?->region_id)
                             ->columnSpan(['sm' => 'full', 'md' => 7])
-                            ->disabled()
+                            // ->disabled()
                             ->dehydrated(false), // Fondamentale: impedisce il salvataggio nel database
 
                         Select::make('province_display')
@@ -429,7 +448,7 @@ class RegistryResource extends Resource
                             ->options(Province::pluck('name', 'id'))
                             ->formatStateUsing(fn ($record) => $record?->shipment?->province_id)
                             ->columnSpan(['sm' => 'full', 'md' => 8])
-                            ->disabled()
+                            // ->disabled()
                             ->dehydrated(false),
 
                         // RichEditor::make('body')
@@ -449,7 +468,7 @@ class RegistryResource extends Resource
                                 ($record && static::containsHtml($record->eml_body ?? $record->body))
                             )
                             ->required(fn(Get $get) => $get('flow_type') !== FlowType::INTERNAL->value)
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->default('')
                             ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
                             ->columnSpanFull(),
@@ -469,7 +488,7 @@ class RegistryResource extends Resource
                                 !($record && static::containsHtml($record->eml_body ?? $record->body))
                             )
                             ->rows(10)
-                            ->disabled(fn ($record) => $record?->isIngoingEmail())
+                            // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan('full')
                             ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? 'Nessun contenuto'))
 
@@ -477,16 +496,17 @@ class RegistryResource extends Resource
 
                 DateTimePicker::make('receive_date')
                     ->label('Ricevuto il')
-                    ->disabled(fn ($record) => $record?->isIngoingEmail())
+                    // ->disabled(fn ($record) => $record?->isIngoingEmail())
                     ->visible(fn (Get $get, $record) => $record?->isIngoingEmail() || $get('flow_type') == FlowType::RECEIVED->value)
                     ->extraInputAttributes(['class' => 'text-center'])
+                    ->time(fn ($record) => $record?->is_email ?? true)
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
 
                 DatePicker::make('download_date')
                     ->label('Scaricato il')
-                    ->disabled(fn ($record) => $record?->isIngoingEmail())
+                    // ->disabled(fn ($record) => $record?->isIngoingEmail())
                     ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y')
@@ -496,7 +516,7 @@ class RegistryResource extends Resource
 
                 Forms\Components\Select::make('download_user_id')
                     ->label('Scaricato da')
-                    ->disabled(fn ($record) => $record?->isIngoingEmail())
+                    // ->disabled(fn ($record) => $record?->isIngoingEmail())
                     ->visible(fn ($record) => $record?->isIngoingEmail())
                     ->relationship('downloadUser', 'name')
                     // ->visible(fn(Get $get) => $get('is_email'))
@@ -505,7 +525,7 @@ class RegistryResource extends Resource
                 DatePicker::make('send_date')
                     ->label('Inviato il')
                     ->visible(fn ($record) => $record?->isOutgoingEmail()
-                                            || $record?->registry_origin_type == RegistryOriginType::SHIPMENT)
+                                            || $record?->registry_origin_type == RegistryOriginType::SHIPMENT || ($record?->registry_origin_type == RegistryOriginType::MANUAL && $record->flow_type == FlowType::ISSUED))
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y')
                     // ->visible(fn(Get $get) => $get('is_email'))
@@ -532,20 +552,21 @@ class RegistryResource extends Resource
                     ->label('')
                     ->visible(fn ($record) => $record?->registry_origin_type == RegistryOriginType::MANUAL)
                     // ->visible(fn(Get $get) => !$get('is_email'))
-                    ->columnSpan(['sm' => '0', 'md' => 6]),
+                    ->columnSpan(['sm' => '0', 'md' => 3]),
 
                 DateTimePicker::make('created_at')
                     ->label('Registrato il')
-                    ->disabled()
+                    // ->disabled()
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->columnSpan(['sm' => 'full', 'md' => 3])
+                    ->time(fn ($record) => $record?->is_email ?? true)
                     ->displayFormat('d/m/Y H:i:s')
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null)
                     ->visible(fn($record) => $record),
 
                 Forms\Components\Select::make('register_user_id')
                     ->label('Registrato da')
-                    ->disabled()
+                    // ->disabled()
                     ->relationship('registerUser', 'name')
                     ->visible(fn($record) => $record)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),

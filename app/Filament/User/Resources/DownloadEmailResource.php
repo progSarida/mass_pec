@@ -44,7 +44,7 @@ class DownloadEmailResource extends Resource
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20';
     protected static ?string $navigationLabel = 'Gestione PEC in arrivo';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

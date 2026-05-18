@@ -21,7 +21,7 @@ enum RegistryOriginType: string implements HasLabel
             self::IN_MAIL => 'Pec Massiva',
             self::DOWNLOAD_EMAIL => 'PEC in arrivo',
             self::SEND_EMAIL => 'PEC inviata',
-            self::MANUAL => 'Manuale',
+            self::MANUAL => 'Inserimento manuale',
             self::FORWARD => 'Inoltro',
             self::REPLY => 'Risposta',
         };

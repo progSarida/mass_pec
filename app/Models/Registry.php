@@ -46,6 +46,9 @@ class Registry extends Model
         'register_user_id',
         'manage_registry_type',
         'manage_registry_date',
+        'void',
+        'void_reason',
+        'void_date',
     ];
 
     protected $casts = [
@@ -58,6 +61,8 @@ class Registry extends Model
         'other_senders' => 'array',
         'manage_registry_type' => ManageRegistryType::class,
         'manage_registry_date' => 'date',
+        'void' => 'boolean',
+        'void_date' => 'date',
     ];
 
     public function downloadUser(){

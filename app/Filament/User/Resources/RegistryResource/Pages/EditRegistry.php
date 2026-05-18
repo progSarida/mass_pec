@@ -20,6 +20,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -767,6 +768,31 @@ class EditRegistry extends EditRecord
                 //                 ->send();
                 //         }
                 //     }),
+
+                Actions\Action::make('void')
+                    ->label('Annulla voce')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Annulla voce')
+                    ->modalDescription(function ($record) {
+                        return "Annullare in data di oggi " . today()->format('d/m/Y') . " la voce {$record->protocol_number}?";
+                    })
+                    ->modalSubmitActionLabel('Conferma')
+                    ->modalCancelActionLabel('Annulla')
+                    ->visible(fn($record) => !$record?->void)
+                    ->form([
+                        TextInput::make('void_reason')
+                            ->label('Motivo annullamento'),
+                    ])
+                    ->action(function (Registry $record, $data) {
+                        $voidReason = $data['void_reason'] ?? null;
+                        $record->update([
+                            'void' => true,
+                            'void_date' => today(),
+                            'void_reason' => $voidReason,
+                        ]);
+                    }),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')

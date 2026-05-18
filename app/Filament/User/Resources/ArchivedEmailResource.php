@@ -41,7 +41,7 @@ class ArchivedEmailResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-m-rectangle-stack';
     protected static ?string $navigationLabel = 'Archivio email';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 6;
 
     public static function form(Form $form): Form
     {

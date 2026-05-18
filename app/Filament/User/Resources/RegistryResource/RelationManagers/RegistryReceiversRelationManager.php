@@ -51,17 +51,14 @@ class RegistryReceiversRelationManager extends RelationManager
                     ->disabled()
                     ->schema([
                 TextInput::make('description')->label('Nome e Cognome/Denominazione')
-                    ->required()
                     ->live(debounce: 500)
                     ->columnSpan(['sm' => 'full', 'md' => 9]),
                 Select::make('recipient_type')->label('Natura interlocutore')
                     ->options(RecipientType::getOptions())
-                    ->required()
                     ->live()
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 Select::make('admin_type_id')->label('Tipo interlocutore')
-                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
                     ->relationship(
                         name: 'adminType',
                         titleAttribute: 'name',
@@ -71,19 +68,15 @@ class RegistryReceiversRelationManager extends RelationManager
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
                 Select::make('istat_type_id')->label('Tipo Istat')
-                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
                     ->relationship(name: 'istatType', titleAttribute: 'name')
                     ->searchable()
                     ->preload()
                     ->columnSpan(['sm' => 'full', 'md' => 6]),
                 TextInput::make('tax_code')->label('Codice fiscale')
-                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) === RecipientType::PERSON)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 TextInput::make('vat_code')->label('Partita IVA')
-                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 TextInput::make('code_ipa')->label('Codice Ipa')
-                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) === RecipientType::PUBLIC)
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                 TextInput::make('acronym')->label('Acronimo')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -91,7 +84,6 @@ class RegistryReceiversRelationManager extends RelationManager
                     // ->required()
                     ->columnSpan(['sm' => 'full', 'md' => 8]),
                 Select::make('city_id')->label('Comune')
-                    ->required(fn(Get $get) => $get('recipient_type') && RecipientType::from($get('recipient_type')) !== RecipientType::PERSON)
                     ->relationship(name: 'city', titleAttribute: 'name')
                     ->searchable()
                     ->preload()

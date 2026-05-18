@@ -38,7 +38,7 @@ class SendEmailResource extends Resource
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-up-20';
     protected static ?string $navigationLabel = 'Gestione PEC in uscita';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {

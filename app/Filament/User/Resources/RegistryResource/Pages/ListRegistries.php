@@ -18,7 +18,7 @@ class ListRegistries extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            // Actions\CreateAction::make(),
             Actions\Action::make('print')
                 ->icon('heroicon-o-printer')
                 ->label('Stampa')
