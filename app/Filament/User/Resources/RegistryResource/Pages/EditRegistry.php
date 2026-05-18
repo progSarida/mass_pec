@@ -808,10 +808,10 @@ class EditRegistry extends EditRecord
             $this->getSaveFormAction()->color('success'),
             $this->getCancelFormAction(),
             $this->getResetFormAction(),
-            $this->getDeleteFormAction()
-                ->extraAttributes([
-                    'class' => ' md:ml-auto md:w-auto ',
-                ]),
+            // $this->getDeleteFormAction()
+            //     ->extraAttributes([
+            //         'class' => ' md:ml-auto md:w-auto ',
+            //     ]),
         ];
     }
 
