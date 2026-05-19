@@ -1046,7 +1046,11 @@ class EditRegistry extends EditRecord
             'create_user_id' => Auth::user()->id,
         ]);
 
-        $newManualInsert->update(['attachment_path' => 'manual_insert/' . $newManualInsert->id,]);
+        $newPath = 'manual_insert/' . $newManualInsert->id;
+
+        $newManualInsert->update(['attachment_path' => $newPath,]);
+
+        $this->copyAttachments($record->attachment_path, $newPath);
 
         $this->redirect(ManualInsertResource::getUrl('edit', ['record' => $newManualInsert->id]));
     }
@@ -1067,8 +1071,70 @@ class EditRegistry extends EditRecord
             'linked_registry_id' => $record->id,
         ]);
 
-        $newSendEmail->update(['attachment_path' => 'send_emails/' . $newSendEmail->id,]);
+        $newPath = 'send_emails/' . $newSendEmail->id;
+
+        $newSendEmail->update(['attachment_path' => $newPath,]);
+
+        $this->copyAttachments($record->attachment_path, $newPath);
 
         $this->redirect(SendEmailResource::getUrl('edit', ['record' => $newSendEmail->id]));
+    }
+
+    private function copyAttachmentsRecursive(?string $sourcePath, string $destinationPath): void
+    {
+        if (empty($sourcePath)) {
+            return;
+        }
+
+        $disk = Storage::disk(config('filesystems.default'));
+
+        if (!$disk->exists($sourcePath)) {
+            return;
+        }
+
+        // Ottieni tutti i file ricorsivamente
+        $files = $disk->allFiles($sourcePath);
+
+        foreach ($files as $file) {
+            // Mantieni la struttura delle sottocartelle
+            $relativePath = str_replace($sourcePath . '/', '', $file);
+            $newFilePath = $destinationPath . '/' . $relativePath;
+
+            $disk->copy($file, $newFilePath);
+        }
+    }
+
+    private function copyAttachments(?string $sourcePath, string $destinationPath): void
+    {
+        if (empty($sourcePath)) {
+            return;
+        }
+
+        $disk = Storage::disk(config('filesystems.default'));
+
+        if (!$disk->exists($sourcePath)) {
+            \Log::warning("Path sorgente non trovato: {$sourcePath}");
+            return;
+        }
+
+        try {
+            $files = $disk->allFiles($sourcePath);
+
+            foreach ($files as $file) {
+                $fileName = basename($file);
+                $newFilePath = $destinationPath . '/' . $fileName;
+
+                $disk->copy($file, $newFilePath);
+            }
+
+            \Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
+
+        } catch (\Exception $e) {
+            \Log::error("Errore nella copia degli allegati", [
+                'source' => $sourcePath,
+                'destination' => $destinationPath,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
