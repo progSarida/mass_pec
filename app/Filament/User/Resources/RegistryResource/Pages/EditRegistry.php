@@ -566,8 +566,8 @@ class EditRegistry extends EditRecord
 
                 Action::make('forward')
                     ->label('Inoltra')
-                    ->visible(fn($record) => ($record->isOutgoingEmail() || $record->isIngoingEmail() ||
-                                                ($record->registry_origin_type == RegistryOriginType::MANUAL && ($record->flow_type == FlowType::RECEIVED || $record->flow_type == FlowType::ISSUED))) && $record->send_date)
+                    ->visible(fn($record) => (($record->isOutgoingEmail() && $record->send_date) || $record->isIngoingEmail() ||
+                                                ($record->registry_origin_type == RegistryOriginType::MANUAL && ($record->flow_type == FlowType::RECEIVED || $record->flow_type == FlowType::ISSUED))))
                     ->icon('fluentui-arrow-forward-20-o')
                     ->color('info')
                     ->requiresConfirmation()
@@ -974,14 +974,12 @@ class EditRegistry extends EditRecord
     }
 
     private function replySendEmail($record, $data) {
-        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
-
         $newSendEmail = SendEmail::create([
             'account_id' => $data['account_id'],
             'signature_id' => null,
             'mail_type' => MailType::PEC,
             'office_type_id' => null,
-            'recipients' => $emails,
+            'recipients' => !empty($record->other_senders) ? array_merge([$record->from], $record->other_senders) : [$record->from],
             'subject' => "Re: " . $record->subject,
             'body' => '',
             'attachment_path' => null,
@@ -1054,14 +1052,12 @@ class EditRegistry extends EditRecord
     }
 
     private function forwardSendEmail($record, $data) {
-        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
-
         $newSendEmail = SendEmail::create([
             'account_id' => $data['account_id'],
             'signature_id' => null,
             'mail_type' => MailType::PEC,
             'office_type_id' => null,
-            'recipients' => $emails,
+            'recipients' => null,
             'subject' => "Re: " . $record->subject,
             'body' => '',
             'attachment_path' => null,
