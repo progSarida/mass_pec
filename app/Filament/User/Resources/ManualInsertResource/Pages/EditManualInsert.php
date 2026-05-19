@@ -2,8 +2,10 @@
 
 namespace App\Filament\User\Resources\ManualInsertResource\Pages;
 
+use App\Enums\FlowType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
+use App\Enums\RelationshipType;
 use App\Filament\User\Resources\ManualInsertResource;
 use App\Models\Company;
 use App\Models\Recipient;
@@ -216,7 +218,7 @@ class EditManualInsert extends EditRecord
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')
                     ->color('warning')
-                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')))
+                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')) && static::canRegister($record))
                     ->requiresConfirmation()
                     ->modalHeading('Protocolla')
                     ->modalDescription('L\'elemento verrà inserito nel protocollo ed eliminato dall\'elenco')
@@ -311,6 +313,13 @@ class EditManualInsert extends EditRecord
             });
     }
 
+    private static function canRegister($record): bool
+    {
+        return (($record->flow_type === FlowType::RECEIVED && $record->receive_date && !empty($record->senders)) ||
+                ($record->flow_type === FlowType::ISSUED && $record->send_date && !empty($record->receivers)) ||
+                ($record->flow_type === FlowType::INTERNAL)) && $record->subject;
+    }
+
     private static function registerElement($record, $data){
         try {
             DB::beginTransaction();
@@ -357,6 +366,17 @@ class EditManualInsert extends EditRecord
                     'recipient_id' => static::getRecipientId($receiver),
                     'address' => $receiver,
                     'pec_status' => PecStatus::WAITING,
+                ]);
+            }
+
+            // Creazione collegamento se esistente
+            if($record->is_reply){
+                $registry->parentRegistries()->attach($record->linked_registry_id, [
+                    'relationship_type' => RelationshipType::REPLY->value
+                ]);
+            } elseif($record->is_forward){
+                $registry->parentRegistries()->attach($record->linked_registry_id, [
+                    'relationship_type' => RelationshipType::FORWARD->value
                 ]);
             }
 

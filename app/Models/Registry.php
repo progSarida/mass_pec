@@ -152,10 +152,8 @@ class Registry extends Model
             case RegistryOriginType::IN_MAIL:
             case RegistryOriginType::DOWNLOAD_EMAIL:
                 return true;
-                break;
             default:
                 return false;
-                break;
         }
     }
 
@@ -166,10 +164,8 @@ class Registry extends Model
             case RegistryOriginType::REPLY:
             case RegistryOriginType::FORWARD:
                 return true;
-                break;
             default:
                 return false;
-                break;
         }
     }
 

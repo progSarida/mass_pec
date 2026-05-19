@@ -2,8 +2,10 @@
 
 namespace App\Filament\User\Resources\SendEmailResource\Pages;
 
+use App\Enums\FlowType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
+use App\Enums\RelationshipType;
 use App\Filament\User\Resources\SendEmailResource;
 use App\Models\Company;
 use App\Models\Recipient;
@@ -204,7 +206,7 @@ class EditSendEmail extends EditRecord
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')
                     ->color('warning')
-                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')))
+                    ->visible(fn($record) => (Auth::user()->hasRole('super_admin') || Auth::user()->hasRole('manager')) && static::canRegister($record))
                     ->requiresConfirmation()
                     ->modalHeading('Protocolla email')
                     ->modalDescription('La mail verrà inserita nel protocollo ed eliminata dall\'elenco')
@@ -319,6 +321,11 @@ class EditSendEmail extends EditRecord
 //         return $email;
 //     }
 
+    private static function canRegister($record): bool
+    {
+        return $record->account_id && $record->subject && !empty($record->recipients) && $record->body;
+    }
+
     private static function registerEmail($record, $data){
         try {
             DB::beginTransaction();
@@ -363,6 +370,17 @@ class EditSendEmail extends EditRecord
                     'recipient_id' => static::getRecipientId($receiver),
                     'address' => $receiver,
                     'pec_status' => PecStatus::WAITING,
+                ]);
+            }
+
+            // Creazione collegamento se esistente
+            if($record->is_reply){
+                $registry->parentRegistries()->attach($record->linked_registry_id, [
+                    'relationship_type' => RelationshipType::REPLY->value
+                ]);
+            } elseif($record->is_forward){
+                $registry->parentRegistries()->attach($record->linked_registry_id, [
+                    'relationship_type' => RelationshipType::FORWARD->value
                 ]);
             }
 

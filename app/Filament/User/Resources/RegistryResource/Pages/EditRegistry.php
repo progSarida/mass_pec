@@ -3,20 +3,27 @@
 namespace App\Filament\User\Resources\RegistryResource\Pages;
 
 use App\Enums\FlowType;
+use App\Enums\MailType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Enums\RelationshipType;
+use App\Filament\User\Resources\ManualInsertResource;
 use App\Filament\User\Resources\RegistryResource;
+use App\Filament\User\Resources\SendEmailResource;
 use App\Jobs\DownloadReceiptsJob;
 use App\Models\Account;
 use App\Models\Company;
+use App\Models\ManualInsert;
 use App\Models\Recipient;
+use App\Models\RecipientEmail;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
+use App\Models\SendEmail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -518,7 +525,7 @@ class EditRegistry extends EditRecord
 
                 Action::make('reply')
                     ->label('Rispondi')
-                    ->visible(fn($record) => $record->isIngoingEmail())
+                    ->visible(fn($record) => $record->isIngoingEmail() || ($record->flow_type == FlowType::RECEIVED && $record->registry_origin_type == RegistryOriginType::MANUAL))
                     ->icon('fluentui-arrow-reply-20-o')
                     ->color('info')
                     ->requiresConfirmation()
@@ -526,71 +533,41 @@ class EditRegistry extends EditRecord
                     ->modalDescription('Creare risposta a questa email?')
                     ->modalSubmitActionLabel('Crea')
                     ->modalCancelActionLabel('Annulla')
-                    ->form([
-                        Select::make('account_id')
-                            ->label('Account')
-                            ->required()
-                            ->relationship(
-                                name: 'account',
-                                titleAttribute: 'public_name',
-                                modifyQueryUsing: fn ($query) => $query
-                                    ->where('send', true)
-                                    ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
-                                    ->orderBy('position', 'asc')
-                            )
-                            ->preload(),
-                    ])
+                    ->form(function($record){
+                        $form[] =
+                            Select::make('account_id')
+                                ->label('Account')
+                                ->required(fn(Get $get) => $get('manual') === false)
+                                ->relationship(
+                                    name: 'account',
+                                    titleAttribute: 'public_name',
+                                    modifyQueryUsing: fn ($query) => $query
+                                        ->where('send', true)
+                                        ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                                        ->orderBy('position', 'asc')
+                                )
+                                ->preload();
+                        if($record->flow_type == FlowType::RECEIVED && $record->registry_origin_type == RegistryOriginType::MANUAL){
+                            $form[] = Checkbox::make('manual')
+                                        ->label('Risposta con posta fisica')
+                                        ->live()
+                                        ->helperText('Se deselezionato, verrà creata una bozza di email; se selezionato, verrà creato un inserimento manuale. In entrambi i casi poi l\'elemento creato dovrà essere protocollato');
+                        }
+                        return $form;
+                    })
                     ->action(function ($record, array $data) {
-                        $protocolNumber = static::newProtocol();
-                        $newPath = 'registry/' . $protocolNumber;
-                        $account = Account::find($data['account_id']);
-
-                        $newRegistry = Registry::create([
-                            'protocol_number' => $protocolNumber,
-                            'flow_type' => 'issued',
-                            'flow_index' => static::newIndex('issued'),
-                            'registry_origin_type' => 'reply',
-                            // 'parent_id' => $record->id,
-                            'is_email' => true,
-                            'scope_type_id' => $record->scope_type_id,
-                            'uid' => '#reply' . $protocolNumber,
-                            'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
-                            'sender_id' => null,
-                            'from' => $account->public_name,
-                            'subject' => "Re: " . $record->subject,
-                            'body' => null,
-                            'receive_date' => null,
-                            'account_id' => $data['account_id'],
-                            'send_date' => null,
-                            'send_user_id' => null,
-                            'shipment_id' => null,
-                            'attachment_path' => $newPath,
-                            'download_date' => null,
-                            'download_user_id' => null,
-                            'register_user_id' => Auth::user()->id,
-                            'manage_registry_type' => ManageRegistryType::NONE,
-                        ]);
-
-                        // Creazione collegamento
-                        $newRegistry->parentRegistries()->attach($record->id, [
-                            'relationship_type' => RelationshipType::REPLY->value
-                        ]);
-
-                        // Creazione destinatario
-                        RegistryReceiver::create([
-                            'registry_id' => $newRegistry->id,
-                            'protocol_number' => $protocolNumber,
-                            'recipient_id' => static::getRecipientId($record->from),
-                            'address' => $record->from,
-                            'pec_status' => PecStatus::WAITING,
-                        ]);
-
-                        $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+                        if($data['manual'] ?? false){
+                            $this->replyManualInsert($record);                                                                                  // creo inserimento manuale di risposta, poi da protocollare
+                        } else {
+                            $this->replySendEmail($record, $data);                                                                              // creo bozza email di risposta, poi da protocollare
+                        }
+                        // $this->replyRegistry($record, $data);                                                                               // creo voce protocollo di risposta
                     }),
 
                 Action::make('forward')
                     ->label('Inoltra')
-                    ->visible(fn($record) => $record->isIngoingEmail())
+                    ->visible(fn($record) => ($record->isOutgoingEmail() || $record->isIngoingEmail() ||
+                                                ($record->registry_origin_type == RegistryOriginType::MANUAL && ($record->flow_type == FlowType::RECEIVED || $record->flow_type == FlowType::ISSUED))) && $record->send_date)
                     ->icon('fluentui-arrow-forward-20-o')
                     ->color('info')
                     ->requiresConfirmation()
@@ -598,57 +575,35 @@ class EditRegistry extends EditRecord
                     ->modalDescription('Creare copia in uscita di questa email?')
                     ->modalSubmitActionLabel('Crea')
                     ->modalCancelActionLabel('Annulla')
-                    ->form([
-                        Select::make('account_id')
-                            ->label('Account')
-                            ->required()
-                            ->relationship(
-                                name: 'account',
-                                titleAttribute: 'public_name',
-                                modifyQueryUsing: fn ($query) => $query
-                                    ->where('send', true)
-                                    ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
-                                    ->orderBy('position', 'asc')
-                            )
-                            ->preload(),
-                    ])
+                    ->form(function($record){
+                        $form[] =
+                            Select::make('account_id')
+                                ->label('Account')
+                                ->required(fn(Get $get) => $get('manual') === false)
+                                ->relationship(
+                                    name: 'account',
+                                    titleAttribute: 'public_name',
+                                    modifyQueryUsing: fn ($query) => $query
+                                        ->where('send', true)
+                                        ->whereHas('users', fn ($q) => $q->where('users.id', Auth::user()->id))
+                                        ->orderBy('position', 'asc')
+                                )
+                                ->preload();
+                        if($record->flow_type == FlowType::RECEIVED && $record->registry_origin_type == RegistryOriginType::MANUAL){
+                            $form[] = Checkbox::make('manual')
+                                        ->label('Inoltro con posta fisica')
+                                        ->live()
+                                        ->helperText('Se deselezionato, verrà creata una bozza di email; se selezionato, verrà creato un inserimento manuale. In entrambi i casi poi l\'elemento creato dovrà essere protocollato');
+                        }
+                        return $form;
+                    })
                     ->action(function ($record, array $data) {
-                        $protocolNumber = static::newProtocol();
-                        $newPath = 'registry/' . $protocolNumber;
-                        $account = Account::find($data['account_id']);
-
-                        $newRegistry = Registry::create([
-                            'protocol_number' => $protocolNumber,
-                            'flow_type' => 'issued',
-                            'flow_index' => static::newIndex('issued'),
-                            'registry_origin_type' => 'forward',
-                            // 'parent_id' => $record->id,
-                            'is_email' => true,
-                            'scope_type_id' => $record->scope_type_id,
-                            'uid' => '#forward' . $protocolNumber,
-                            'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
-                            'sender_id' => null,
-                            'from' => $account->public_name,
-                            'subject' => $record->subject,
-                            'body' => $record->body,
-                            'receive_date' => null,
-                            'account_id' => $record->account_id,
-                            'send_date' => $record->send_date,
-                            'send_user_id' => $record->send_user_id,
-                            'shipment_id' => null,
-                            'attachment_path' => $newPath,
-                            'download_date' => null,
-                            'download_user_id' => null,
-                            'register_user_id' => Auth::user()->id,
-                            'manage_registry_type' => ManageRegistryType::NONE,
-                        ]);
-
-                        // Creazione collegamento
-                        $newRegistry->parentRegistries()->attach($record->id, [
-                            'relationship_type' => RelationshipType::FORWARD->value
-                        ]);
-
-                        $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+                        if($data['manual'] ?? false){
+                            $this->forwardManualInsert($record);                                                                                // creo inserimento manuale di inoltro, poi da protocollare
+                        } else {
+                            $this->forwardSendEmail($record, $data);                                                                            // creo bozza email di inoltro, poi da protocollare
+                        }
+                        // $this->forwardRegistry($record, $data);                                                                               // creo voce protocollo di risposta
                     }),
 
                 Actions\Action::make('manage')
@@ -949,5 +904,175 @@ class EditRegistry extends EditRecord
             if (file_exists($tempFile)) unlink($tempFile);
             throw $e;
         }
+    }
+
+    private function replyRegistry($record, $data) {
+
+        $protocolNumber = static::newProtocol();
+        $newPath = 'registry/' . $protocolNumber;
+        $account = Account::find($data['account_id']);
+
+        $newRegistry = Registry::create([
+            'protocol_number' => $protocolNumber,
+            'flow_type' => 'issued',
+            'flow_index' => static::newIndex('issued'),
+            'registry_origin_type' => 'reply',
+            // 'parent_id' => $record->id,
+            'is_email' => true,
+            'scope_type_id' => $record->scope_type_id,
+            'uid' => '#reply' . $protocolNumber,
+            'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+            'sender_id' => null,
+            'from' => $account->public_name,
+            'subject' => "Re: " . $record->subject,
+            'body' => null,
+            'receive_date' => null,
+            'account_id' => $data['account_id'],
+            'send_date' => null,
+            'send_user_id' => null,
+            'shipment_id' => null,
+            'attachment_path' => $newPath,
+            'download_date' => null,
+            'download_user_id' => null,
+            'register_user_id' => Auth::user()->id,
+            'manage_registry_type' => ManageRegistryType::NONE,
+        ]);
+
+        // Creazione collegamento
+        $newRegistry->parentRegistries()->attach($record->id, [
+            'relationship_type' => RelationshipType::REPLY->value
+        ]);
+
+        // Creazione destinatario
+        RegistryReceiver::create([
+            'registry_id' => $newRegistry->id,
+            'protocol_number' => $protocolNumber,
+            'recipient_id' => static::getRecipientId($record->from),
+            'address' => $record->from,
+            'pec_status' => PecStatus::WAITING,
+        ]);
+
+        $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+    }
+
+    private function replyManualInsert($record) {
+        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
+
+        $newManualInsert = ManualInsert::create([
+            'flow_type' => FlowType::ISSUED,
+            'receivers' => $emails,
+            'subject' => "Re: " . $record->subject,
+            'body' => null,
+            'is_reply' => true,
+            'linked_registry_id' => $record->id,
+            'create_user_id' => Auth::user()->id,
+        ]);
+
+        $newManualInsert->update(['attachment_path' => 'manual_insert/' . $newManualInsert->id,]);
+
+        $this->redirect(ManualInsertResource::getUrl('edit', ['record' => $newManualInsert->id]));
+    }
+
+    private function replySendEmail($record, $data) {
+        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
+
+        $newSendEmail = SendEmail::create([
+            'account_id' => $data['account_id'],
+            'signature_id' => null,
+            'mail_type' => MailType::PEC,
+            'office_type_id' => null,
+            'recipients' => $emails,
+            'subject' => "Re: " . $record->subject,
+            'body' => '',
+            'attachment_path' => null,
+            'create_date' => today(),
+            'create_user_id' => Auth::user()->id,
+            'is_reply' => true,
+            'linked_registry_id' => $record->id,
+        ]);
+
+        $newSendEmail->update(['attachment_path' => 'send_emails/' . $newSendEmail->id,]);
+
+        $this->redirect(SendEmailResource::getUrl('edit', ['record' => $newSendEmail->id]));
+    }
+
+    private function forwardRegistry($record, $data) {
+        $protocolNumber = static::newProtocol();
+        $newPath = 'registry/' . $protocolNumber;
+        $account = Account::find($data['account_id']);
+
+        $newRegistry = Registry::create([
+            'protocol_number' => $protocolNumber,
+            'flow_type' => 'issued',
+            'flow_index' => static::newIndex('issued'),
+            'registry_origin_type' => 'forward',
+            // 'parent_id' => $record->id,
+            'is_email' => true,
+            'scope_type_id' => $record->scope_type_id,
+            'uid' => '#forward' . $protocolNumber,
+            'message_id' => now()->format('Y-m-d_H-i-s') . '_' . $protocolNumber,
+            'sender_id' => null,
+            'from' => $account->public_name,
+            'subject' => $record->subject,
+            'body' => $record->body,
+            'receive_date' => null,
+            'account_id' => $record->account_id,
+            'send_date' => $record->send_date,
+            'send_user_id' => $record->send_user_id,
+            'shipment_id' => null,
+            'attachment_path' => $newPath,
+            'download_date' => null,
+            'download_user_id' => null,
+            'register_user_id' => Auth::user()->id,
+            'manage_registry_type' => ManageRegistryType::NONE,
+        ]);
+
+        // Creazione collegamento
+        $newRegistry->parentRegistries()->attach($record->id, [
+            'relationship_type' => RelationshipType::FORWARD->value
+        ]);
+
+        $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
+    }
+
+    private function forwardManualInsert($record) {
+        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
+
+        $newManualInsert = ManualInsert::create([
+            'flow_type' => FlowType::ISSUED,
+            'receivers' => $emails,
+            'subject' => "Re: " . $record->subject,
+            'body' => null,
+            'is_forward' => true,
+            'linked_registry_id' => $record->id,
+            'create_user_id' => Auth::user()->id,
+        ]);
+
+        $newManualInsert->update(['attachment_path' => 'manual_insert/' . $newManualInsert->id,]);
+
+        $this->redirect(ManualInsertResource::getUrl('edit', ['record' => $newManualInsert->id]));
+    }
+
+    private function forwardSendEmail($record, $data) {
+        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
+
+        $newSendEmail = SendEmail::create([
+            'account_id' => $data['account_id'],
+            'signature_id' => null,
+            'mail_type' => MailType::PEC,
+            'office_type_id' => null,
+            'recipients' => $emails,
+            'subject' => "Re: " . $record->subject,
+            'body' => '',
+            'attachment_path' => null,
+            'create_date' => today(),
+            'create_user_id' => Auth::user()->id,
+            'is_forward' => true,
+            'linked_registry_id' => $record->id,
+        ]);
+
+        $newSendEmail->update(['attachment_path' => 'send_emails/' . $newSendEmail->id,]);
+
+        $this->redirect(SendEmailResource::getUrl('edit', ['record' => $newSendEmail->id]));
     }
 }

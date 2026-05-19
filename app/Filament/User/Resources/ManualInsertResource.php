@@ -53,7 +53,7 @@ class ManualInsertResource extends Resource
                 DatePicker::make('receive_date')
                     ->label('Ricevuto il')
                     ->required()
-                    ->visible(fn(Get $get, $record) => (!$record || $record?->receive_date) && $get('flow_type') === FlowType::RECEIVED->value)
+                    ->visible(fn(Get $get) => $get('flow_type') === FlowType::RECEIVED->value)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -61,7 +61,7 @@ class ManualInsertResource extends Resource
                 DatePicker::make('send_date')
                     ->label('Inviato il')
                     ->required()
-                    ->visible(fn(Get $get, $record) => (!$record || $record?->send_date) && $get('flow_type') === FlowType::ISSUED->value)
+                    ->visible(fn(Get $get) => $get('flow_type') === FlowType::ISSUED->value)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
@@ -69,14 +69,13 @@ class ManualInsertResource extends Resource
                 DatePicker::make('internal_date')
                     ->label('Comunicato il')
                     ->required()
-                    ->visible(fn(Get $get, $record) => (!$record || $record?->internal_date) && $get('flow_type') === FlowType::INTERNAL->value)
+                    ->visible(fn(Get $get) => $get('flow_type') === FlowType::INTERNAL->value)
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 Placeholder::make('first_row_placeholder')
                     ->label('')
-                    ->visible(fn(Get $get, $record) => ($record && !$record?->internal_date) && $get('flow_type') === FlowType::INTERNAL->value)
                     ->columnSpan(['sm' => 'full', 'md' => 9]),
 
                 // Select::make('scope_type_id')
@@ -587,7 +586,8 @@ class ManualInsertResource extends Resource
         ->first();
 
         if ($rec) {
-            return "{$rec->description} <{$email}>";
+            // return "{$rec->description} <{$email}>";
+            return "{$rec->description}";
         }
 
         return $email;

@@ -94,7 +94,13 @@ class ViewSendEmail extends ViewRecord
                 ->action(function () use ($nextSSendEmail) {
                     $this->redirect(SendEmailResource::getUrl('view', ['record' => $nextSSendEmail->id]));
                 }),
-            Actions\EditAction::make(),
+            Actions\ActionGroup::make([
+                Actions\EditAction::make(),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
 }

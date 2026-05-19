@@ -806,6 +806,14 @@ class RegistryResource extends Resource
 
                             return 'Sarida srl, ' . $descriptions;
                         }
+                        if ($record->other_senders && !empty($record->other_senders)) {
+                            // Recupera solo la colonna 'description' per ottimizzare la query
+                            $descriptions = Recipient::whereIn('id', $record->other_senders)
+                                ->pluck('description') // Estrae solo i valori della colonna 'description'
+                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+
+                            return $descriptions;
+                        }
                         return '';
                     })
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -824,6 +832,14 @@ class RegistryResource extends Resource
                                 ->implode(', ');      // Li concatena separandoli con virgola e spazio
 
                             return 'Sarida srl, ' . $descriptions;
+                        }
+                        if ($record->other_senders && !empty($record->other_senders)) {
+                            // Recupera solo la colonna 'description' per ottimizzare la query
+                            $descriptions = Recipient::whereIn('id', $record->other_senders)
+                                ->pluck('description') // Estrae solo i valori della colonna 'description'
+                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+
+                            return $descriptions;
                         }
                         return '';
                     })

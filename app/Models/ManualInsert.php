@@ -22,6 +22,9 @@ class ManualInsert extends Model
         'receive_date',
         'send_date',
         'create_user_id',
+        'is_reply',
+        'is_forward',
+        'linked_registry_id',
         'attachment_path',
     ];
 
@@ -33,6 +36,9 @@ class ManualInsert extends Model
         'addresses' => 'array',
         'receive_date' => 'datetime',
         'send_date' => 'datetime',
+        'is_reply' => 'boolean',
+        'is_forward' => 'boolean',
+        'linked_registry_id' => 'integer',
     ];
 
     public function createUser(){

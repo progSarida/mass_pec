@@ -22,10 +22,16 @@ class SendEmail extends Model
         'create_user_id',
         // 'send_date',
         // 'send_user_id',
+        'is_reply',
+        'is_forward',
+        'linked_registry_id',
     ];
 
     protected $casts = [
         'recipients' => 'array',
+        'is_reply' => 'boolean',
+        'is_forward' => 'boolean',
+        'linked_registry_id' => 'integer',
     ];
 
     public function account(){
