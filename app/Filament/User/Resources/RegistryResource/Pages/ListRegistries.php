@@ -2,7 +2,9 @@
 
 namespace App\Filament\User\Resources\RegistryResource\Pages;
 
+use App\Enums\PecStatus;
 use App\Filament\User\Resources\RegistryResource;
+use App\Models\RegistryReceiver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -62,7 +64,65 @@ class ListRegistries extends ListRecords
             //     ->label('Esporta')
             //     ->tooltip('Esporta elenco gare')
             //     ->color(Color::rgb('rgb(0, 153, 0)'))
-            //     ->exporter(BiddingExporter::class)
+            //     ->exporter(BiddingExporter::class),
+
+            Actions\Action::make('send')
+                ->label('Invia Email')
+                ->icon('hugeicons-mail-send-01')
+                ->color('success')
+                ->visible(function() {
+                    // se ci sono Registry che hanno almeno un registryReceiver con message_id null
+                    $receivers = RegistryReceiver::whereHas('registry', function($q){
+                                        $q->whereNotNull('send_date');
+                                    })
+                                    ->whereNull('message_id')
+                                    ->where('pec_status', PecStatus::WAITING)
+                                    ->select('registry_receivers.id')
+                                    ->get();
+
+                    return count($receivers) > 0;
+                })
+                ->requiresConfirmation()
+                ->modalHeading('Conferma invio email')
+                ->modalDescription(function () {
+                    return "Le email in sospeso verranno inviate.";
+                })
+                ->modalSubmitActionLabel('Sì, invia')
+                ->modalCancelActionLabel('Annulla')
+                ->action(function () {
+                    try {
+                        $receivers = RegistryReceiver::whereHas('registry', function($q){
+                                            $q->whereNotNull('send_date');
+                                        })
+                                        ->whereNull('message_id')
+                                        ->where('pec_status', PecStatus::WAITING)
+                                        ->select('registry_receivers.id', 'registry_receivers.registry_id', 'registry_receivers.address')
+                                        ->get();
+                        $count = count($receivers);
+
+                        foreach($receivers as $receiver){
+                            \App\Jobs\SendRegistryEmailJob::dispatch(
+                                registryId: $receiver->registry_id,
+                                recipientEmail: $receiver->address,
+                                registryReceiverId: $receiver->id,
+                            );
+                        }
+
+                        Notification::make()
+                            ->title('Invio avviato')
+                            ->body("Le email in sospeso {$count} verranno inviate in background.")
+                            ->success()
+                            ->duration(5000)
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('Errore avvio invio')
+                            ->body('Impossibile avviare l\'invio: ' . $e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
         ];
     }
 
