@@ -989,7 +989,7 @@ class EditRegistry extends EditRecord
             'linked_registry_id' => $record->id,
         ]);
 
-        $newSendEmail->update(['attachment_path' => 'send_emails/' . $newSendEmail->id,]);
+        $newSendEmail->update(['attachment_path' => 'send_email/' . $newSendEmail->id,]);
 
         $this->redirect(SendEmailResource::getUrl('edit', ['record' => $newSendEmail->id]));
     }
@@ -1071,7 +1071,7 @@ class EditRegistry extends EditRecord
             'linked_registry_id' => $record->id,
         ]);
 
-        $newPath = 'send_emails/' . $newSendEmail->id;
+        $newPath = 'send_email/' . $newSendEmail->id;
 
         $newSendEmail->update(['attachment_path' => $newPath,]);
 
