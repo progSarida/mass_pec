@@ -16,6 +16,7 @@ use App\Models\Region;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Filament\Forms;
+use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
@@ -336,6 +337,19 @@ class RecipientResource extends Resource
                         }
                         return "Email";
                     })
+                    ->headerActions([
+                        Action::make('search_pec_1')
+                            ->label('INI-PEC')
+                            ->icon('fluentui-globe-search-20-o')
+                            ->color('gray')
+                            ->url('https://inipec.gov.it/web/guest/cerca-pec', shouldOpenInNewTab: true), // Sostituisci con il link reale se diverso
+
+                        Action::make('search_pec_2')
+                            ->label('Uffico camerale')
+                            ->icon('fluentui-globe-search-20-o')
+                            ->color('gray')
+                            ->url('https://www.ufficiocamerale.it/cerca-pec-azienda', shouldOpenInNewTab: true), // Sostituisci con il link reale se diverso
+                    ])
                     ->collapsed(fn ($record) => $record && $record->emails()->count() > 0)
                     ->columns(12)
                     ->schema([
