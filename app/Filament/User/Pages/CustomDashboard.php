@@ -3,6 +3,7 @@
 namespace App\Filament\User\Pages;
 
 use App\Enums\PreservationState;
+use App\Models\Company;
 use App\Models\DailySummary;
 use App\Models\Registry;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,80 +19,82 @@ class CustomDashboard extends BaseDashboard
     // Questo metodo viene eseguito ogni volta che la pagina viene caricata
     public function mount(): void
     {
-        DB::beginTransaction();
-        try {
-            // Controllo se nella sessione dell'utente esiste già il "marchio"
-            if (!session()->has('daily_summary')) {
+        if(Company::fisrt()->auto_daily_summary ?? false){
+            DB::beginTransaction();
+            try {
+                // Controllo se nella sessione dell'utente esiste già il "marchio"
+                if (!session()->has('daily_summary')) {
 
-                $today = now()->format('Y-m-d');
+                    $today = now()->format('Y-m-d');
 
-                $registryDates = Registry::selectRaw('DATE(created_at) as date')
-                    ->whereDate('created_at', '<', $today)
-                    ->orderBy('date', 'asc')
-                    ->distinct()
-                    ->pluck('date');
+                    $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                        ->whereDate('created_at', '<', $today)
+                        ->orderBy('date', 'asc')
+                        ->distinct()
+                        ->pluck('date');
 
-                $processedDates = DailySummary::whereNotNull('file_date')
-                    ->pluck('registration_date')
-                    ->map(fn($date) => $date->format('Y-m-d'));
+                    $processedDates = DailySummary::whereNotNull('file_date')
+                        ->pluck('registration_date')
+                        ->map(fn($date) => $date->format('Y-m-d'));
 
-                $datesToProcess = $registryDates->diff($processedDates);
+                    $datesToProcess = $registryDates->diff($processedDates);
 
-                $list = '';
-                foreach($datesToProcess as $date){
-                    $data = \Carbon\Carbon::parse($date)->format('d/m/Y');
-                    $list .= $data . '<br>';
-                    $summary = DailySummary::create([
-                        'registration_date' => $date,
-                        'filename' => null,
-                        'file_date' => null,
-                        'from_protocol' => null,
-                        'to_protocol' => null,
-                        'preservation_state' => null,
-                    ]);
-                    Log::info("Creato registro giornaliero per la data {$data}");
-                    static::createDailySummaryFiles($summary);
-                    Log::info("Creati file registro giornaliero per la data {$data}");
-                }
-
-                if ($datesToProcess->isNotEmpty()) {
-                    if (count($datesToProcess) == 1) {
-                        Notification::make()
-                            ->title('Creato registro giornaliero per la data')
-                            ->body($list)
-                            ->success()
-                            ->sendToDatabase(auth()->user())    // Salva nel DB
-                            ->send();                           // Invia all'interfaccia
-                    }
-                    else if (count($datesToProcess) > 1) {
-                        Notification::make()
-                            ->title('Creati registri giornalieri per le date')
-                            ->body($list)
-                            ->success()
-                            ->sendToDatabase(auth()->user())    // Salva nel DB
-                            ->send();                           // Invia all'interfaccia
+                    $list = '';
+                    foreach($datesToProcess as $date){
+                        $data = \Carbon\Carbon::parse($date)->format('d/m/Y');
+                        $list .= $data . '<br>';
+                        $summary = DailySummary::create([
+                            'registration_date' => $date,
+                            'filename' => null,
+                            'file_date' => null,
+                            'from_protocol' => null,
+                            'to_protocol' => null,
+                            'preservation_state' => null,
+                        ]);
+                        Log::info("Creato registro giornaliero per la data {$data}");
+                        static::createDailySummaryFiles($summary);
+                        Log::info("Creati file registro giornaliero per la data {$data}");
                     }
 
-                    // Scrivo in sessione che abbiamo già inviato la notifica
-                    session()->put('daily_summary', true);
-                } else {
-                     Notification::make()
-                            ->title('Nessun registro giornaliero creato')
-                            ->info()
-                            ->sendToDatabase(auth()->user())    // Salva nel DB
-                            ->send();                           // Invia all'interfaccia
+                    if ($datesToProcess->isNotEmpty()) {
+                        if (count($datesToProcess) == 1) {
+                            Notification::make()
+                                ->title('Creato registro giornaliero per la data')
+                                ->body($list)
+                                ->success()
+                                ->sendToDatabase(auth()->user())    // Salva nel DB
+                                ->send();                           // Invia all'interfaccia
+                        }
+                        else if (count($datesToProcess) > 1) {
+                            Notification::make()
+                                ->title('Creati registri giornalieri per le date')
+                                ->body($list)
+                                ->success()
+                                ->sendToDatabase(auth()->user())    // Salva nel DB
+                                ->send();                           // Invia all'interfaccia
+                        }
+
+                        // Scrivo in sessione che abbiamo già inviato la notifica
+                        session()->put('daily_summary', true);
+                    } else {
+                        Notification::make()
+                                ->title('Nessun registro giornaliero creato')
+                                ->info()
+                                ->sendToDatabase(auth()->user())    // Salva nel DB
+                                ->send();                           // Invia all'interfaccia
+                    }
+                    DB::commit();
                 }
-                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error("Errore durante la creazione del registro giornaliero");
+                Log::error($e->getMessage());
+                Notification::make()
+                    ->title('Errore durante la creazione del registro giornaliero')
+                    ->body($e->getMessage())
+                    ->danger()
+                    ->send();
             }
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("Errore durante la creazione del registro giornaliero");
-            Log::error($e->getMessage());
-            Notification::make()
-                ->title('Errore durante la creazione del registro giornaliero')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
         }
     }
 

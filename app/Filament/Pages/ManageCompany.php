@@ -9,6 +9,7 @@ use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -120,6 +121,13 @@ class ManageCompany extends Page implements HasForms
                 TextInput::make('pec')->label('Pec')
                     ->email()
                     ->maxLength(255)
+                    ->columnSpan(3),
+                Toggle::make('auto_daily_summary')
+                    ->label('Registro giornaliero automatico')
+                    ->onIcon('fluentui-signature-20-o')
+                    ->onColor('success')
+                    ->offIcon('heroicon-o-x-circle')
+                    ->offColor('danger')
                     ->columnSpan(3),
             ])
             ->columns(12)

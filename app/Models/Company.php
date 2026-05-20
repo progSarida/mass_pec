@@ -18,6 +18,11 @@ class Company extends Model
         'phone',
         'email',
         'pec',
+        'auto_daily_summary',
+    ];
+
+    protected $casts = [
+        'auto_daily_summary' => 'boolean',
     ];
 
     public function city()

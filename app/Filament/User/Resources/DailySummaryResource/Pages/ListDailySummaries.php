@@ -81,120 +81,171 @@ class ListDailySummaries extends ListRecords
                 //     Verifica se ci sono date con registries ma senza DailySummary
                 //     return $registryDates->diff($processedDates)->isNotEmpty();
                 // })
-                ->visible(fn () => DailySummary::whereNull('file_date')->count() > 1)
+                ->visible(function () {
+                    $today = now()->format('Y-m-d');
+                    $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                        ->whereDate('created_at', '<', $today)
+                        ->orderBy('date', 'asc')
+                        ->distinct()
+                        ->pluck('date');
+
+                    $processedDates = DailySummary::whereNotNull('file_date')
+                        ->pluck('registration_date')
+                        ->map(fn($date) => $date->format('Y-m-d'));
+
+                    $datesToProcess = $registryDates->diff($processedDates);
+                    return count($datesToProcess) > 0;
+                })
                 ->tooltip('Stampa registro giornaliero')
                 ->action(function ($livewire) {
+                    DB::beginTransaction();
                     try {
-                        DB::beginTransaction();
+                        // Controllo se nella sessione dell'utente esiste già il "marchio"
+                        $today = now()->format('Y-m-d');
 
-                        $datesToProcess = DailySummary::whereNull('file_date')->pluck('registration_date')
+                        $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                            ->whereDate('created_at', '<', $today)
+                            ->orderBy('date', 'asc')
+                            ->distinct()
+                            ->pluck('date');
+
+                        $processedDates = DailySummary::whereNotNull('file_date')
+                            ->pluck('registration_date')
                             ->map(fn($date) => $date->format('Y-m-d'));
 
-                        // if ($datesToProcess->isEmpty()) {
-                        //     $today = now()->format('Y-m-d');
-                        //     // Ottieni le date che necessitano di essere processate
-                        //     $registryDates = Registry::selectRaw('DATE(created_at) as date')
-                        //         ->whereDate('created_at', '<', $today)
-                        //         ->orderBy('date', 'asc')
-                        //         ->distinct()
-                        //         ->pluck('date');
+                        $datesToProcess = $registryDates->diff($processedDates);
 
-                        //     $processedDates = DailySummary::pluck('registration_date')
-                        //         ->map(fn($date) => $date->format('Y-m-d'));
-
-                        //     $datesToProcess = $registryDates->diff($processedDates);
-                        // }
-
-                        if ($datesToProcess->isEmpty()) {
-                            Notification::make()
-                                ->title('Nessuna data da processare')
-                                ->warning()
-                                ->send();
-                            return false;
+                        $list = '';
+                        foreach($datesToProcess as $date){
+                            $data = \Carbon\Carbon::parse($date)->format('d/m/Y');
+                            $list .= $data . '<br>';
+                            $summary = DailySummary::create([
+                                'registration_date' => $date,
+                                'filename' => null,
+                                'file_date' => null,
+                                'from_protocol' => null,
+                                'to_protocol' => null,
+                                'preservation_state' => null,
+                            ]);
+                            Log::info("Creato registro giornaliero per la data {$data}");
+                            static::createDailySummaryFiles($summary);
+                            Log::info("Creati file registro giornaliero per la data {$data}");
                         }
 
-                        $processedCount = 0;
-
-                        foreach ($datesToProcess as $date) {
-                            // Ottieni tutti i registries per questa data specifica
-                            $records = Registry::whereDate('created_at', $date)
-                                ->orderBy('created_at', 'asc')
-                                ->get();
-
-                            if ($records->isEmpty()) {
-                                continue;
+                        if ($datesToProcess->isNotEmpty()) {
+                            if (count($datesToProcess) == 1) {
+                                Notification::make()
+                                    ->title('Creato registro giornaliero per la data')
+                                    ->body($list)
+                                    ->success()
+                                    ->sendToDatabase(auth()->user())    // Salva nel DB
+                                    ->send();                           // Invia all'interfaccia
+                            }
+                            else if (count($datesToProcess) > 1) {
+                                Notification::make()
+                                    ->title('Creati registri giornalieri per le date')
+                                    ->body($list)
+                                    ->success()
+                                    ->sendToDatabase(auth()->user())    // Salva nel DB
+                                    ->send();                           // Invia all'interfaccia
                             }
 
-                            // Determina i numeri di protocollo min e max
-                            $protocolYear = Str::beforeLast($records[0]->protocol_number, '-');
-
-                            $protocolNumbers = $records->map(function ($record) {
-                                // Prende tutto dopo l'ultimo "-" e lo converte in intero
-                                return (int) Str::afterLast($record->protocol_number, '-');
-                            });
-
-                            $fromNumber = $protocolNumbers->min();   // numero più piccolo (es. 21)
-                            $toNumber   = $protocolNumbers->max();   // numero più grande (es. 45)
-
-                            // Genera nome file
-                            $dateFormatted = \Carbon\Carbon::parse($date)->format('Ymd');
-                            $pdfFilename = "{$dateFormatted}.pdf";
-                            $xlsxFilename = "{$dateFormatted}.xlsx";
-
-                            // Path relativo per Storage
-                            $storagePath = 'daily_summaries';
-
-                            // Genera PDF
-                            $pdf = Pdf::loadView('print.daily_summary', [
-                                'registries' => $records,
-                                'date' => $dateFormatted,
-                                'year' => $protocolYear,
-                                'fromNumber' => $fromNumber,
-                                'toNumber' => $toNumber,
-                            ])
-                            ->setPaper('A4', 'landscape');
-
-                            // Salva PDF su Storage (funziona sia con local che S3)
-                            $pdfContent = $pdf->output();
-
-                            Storage::put($storagePath . '/' . $pdfFilename, $pdfContent);
-
-                            // Genera XLSX in memoria
-                            $xlsxContent = self::generateExcel($records, $dateFormatted, $protocolYear, str_pad($fromNumber, 5, '0', STR_PAD_LEFT), str_pad($toNumber, 5, '0', STR_PAD_LEFT));
-
-                            // Salva XLSX su Storage
-                            Storage::put($storagePath . '/' . $xlsxFilename, $xlsxContent);
-
-                            // Crea record DailySummary
-                            DailySummary::where('registration_date', $date)->update([
-                                'filename' => $dateFormatted,
-                                'file_date' => now(),
-                                'from_protocol' => "{$protocolYear}-". Str::padLeft($fromNumber, 5, '0'),
-                                'to_protocol' => "{$protocolYear}-" . Str::padLeft($toNumber, 5, '0'),
-                                'preservation_state' => PreservationState::NOT_SENT,
-                            ]);
-
-                            $processedCount++;
+                            // Scrivo in sessione che abbiamo già inviato la notifica
+                            session()->put('daily_summary', true);
+                        } else {
+                            Notification::make()
+                                    ->title('Nessun registro giornaliero creato')
+                                    ->info()
+                                    ->sendToDatabase(auth()->user())    // Salva nel DB
+                                    ->send();                           // Invia all'interfaccia
                         }
-
                         DB::commit();
-
-                        Notification::make()
-                            ->title("Elaborati {$processedCount} registri giornalieri")
-                            ->success()
-                            ->send();
-
-                        return true;
-                    } catch (\Throwable $e) {
+                    } catch (\Exception $e) {
                         DB::rollBack();
-                        Log::error("Errore creazione registro giornaliero: " . $e->getMessage() . ' - ' . $e->getLine());
-                        throw $e;
+                        Log::error("Errore durante la creazione del registro giornaliero");
+                        Log::error($e->getMessage());
+                        Notification::make()
+                            ->title('Errore durante la creazione del registro giornaliero')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
                     }
                 }),
         ];
     }
 
-    private function generateExcel($records, $dateFormatted, $protocolYear, $fromNumber, $toNumber)
+    private static function createDailySummaryFiles($summary)
+    {
+        try {
+            $date = $summary->registration_date->format('Y-m-d');
+            $records = Registry::whereDate('created_at', $date)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            if ($records->isEmpty()) {
+                return;;
+            }
+
+            // Determina i numeri di protocollo min e max
+            $protocolYear = Str::beforeLast($records[0]->protocol_number, '-');
+
+            $protocolNumbers = $records->map(function ($record) {
+                // Prende tutto dopo l'ultimo "-" e lo converte in intero
+                return (int) Str::afterLast($record->protocol_number, '-');
+            });
+
+            $fromNumber = $protocolNumbers->min();   // numero più piccolo (es. 21)
+            $toNumber   = $protocolNumbers->max();   // numero più grande (es. 45)
+
+            // Genera nome file
+            $dateFormatted = \Carbon\Carbon::parse($date)->format('Ymd');
+            $pdfFilename = "{$dateFormatted}.pdf";
+            $xlsxFilename = "{$dateFormatted}.xlsx";
+
+            // Path relativo per Storage
+            $storagePath = 'daily_summaries';
+
+            // Genera PDF
+            $pdf = Pdf::loadView('print.daily_summary', [
+                'registries' => $records,
+                'date' => $dateFormatted,
+                'year' => $protocolYear,
+                'fromNumber' => $fromNumber,
+                'toNumber' => $toNumber,
+            ])
+            ->setPaper('A4', 'landscape');
+
+            // Salva PDF su Storage (funziona sia con local che S3)
+            $pdfContent = $pdf->output();
+
+            Storage::put($storagePath . '/' . $pdfFilename, $pdfContent);
+
+            // Genera XLSX in memoria
+            $xlsxContent = self::generateExcel($records, $dateFormatted, $protocolYear, str_pad($fromNumber, 5, '0', STR_PAD_LEFT), str_pad($toNumber, 5, '0', STR_PAD_LEFT));
+
+            // Salva XLSX su Storage
+            Storage::put($storagePath . '/' . $xlsxFilename, $xlsxContent);
+
+            // Crea record DailySummary
+            DailySummary::where('registration_date', $date)->update([
+                'filename' => $dateFormatted,
+                'file_date' => now(),
+                'from_protocol' => "{$protocolYear}-". Str::padLeft($fromNumber, 5, '0'),
+                'to_protocol' => "{$protocolYear}-" . Str::padLeft($toNumber, 5, '0'),
+                'preservation_state' => PreservationState::NOT_SENT,
+            ]);
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Errore durante la creazione del registro giornaliero')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+
+
+    private static function generateExcel($records, $dateFormatted, $protocolYear, $fromNumber, $toNumber)
     {
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
