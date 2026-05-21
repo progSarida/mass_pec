@@ -19,7 +19,7 @@ class CustomDashboard extends BaseDashboard
     // Questo metodo viene eseguito ogni volta che la pagina viene caricata
     public function mount(): void
     {
-        if(Company::fisrt()->auto_daily_summary ?? false){
+        if(Company::first()->auto_daily_summary ?? false){
             DB::beginTransaction();
             try {
                 // Controllo se nella sessione dell'utente esiste già il "marchio"
