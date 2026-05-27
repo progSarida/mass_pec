@@ -65,7 +65,8 @@ class ViewRegistry extends ViewRecord
                     $this->redirect(RegistryResource::getUrl('view', ['record' => $nextIRegistry->id]));
                 }),
             Actions\ActionGroup::make([
-                Actions\EditAction::make(),
+                Actions\EditAction::make()
+                    ->label('Gestisci'),
             ])
             ->label('Operazioni')
             ->icon('heroicon-m-ellipsis-vertical')

@@ -955,7 +955,7 @@ class EditRegistry extends EditRecord
         $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
     }
 
-    private function replyManualInsert($record) {
+    private function replyManualInsert(Registry $record) {
         $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
 
         $newManualInsert = ManualInsert::create([
@@ -973,7 +973,7 @@ class EditRegistry extends EditRecord
         $this->redirect(ManualInsertResource::getUrl('edit', ['record' => $newManualInsert->id]));
     }
 
-    private function replySendEmail($record, $data) {
+    private function replySendEmail(Registry $record, array $data) {
         $newSendEmail = SendEmail::create([
             'account_id' => $data['account_id'],
             'signature_id' => null,
@@ -1033,14 +1033,14 @@ class EditRegistry extends EditRecord
         $this->redirect(RegistryResource::getUrl('edit', ['record' => $newRegistry->id]));
     }
 
-    private function forwardManualInsert($record) {
-        $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
+    private function forwardManualInsert(Registry $record) {
+        // $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
 
         $newManualInsert = ManualInsert::create([
             'flow_type' => FlowType::ISSUED,
-            'receivers' => $emails,
-            'subject' => "Re: " . $record->subject,
-            'body' => $record->body,
+            'receivers' => null,
+            'subject' => $record->subject,
+            'body' => $record->eml_body ?? $record->body,
             'is_forward' => true,
             'linked_registry_id' => $record->id,
             'create_user_id' => Auth::user()->id,
@@ -1055,15 +1055,15 @@ class EditRegistry extends EditRecord
         $this->redirect(ManualInsertResource::getUrl('edit', ['record' => $newManualInsert->id]));
     }
 
-    private function forwardSendEmail($record, $data) {
+    private function forwardSendEmail(Registry $record, array $data) {
         $newSendEmail = SendEmail::create([
             'account_id' => $data['account_id'],
             'signature_id' => null,
             'mail_type' => MailType::PEC,
             'office_type_id' => null,
             'recipients' => null,
-            'subject' => "Re: " . $record->subject,
-            'body' => $record->body,
+            'subject' => $record->subject,
+            'body' => $record->eml_body ?? $record->body,
             'attachment_path' => null,
             'create_date' => today(),
             'create_user_id' => Auth::user()->id,
@@ -1078,6 +1078,40 @@ class EditRegistry extends EditRecord
         $this->copyAttachments($record->attachment_path, $newPath);
 
         $this->redirect(SendEmailResource::getUrl('edit', ['record' => $newSendEmail->id]));
+    }
+
+    private function copyAttachments(?string $sourcePath, string $destinationPath): void
+    {
+        if (empty($sourcePath)) {
+            return;
+        }
+
+        $disk = Storage::disk(config('filesystems.default'));
+
+        if (!$disk->exists($sourcePath)) {
+            Log::warning("Path sorgente non trovato: {$sourcePath}");
+            return;
+        }
+
+        try {
+            $files = $disk->allFiles($sourcePath);
+
+            foreach ($files as $file) {
+                $fileName = basename($file);
+                $newFilePath = $destinationPath . '/' . $fileName;
+
+                $disk->copy($file, $newFilePath);
+            }
+
+            Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
+
+        } catch (\Exception $e) {
+            Log::error("Errore nella copia degli allegati", [
+                'source' => $sourcePath,
+                'destination' => $destinationPath,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     private function copyAttachmentsRecursive(?string $sourcePath, string $destinationPath): void
@@ -1101,40 +1135,6 @@ class EditRegistry extends EditRecord
             $newFilePath = $destinationPath . '/' . $relativePath;
 
             $disk->copy($file, $newFilePath);
-        }
-    }
-
-    private function copyAttachments(?string $sourcePath, string $destinationPath): void
-    {
-        if (empty($sourcePath)) {
-            return;
-        }
-
-        $disk = Storage::disk(config('filesystems.default'));
-
-        if (!$disk->exists($sourcePath)) {
-            \Log::warning("Path sorgente non trovato: {$sourcePath}");
-            return;
-        }
-
-        try {
-            $files = $disk->allFiles($sourcePath);
-
-            foreach ($files as $file) {
-                $fileName = basename($file);
-                $newFilePath = $destinationPath . '/' . $fileName;
-
-                $disk->copy($file, $newFilePath);
-            }
-
-            \Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
-
-        } catch (\Exception $e) {
-            \Log::error("Errore nella copia degli allegati", [
-                'source' => $sourcePath,
-                'destination' => $destinationPath,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 }
