@@ -61,6 +61,8 @@ class ListDownloadEmails extends ListRecords
                         // Dispatch job combinato in background
                         DownloadEmailsWithReceiptsJob::dispatch(Auth::id());
 
+                        session(['downloaded_emails' => true]);
+
                         Notification::make()
                             ->title('Download avviato')
                             ->body('Il download di email e ricevute è stato avviato in background. Riceverai una notifica al termine.')

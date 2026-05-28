@@ -35,7 +35,7 @@ class ManualInsertResource extends Resource
     protected static ?string $navigationIcon = 'fluentui-book-add-20';
     protected static ?string $navigationLabel = 'Inserimento manuale';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {

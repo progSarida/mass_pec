@@ -44,7 +44,7 @@ class DownloadEmailResource extends Resource
     protected static ?string $navigationIcon = 'fluentui-mail-arrow-down-20';
     protected static ?string $navigationLabel = 'Gestione PEC in arrivo';
     protected static ?string $navigationGroup = 'Protocollo';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -442,6 +442,18 @@ class DownloadEmailResource extends Resource
                         return $query;
                     }),
             ])
+            ->emptyStateHeading(fn () => session('downloaded_emails')
+                ? 'Nessuna mail scaricata' 
+                : ''
+            )
+            ->emptyStateDescription(fn () => session('downloaded_emails')
+                ? 'Non sono state trovate nuove email nelle caselle' 
+                : ''
+            )
+            ->emptyStateIcon(fn () => session('downloaded_emails') 
+                ? 'fluentui-mail-dismiss-20-o' 
+                : null
+            )
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
