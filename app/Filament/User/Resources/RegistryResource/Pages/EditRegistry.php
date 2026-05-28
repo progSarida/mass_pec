@@ -1085,6 +1085,69 @@ class EditRegistry extends EditRecord
         if (empty($sourcePath)) {
             return;
         }
+
+        Log::info('Copia allegati per inoltro da ' . $sourcePath);
+        Log::info('Copia allegati per inoltro in ' . $destinationPath);
+
+        $config = config('filesystems.default');
+        Log::info('Disk: ' . $config);
+        $disk = Storage::disk($config);
+
+        if (!$disk->exists($sourcePath)) {
+            Log::warning("Path sorgente non trovato: {$sourcePath}");
+            return;
+        }
+
+        try {
+            $files = $disk->allFiles($sourcePath);
+            Log::info('Files da copiare:', $files);
+
+            foreach ($files as $file) {
+                Log::info('File in copia: ' . $file);
+
+                // Preserva la struttura relativa rispetto al sourcePath
+                $relativePath = substr($file, strlen(rtrim($sourcePath, '/')) + 1);
+                $newFilePath = rtrim($destinationPath, '/') . '/' . $relativePath;
+
+                Log::info("Tentativo copia: {$file} -> {$newFilePath}");
+
+                // Su S3 è più affidabile leggere e riscrivere lo stream
+                $stream = $disk->readStream($file);
+                if ($stream === false || $stream === null) {
+                    Log::error("Impossibile aprire stream per: {$file}");
+                    continue;
+                }
+
+                $success = $disk->writeStream($newFilePath, $stream);
+
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+
+                if ($success) {
+                    Log::info("Copia riuscita: {$newFilePath}");
+                } else {
+                    Log::error("Copia fallita per: {$newFilePath}");
+                }
+            }
+
+            Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
+
+        } catch (\Exception $e) {
+            Log::error("Errore nella copia degli allegati", [
+                'source'      => $sourcePath,
+                'destination' => $destinationPath,
+                'error'       => $e->getMessage(),
+                'trace'       => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    private function copyAttachmentsOld(?string $sourcePath, string $destinationPath): void
+    {
+        if (empty($sourcePath)) {
+            return;
+        }
         Log::info('Copia allegati per inoltro da ' . $sourcePath);
         Log::info('Copia allegati per inoltro in ' . $destinationPath);
 
