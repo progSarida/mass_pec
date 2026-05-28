@@ -67,15 +67,37 @@ class SendEmail extends Model
                 Storage::disk($disk)->makeDirectory($mail->attachment_path);                        // creo la cartella degli allegati
             }
             $files = Storage::disk($disk)->files('send_email/0');
-            foreach ($files as $file) {
-                // Estraiamo solo il nome del file (es: immagine.jpg)
-                $fileName = basename($file);
+            // foreach ($files as $file) {
+            //     // Estraiamo solo il nome del file (es: immagine.jpg)
+            //     $fileName = basename($file);
 
-                // Definiamo il percorso di destinazione completo
+            //     // Definiamo il percorso di destinazione completo
+            //     $finalPath = rtrim($mail->attachment_path, '/') . '/' . $fileName;
+
+            //     // 2. Spostiamo il file
+            //     Storage::disk($disk)->move($file, $finalPath);
+            // }
+            foreach ($files as $file) {
+                $fileName = basename($file);
                 $finalPath = rtrim($mail->attachment_path, '/') . '/' . $fileName;
 
-                // 2. Spostiamo il file
-                Storage::disk($disk)->move($file, $finalPath);
+                $stream = Storage::disk($disk)->readStream($file);
+                if ($stream === false || $stream === null) {
+                    Log::error("Impossibile aprire stream per: {$file}");
+                    continue;
+                }
+
+                $success = Storage::disk($disk)->writeStream($finalPath, $stream);
+
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+
+                if ($success) {
+                    Storage::disk($disk)->delete($file);
+                } else {
+                    Log::error("Spostamento fallito per: {$file}");
+                }
             }
         });
 
