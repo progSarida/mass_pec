@@ -1085,8 +1085,12 @@ class EditRegistry extends EditRecord
         if (empty($sourcePath)) {
             return;
         }
+        Log::info('Copia allegati per inoltro da ' . $sourcePath);
+        Log::info('Copia allegati per inoltro in ' . $destinationPath);
 
-        $disk = Storage::disk(config('filesystems.default'));
+        $config = config('filesystems.default');
+        Log::info('Disk: '. $config);
+        $disk = Storage::disk($config);
 
         if (!$disk->exists($sourcePath)) {
             Log::warning("Path sorgente non trovato: {$sourcePath}");
@@ -1095,12 +1099,17 @@ class EditRegistry extends EditRecord
 
         try {
             $files = $disk->allFiles($sourcePath);
-
+            Log::info('Files da copiare:', json_decode(json_encode($files), true));
             foreach ($files as $file) {
+                Log::info('File in copia: ' . $file);
                 $fileName = basename($file);
                 $newFilePath = $destinationPath . '/' . $fileName;
-
                 $disk->copy($file, $newFilePath);
+                if ($disk->exists($newFilePath)) {
+                    Log::info("Verifica riuscita: Il nuovo file esiste in {$newFilePath}");
+                } else {
+                    Log::error("Verifica fallita: Il file doveva essere in {$newFilePath} ma non è stato trovato!");
+                }
             }
 
             Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
