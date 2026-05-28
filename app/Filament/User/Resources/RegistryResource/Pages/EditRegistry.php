@@ -1105,13 +1105,9 @@ class EditRegistry extends EditRecord
             foreach ($files as $file) {
                 Log::info('File in copia: ' . $file);
 
-                // Preserva la struttura relativa rispetto al sourcePath
-                $relativePath = substr($file, strlen(rtrim($sourcePath, '/')) + 1);
-                $newFilePath = rtrim($destinationPath, '/') . '/' . $relativePath;
+                $fileName = basename($file);
+                $newFilePath = $destinationPath . '/' . $fileName;
 
-                Log::info("Tentativo copia: {$file} -> {$newFilePath}");
-
-                // Su S3 è più affidabile leggere e riscrivere lo stream
                 $stream = $disk->readStream($file);
                 if ($stream === false || $stream === null) {
                     Log::error("Impossibile aprire stream per: {$file}");
@@ -1125,9 +1121,9 @@ class EditRegistry extends EditRecord
                 }
 
                 if ($success) {
-                    Log::info("Copia riuscita: {$newFilePath}");
+                    Log::info("Verifica riuscita: Il nuovo file esiste in {$newFilePath}");
                 } else {
-                    Log::error("Copia fallita per: {$newFilePath}");
+                    Log::error("Verifica fallita: Il file doveva essere in {$newFilePath} ma non è stato trovato!");
                 }
             }
 
