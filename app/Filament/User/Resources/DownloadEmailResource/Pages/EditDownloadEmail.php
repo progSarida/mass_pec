@@ -353,9 +353,32 @@ class EditDownloadEmail extends EditRecord
                         Log::error("Errore durante il trasferimento su S3 per {$fileName}: " . $e->getMessage());
 
                         // Fallback: Tentativo di copia diretta (lato server S3) se lo stream/watermark fallisce
+                        // try {
+                        //     $storage->copy($file, $finalPath);
+                        //     Log::info("Fallback: file copiato tramite S3 Copy dopo errore.");
+                        // } catch (Exception $fallbackEx) {
+                        //     Log::error("Anche il fallback è fallito: " . $fallbackEx->getMessage());
+                        // }
                         try {
-                            $storage->copy($file, $finalPath);
-                            Log::info("Fallback: file copiato tramite S3 Copy dopo errore.");
+                            $stream = $storage->readStream($file);
+                            if ($stream === false || $stream === null) {
+                                Log::error("Impossibile aprire stream per: {$file}");
+                                continue;
+                            }
+
+                            $success = $storage->writeStream($finalPath, $stream, [
+                                'visibility' => 'private'
+                            ]);
+
+                            if (is_resource($stream)) {
+                                fclose($stream);
+                            }
+
+                            if ($success) {
+                                Log::info("Fallback stream riuscito: {$finalPath}");
+                            } else {
+                                Log::error("Fallback stream fallito per: {$finalPath}");
+                            }
                         } catch (Exception $fallbackEx) {
                             Log::error("Anche il fallback è fallito: " . $fallbackEx->getMessage());
                         }

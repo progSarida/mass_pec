@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -101,39 +102,87 @@ class SendEmail extends Model
             }
         });
 
+        // static::created(function ($mail) {
+        //     $mail->update([
+        //         'attachment_path' => 'send_email/' . $mail->id                                      // salvo il percorso della cartella degli allegati
+        //     ]);
+
+        //     $disk = config('filesystems.default');
+        //     $tempPath = 'send_email/0';
+        //     $finalPath = $mail->attachment_path;
+
+        //     if (!Storage::disk($disk)->exists($finalPath)) {
+        //         Storage::disk($disk)->makeDirectory($finalPath);                                    // creo la directory di destinazione (non necessario su S3, ma non fa male)
+        //     }
+
+        //     $files = Storage::disk($disk)->files($tempPath);
+
+        //     foreach ($files as $file) {
+        //         $fileName = basename($file);
+        //         $destination = rtrim($finalPath, '/') . '/' . $fileName;
+
+        //         // Verifica se siamo su S3
+        //         if (config('filesystems.default') === 's3') {
+        //             // Su S3: usa copy + delete esplicito per gestire errori
+        //             if (Storage::disk($disk)->copy($file, $destination)) {
+        //                 Storage::disk($disk)->delete($file);
+        //             } else {
+        //                 Log::error("Impossibile spostare file su S3", [
+        //                     'file' => $file,
+        //                     'destination' => $destination
+        //                 ]);
+        //             }
+        //         } else {
+        //             // Su filesystem locale: move è più efficiente
+        //             Storage::disk($disk)->move($file, $destination);
+        //         }
+        //     }
+        // });
+
         static::created(function ($mail) {
             $mail->update([
-                'attachment_path' => 'send_email/' . $mail->id                                      // salvo il percorso della cartella degli allegati
+                'attachment_path' => 'send_email/' . $mail->id
             ]);
 
-            $disk = config('filesystems.default');
+            $storage  = Storage::disk(config('filesystems.default'));
             $tempPath = 'send_email/0';
             $finalPath = $mail->attachment_path;
 
-            if (!Storage::disk($disk)->exists($finalPath)) {
-                Storage::disk($disk)->makeDirectory($finalPath);                                    // creo la directory di destinazione (non necessario su S3, ma non fa male)
+            if (!$storage->exists($finalPath)) {
+                $storage->makeDirectory($finalPath);
             }
 
-            $files = Storage::disk($disk)->files($tempPath);
+            $files = $storage->files($tempPath);
 
             foreach ($files as $file) {
-                $fileName = basename($file);
+                $fileName    = basename($file);
                 $destination = rtrim($finalPath, '/') . '/' . $fileName;
 
-                // Verifica se siamo su S3
-                if (config('filesystems.default') === 's3') {
-                    // Su S3: usa copy + delete esplicito per gestire errori
-                    if (Storage::disk($disk)->copy($file, $destination)) {
-                        Storage::disk($disk)->delete($file);
-                    } else {
-                        Log::error("Impossibile spostare file su S3", [
-                            'file' => $file,
-                            'destination' => $destination
-                        ]);
+                try {
+                    $stream = $storage->readStream($file);
+
+                    if ($stream === false || $stream === null) {
+                        Log::error("Impossibile aprire stream per: {$file}");
+                        continue;
                     }
-                } else {
-                    // Su filesystem locale: move è più efficiente
-                    Storage::disk($disk)->move($file, $destination);
+
+                    $success = $storage->writeStream($destination, $stream, [
+                        'visibility' => 'private'
+                    ]);
+
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+
+                    if ($success) {
+                        $storage->delete($file);
+                        Log::info("File spostato con successo: {$destination}");
+                    } else {
+                        Log::error("Scrittura fallita per: {$destination}");
+                    }
+
+                } catch (Exception $e) {
+                    Log::error("Errore spostamento file {$fileName}: " . $e->getMessage());
                 }
             }
         });

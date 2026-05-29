@@ -23,6 +23,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -392,6 +393,30 @@ class SendEmailResource extends Resource
                     ->label('Oggetto')
                     ->limit(80)
                     ->tooltip(fn ($record) => $record->subject),
+
+                IconColumn::make('attachment_path')
+                    ->label('Allegati')
+                    ->icon(function($record) {
+                        $files = Storage::files($record?->attachment_path);
+                        if (!empty($files)) { return 'fluentui-mail-attach-20'; }
+                        else { return ''; }
+                    })
+                    ->color(function ($record) {
+                        $files = Storage::files($record?->attachment_path);
+                        if (!empty($files)) { return 'info'; }
+                        else { return ''; }
+                    })->tooltip(function ($record) {
+                        $files = Storage::files($record->attachment_path);
+                        $count = count($files);
+
+                        if ($count === 0) {
+                            return 'Nessun allegato presente';
+                        }
+
+                        return $count === 1
+                            ? "C'è 1 allegato"
+                            : "Ci sono {$count} allegati";
+                    }),
                 Tables\Columns\TextColumn::make('create_date')
                     ->label('Data creazione')
                     ->date()

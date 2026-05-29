@@ -1139,70 +1139,70 @@ class EditRegistry extends EditRecord
         }
     }
 
-    private function copyAttachmentsOld(?string $sourcePath, string $destinationPath): void
-    {
-        if (empty($sourcePath)) {
-            return;
-        }
-        Log::info('Copia allegati per inoltro da ' . $sourcePath);
-        Log::info('Copia allegati per inoltro in ' . $destinationPath);
+    // private function copyAttachmentsOld(?string $sourcePath, string $destinationPath): void
+    // {
+    //     if (empty($sourcePath)) {
+    //         return;
+    //     }
+    //     Log::info('Copia allegati per inoltro da ' . $sourcePath);
+    //     Log::info('Copia allegati per inoltro in ' . $destinationPath);
 
-        $config = config('filesystems.default');
-        Log::info('Disk: '. $config);
-        $disk = Storage::disk($config);
+    //     $config = config('filesystems.default');
+    //     Log::info('Disk: '. $config);
+    //     $disk = Storage::disk($config);
 
-        if (!$disk->exists($sourcePath)) {
-            Log::warning("Path sorgente non trovato: {$sourcePath}");
-            return;
-        }
+    //     if (!$disk->exists($sourcePath)) {
+    //         Log::warning("Path sorgente non trovato: {$sourcePath}");
+    //         return;
+    //     }
 
-        try {
-            $files = $disk->allFiles($sourcePath);
-            Log::info('Files da copiare:', json_decode(json_encode($files), true));
-            foreach ($files as $file) {
-                Log::info('File in copia: ' . $file);
-                $fileName = basename($file);
-                $newFilePath = $destinationPath . '/' . $fileName;
-                $disk->copy($file, $newFilePath);
-                if ($disk->exists($newFilePath)) {
-                    Log::info("Verifica riuscita: Il nuovo file esiste in {$newFilePath}");
-                } else {
-                    Log::error("Verifica fallita: Il file doveva essere in {$newFilePath} ma non è stato trovato!");
-                }
-            }
+    //     try {
+    //         $files = $disk->allFiles($sourcePath);
+    //         Log::info('Files da copiare:', json_decode(json_encode($files), true));
+    //         foreach ($files as $file) {
+    //             Log::info('File in copia: ' . $file);
+    //             $fileName = basename($file);
+    //             $newFilePath = $destinationPath . '/' . $fileName;
+    //             $disk->copy($file, $newFilePath);
+    //             if ($disk->exists($newFilePath)) {
+    //                 Log::info("Verifica riuscita: Il nuovo file esiste in {$newFilePath}");
+    //             } else {
+    //                 Log::error("Verifica fallita: Il file doveva essere in {$newFilePath} ma non è stato trovato!");
+    //             }
+    //         }
 
-            Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
+    //         Log::info("Copiati " . count($files) . " file da {$sourcePath} a {$destinationPath}");
 
-        } catch (\Exception $e) {
-            Log::error("Errore nella copia degli allegati", [
-                'source' => $sourcePath,
-                'destination' => $destinationPath,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         Log::error("Errore nella copia degli allegati", [
+    //             'source' => $sourcePath,
+    //             'destination' => $destinationPath,
+    //             'error' => $e->getMessage()
+    //         ]);
+    //     }
+    // }
 
-    private function copyAttachmentsRecursive(?string $sourcePath, string $destinationPath): void
-    {
-        if (empty($sourcePath)) {
-            return;
-        }
+    // private function copyAttachmentsRecursive(?string $sourcePath, string $destinationPath): void
+    // {
+    //     if (empty($sourcePath)) {
+    //         return;
+    //     }
 
-        $disk = Storage::disk(config('filesystems.default'));
+    //     $disk = Storage::disk(config('filesystems.default'));
 
-        if (!$disk->exists($sourcePath)) {
-            return;
-        }
+    //     if (!$disk->exists($sourcePath)) {
+    //         return;
+    //     }
 
-        // Ottieni tutti i file ricorsivamente
-        $files = $disk->allFiles($sourcePath);
+    //     // Ottieni tutti i file ricorsivamente
+    //     $files = $disk->allFiles($sourcePath);
 
-        foreach ($files as $file) {
-            // Mantieni la struttura delle sottocartelle
-            $relativePath = str_replace($sourcePath . '/', '', $file);
-            $newFilePath = $destinationPath . '/' . $relativePath;
+    //     foreach ($files as $file) {
+    //         // Mantieni la struttura delle sottocartelle
+    //         $relativePath = str_replace($sourcePath . '/', '', $file);
+    //         $newFilePath = $destinationPath . '/' . $relativePath;
 
-            $disk->copy($file, $newFilePath);
-        }
-    }
+    //         $disk->copy($file, $newFilePath);
+    //     }
+    // }
 }
