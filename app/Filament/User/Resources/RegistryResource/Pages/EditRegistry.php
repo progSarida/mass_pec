@@ -1099,7 +1099,7 @@ class EditRegistry extends EditRecord
         }
 
         try {
-            $files = $disk->allFiles($sourcePath);
+            $files = $disk->files($sourcePath);
             Log::info('Files da copiare:', $files);
 
             foreach ($files as $file) {
