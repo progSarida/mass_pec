@@ -195,7 +195,7 @@ class ManualInsertResource extends Resource
                     })
                     ->getOptionLabelsUsing(function ($values) {
                         // Quando il record è salvato, voglio vedere l'email nei tag
-                        return collect($values)->mapWithKeys(fn ($email) => [$email => static::labelRecipient($email)])->toArray();
+                        return collect($values)->mapWithKeys(fn ($email) => [$email => static::labelRecipientFromEmail($email)])->toArray();
                     })
                     ->createOptionUsing(function (string $data) {
                         // Se l'utente scrive un'email a mano, il valore salvato sarà il testo inserito
@@ -577,7 +577,19 @@ class ManualInsertResource extends Resource
         ];
     }
 
-    private static function labelRecipient($email): string
+    private static function labelRecipient($id): string
+    {
+        $rec = Recipient::find($id);
+
+        if ($rec) {
+            // return "{$rec->description} <{$email}>";
+            return "{$rec->description}";
+        }
+
+        return $id;
+    }
+
+    private static function labelRecipientFromEmail($email): string
     {
         $rec = Recipient::whereHas('emails', function($query) use ($email) {
             $query->where('email', $email);
