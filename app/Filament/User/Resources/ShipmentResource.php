@@ -581,9 +581,14 @@ class ShipmentResource extends Resource
                 //     Storage::disk($disk)->put($newFilePath, Storage::disk($disk)->get($file));
                 // }
 
+                $protocol = explode('-', $protocolNumber);
+                $protocolYear = $protocol[1] ?? 'XXXX';
+                $protocolCode = $protocol[2] ?? 'XXXXX';
+
                 foreach ($files as $file) {
                     $fileName = basename($file);
-                    $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
+                    // $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . '_INV_' . $fileName;
+                    $newFileName = $protocolYear . '_' . $protocolCode . '_INV_' . $fileName;
                     $finalPath = $newPath . '/' . $newFileName;
 
                     try {

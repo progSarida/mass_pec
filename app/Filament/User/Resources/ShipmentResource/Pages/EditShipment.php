@@ -651,11 +651,16 @@ class EditShipment extends EditRecord
                 //     }
                 // }
 
+                $protocol = explode('-', $protocolNumber);
+                $protocolYear = $protocol[1] ?? 'XXXX';
+                $protocolCode = $protocol[2] ?? 'XXXXX';
+
                 // Spostamento allegati con watermark
                 foreach ($files as $file) {
                     $fileName = basename($file);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                    $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
+                    // $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
+                    $newFileName = $protocolYear . '_' . $protocolCode . '_INV_' . $fileName;
                     $finalPath = $newPath . '/' . $newFileName;
 
                     try {

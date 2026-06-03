@@ -159,7 +159,7 @@ class EditSendEmail extends EditRecord
                     ->label('Elimina allegati')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::files($record->attachment_path)))
+                    ->visible(fn($record) => $record && $record->attachment_path && !empty(Storage::disk(config('filesystems.default'))->files($record->attachment_path)))
                     ->form([
                         Select::make('file_to_delete')
                             ->label('Seleziona il file da eliminare')
@@ -168,7 +168,8 @@ class EditSendEmail extends EditRecord
                                     return [];
                                 }
 
-                                $files = Storage::files($record->attachment_path);
+                                $disk = config('filesystems.default');
+                                $files = Storage::disk($disk)->files($record->attachment_path);
 
                                 return collect($files)->mapWithKeys(function ($file) {
                                     return [$file => basename($file)];
@@ -184,10 +185,11 @@ class EditSendEmail extends EditRecord
                     ->modalSubmitActionLabel('Elimina')
                     ->modalCancelActionLabel('Annulla')
                     ->action(function (array $data) {
+                        $disk = config('filesystems.default');
                         $file = $data['file_to_delete'];
 
-                        if (Storage::exists($file)) {
-                            Storage::delete($file);
+                        if (Storage::disk($disk)->exists($file)) {
+                            Storage::disk($disk)->delete($file);
 
                             Notification::make()
                                 ->title('File eliminato con successo')
@@ -448,11 +450,16 @@ class EditSendEmail extends EditRecord
                 //     }
                 // }
 
+                $protocol = explode('-', $protocolNumber);
+                $protocolYear = $protocol[1] ?? 'XXXX';
+                $protocolCode = $protocol[2] ?? 'XXXXX';
+
                 // Spostamento allegati con watermark
                 foreach ($files as $file) {
                     $fileName = basename($file);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                    $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
+                    // $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
+                    $newFileName = $protocolYear . '_' . $protocolCode . '_INV_' . $fileName;
                     $finalPath = $newPath . '/' . $newFileName;
 
                     try {

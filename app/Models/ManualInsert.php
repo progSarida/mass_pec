@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\FlowType;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -87,16 +88,43 @@ class ManualInsert extends Model
 
             foreach ($files as $file) {
                 $fileName = basename($file);
-                $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                $newFileName = today()->format('d-m-Y') . "_{$insert->flow_type->getExt()}_" . $fileName;
-                $finalPath = rtrim($insert->attachment_path, '/') . '/' . $newFileName;
+                // $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                $newFileName = $fileName;
+                $destination = rtrim($insert->attachment_path, '/') . '/' . $newFileName;
+
+                // try {
+                //     // Spostamento
+                //     $storage->move($file, $finalPath);
+                //     Log::info("File spostato: $finalPath");
+                // } catch (\Exception $e) {
+                //     Log::error("Anche il fallback è fallito: " . $e->getMessage());
+                // }
 
                 try {
-                    // Spostamento
-                    $storage->move($file, $finalPath);
-                    Log::info("File spostato: $finalPath");
-                } catch (\Exception $e) {
-                    Log::error("Anche il fallback è fallito: " . $e->getMessage());
+                    $stream = $storage->readStream($file);
+
+                    if ($stream === false || $stream === null) {
+                        Log::error("Impossibile aprire stream per: {$file}");
+                        continue;
+                    }
+
+                    $success = $storage->writeStream($destination, $stream, [
+                        'visibility' => 'private'
+                    ]);
+
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+
+                    if ($success) {
+                        $storage->delete($file);
+                        Log::info("File spostato con successo: {$destination}");
+                    } else {
+                        Log::error("Scrittura fallita per: {$destination}");
+                    }
+
+                } catch (Exception $e) {
+                    Log::error("Errore spostamento file {$fileName}: " . $e->getMessage());
                 }
             }
         });

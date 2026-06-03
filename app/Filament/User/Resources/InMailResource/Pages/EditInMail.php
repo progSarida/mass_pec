@@ -297,11 +297,16 @@ class EditInMail extends EditRecord
                 //     }
                 // }
 
+                $protocol = explode('-', $protocolNumber);
+                $protocolYear = $protocol[1] ?? 'XXXX';
+                $protocolCode = $protocol[2] ?? 'XXXXX';
+
                 // Spostamento allegati con watermark
                 foreach ($files as $file) {
                     $fileName = basename($file);
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                    $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_INV_' . $fileName;
+                    // $newFileName = today()->format('d-m-Y') . '_' . $protocolNumber . '_RIC_' . $fileName;
+                    $newFileName = $protocolYear . '_' . $protocolCode . '_RIC_' . $fileName;
                     $append = static::getAppend($extension);
                     $finalPath = $newPath . $append . $newFileName;
 
@@ -371,7 +376,7 @@ class EditInMail extends EditRecord
                         } catch (Exception $fallbackEx) {
                             Log::error("Anche il fallback è fallito: " . $fallbackEx->getMessage());
                         }
-                        }
+                    }
                 }
             } else {
                 Log::warning("Percorso non trovato o vuoto: " . ($oldPath ?? 'NULL'));

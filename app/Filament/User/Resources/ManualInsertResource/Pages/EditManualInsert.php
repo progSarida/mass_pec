@@ -69,8 +69,8 @@ class EditManualInsert extends EditRecord
 
                                     $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                                     $extension = $file->getClientOriginalExtension();
-                                    $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . "_{$record->flow_type->getExt()}_";
-                                    $finalName = $prefix . $filename . '.' . $extension;
+                                    
+                                    $finalName = $filename . '.' . $extension;
                                     $counter = 1;
 
                                     while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
@@ -107,7 +107,8 @@ class EditManualInsert extends EditRecord
                                     return [];
                                 }
 
-                                $files = Storage::files($record->attachment_path);
+                                $disk = config('filesystems.default');
+                                $files = Storage::disk($disk)->files($record->attachment_path);
 
                                 return collect($files)->mapWithKeys(function ($file) {
                                     return [$file => basename($file)];
@@ -123,10 +124,11 @@ class EditManualInsert extends EditRecord
                     ->modalSubmitActionLabel('Elimina')
                     ->modalCancelActionLabel('Annulla')
                     ->action(function (array $data) {
+                        $disk = config('filesystems.default');
                         $file = $data['file_to_delete'];
 
-                        if (Storage::exists($file)) {
-                            Storage::delete($file);
+                        if (Storage::disk($disk)->exists($file)) {
+                            Storage::disk($disk)->delete($file);
 
                             Notification::make()
                                 ->title('File eliminato con successo')
@@ -152,6 +154,23 @@ class EditManualInsert extends EditRecord
                             ->multiple()
                             ->directory(fn () => $this->getRecord()->attachment_path . '/related')
                             ->preserveFilenames()
+                            ->getUploadedFileNameForStorageUsing(function ($file, $record) {
+                                $disk = config('filesystems.default');
+                                $directory = $record->attachment_path . '/related';
+
+                                $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                                $extension = $file->getClientOriginalExtension();
+                                
+                                $finalName = $filename . '.' . $extension;
+                                $counter = 1;
+
+                                while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
+                                    $finalName = $filename . '_' . $counter . '.' . $extension;
+                                    $counter++;
+                                }
+
+                                return $finalName;
+                            })
                             ->required(),
                     ])
                     ->action(function (array $data) {
@@ -181,7 +200,8 @@ class EditManualInsert extends EditRecord
                                     return [];
                                 }
 
-                                $files = Storage::files($folder);
+                                $disk = config('filesystems.default');
+                                $files = Storage::disk($disk)->files($folder);
 
                                 return collect($files)->mapWithKeys(function ($file) {
                                     return [$file => basename($file)];
@@ -197,10 +217,11 @@ class EditManualInsert extends EditRecord
                     ->modalSubmitActionLabel('Elimina')
                     ->modalCancelActionLabel('Annulla')
                     ->action(function (array $data) {
+                        $disk = config('filesystems.default');
                         $file = $data['file_to_delete'];
 
-                        if (Storage::exists($file)) {
-                            Storage::delete($file);
+                        if (Storage::disk($disk)->exists($file)) {
+                            Storage::disk($disk)->delete($file);
 
                             Notification::make()
                                 ->title('File eliminato con successo')
@@ -394,13 +415,27 @@ class EditManualInsert extends EditRecord
                 // DEBUG: Logga quanti file hai trovato
                 Log::info("File trovati in $oldPath: " . count($files));
 
+                $protocol = explode('-', $registry->protocol_number);
+                $protocolYear = $protocol[1] ?? 'XXXX';
+                $protocolCode = $protocol[2] ?? 'XXXXX';
+
                 // Spostamento allegati con watermark
                 foreach ($files as $file) {
-                    $fileName = basename($file);
-                    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                    $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . "_{$record->flow_type->getExt()}_";
-                    $newFileName = $prefix . $fileName;
-                    $finalPath = $newPath . '/' . $newFileName;
+                    // $fileName = basename($file);
+                    // $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                    // // $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . "_{$record->flow_type->getExt()}_";
+                    // // $newFileName = $prefix . $fileName;
+                    // $newFileName = $protocolYear . '_' . $protocolCode . "_{$record->flow_type->getExt()}_" . $fileName;
+                    // $finalPath = $newPath . '/' . $newFileName;
+
+                    $relativePath = substr($file, strlen($oldPath) + 1); // es. "sottocartella/file.pdf"
+                    $fileName     = basename($file);
+                    $extension    = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                    $newFileName  = $protocolYear . '_' . $protocolCode . "_{$record->flow_type->getExt()}_" . $fileName;
+
+                    // Mantieni la struttura: newPath / sottocartella / newFileName
+                    $finalPath = $newPath . '/' . dirname($relativePath) . '/' . $newFileName;
+                    $finalPath = str_replace('/./', '/', $finalPath); // pulizia se dirname è "."
 
                     try {
                         if ($extension === 'pdf') {

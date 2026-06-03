@@ -203,7 +203,11 @@ class Registry extends Model
             foreach ($files as $file) {
                 $fileName = basename($file);
                 $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-                $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . "_{$registry->flow_type->getExt()}_" . $fileName;
+                // $newFileName = today()->format('d-m-Y') . '_' . $registry->protocol_number . "_{$registry->flow_type->getExt()}_" . $fileName;
+                $protocol = explode('-', $registry->protocol_number);
+                $protocolYear = $protocol[1] ?? 'XXXX';
+                $protocolCode = $protocol[2] ?? 'XXXXX';
+                $newFileName = $protocolYear . '_' . $protocolCode . "_{$registry->flow_type->getExt()}_" . $fileName;
                 $finalPath = rtrim($registry->attachment_path, '/') . '/' . $newFileName;
 
                 try {

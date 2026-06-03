@@ -577,7 +577,7 @@ class RegistryResource extends Resource
                     ->directory('registry/0')
                     ->preserveFilenames()
                     ->visible(fn($record) => !$record)
-                    ->getUploadedFileNameForStorageUsing(function ($file) {
+                    ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                         $disk = config('filesystems.default');
                         $directory = 'registry/0';
                         // creo cartella temporanea se non esiste
@@ -588,7 +588,11 @@ class RegistryResource extends Resource
                         $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                         $extension = $file->getClientOriginalExtension();
 
-                        $finalName = $filename . '.' . $extension;
+                        $protocol = explode('-', $record->protocol_number);
+                        $protocolYear = $protocol[1] ?? 'XXXX';
+                        $protocolCode = $protocol[2] ?? 'XXXXX';
+                        $prefix = $protocolYear . '_' . $protocolCode . "_{$record->flow_type->getExt()}_";
+                        $finalName = $prefix . $filename . '.' . $extension;
                         $counter = 1;
 
                         // Finché esiste un file con questo nome, incrementiamo il suffisso

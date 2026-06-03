@@ -60,13 +60,11 @@ class EditEmailSend extends EditRecord
                                 $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                                 $extension = $file->getClientOriginalExtension();
 
-                                $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . '_INT_';
-
-                                $finalName = $prefix . $filename . '.' . $extension;
+                                $finalName = $filename . '.' . $extension;
                                 $counter = 1;
 
                                 while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
-                                    $finalName = $prefix . $filename . '_' . $counter . '.' . $extension;
+                                    $finalName = $filename . '_' . $counter . '.' . $extension;
                                     $counter++;
                                 }
 
@@ -187,7 +185,8 @@ class EditEmailSend extends EditRecord
                                     return [];
                                 }
 
-                                $files = Storage::files($record->attachment_path);
+                                $disk = config('filesystems.default');
+                                $files = Storage::disk($disk)->files($record->attachment_path);
 
                                 return collect($files)->mapWithKeys(function ($file) {
                                     return [$file => basename($file)];
@@ -203,10 +202,11 @@ class EditEmailSend extends EditRecord
                     ->modalSubmitActionLabel('Elimina')
                     ->modalCancelActionLabel('Annulla')
                     ->action(function (array $data) {
+                        $disk = config('filesystems.default');
                         $file = $data['file_to_delete'];
 
-                        if (Storage::exists($file)) {
-                            Storage::delete($file);
+                        if (Storage::disk($disk)->exists($file)) {
+                            Storage::disk($disk)->delete($file);
 
                             Notification::make()
                                 ->title('File eliminato con successo')

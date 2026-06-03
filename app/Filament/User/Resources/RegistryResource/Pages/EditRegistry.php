@@ -107,7 +107,11 @@ class EditRegistry extends EditRecord
                             ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                                 $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                                 $extension = $file->getClientOriginalExtension();
-                                $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . '_INT_';
+                                // $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . '_INT_';
+                                $protocol = explode('-', $record->protocol_number);
+                                $protocolYear = $protocol[1] ?? 'XXXX';
+                                $protocolCode = $protocol[2] ?? 'XXXXX';
+                                $prefix = $protocolYear . '_' . $protocolCode . '_INT_';
                                 $finalName = $prefix . $filename . '.' . $extension;
 
                                 $disk = config('filesystems.default');
@@ -368,12 +372,17 @@ class EditRegistry extends EditRecord
 
                                     $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                                     $extension = $file->getClientOriginalExtension();
-                                    $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . "_{$record->flow_type->getExt()}_";
+                                    // $prefix = today()->format('d-m-Y') . '_' . $record->protocol_number . "_{$record->flow_type->getExt()}_";
+
+                                    $protocol = explode('-', $record->protocol_number);
+                                    $protocolYear = $protocol[1] ?? 'XXXX';
+                                    $protocolCode = $protocol[2] ?? 'XXXXX';
+                                    $prefix = $protocolYear . '_' . $protocolCode . "_{$record->flow_type->getExt()}_";
                                     $finalName = $prefix . $filename . '.' . $extension;
                                     $counter = 1;
 
                                     while (Storage::disk($disk)->exists($directory . '/' . $finalName)) {
-                                        $finalName = $filename . '_' . $counter . '.' . $extension;
+                                        $finalName = $prefix . $filename . '_' . $counter . '.' . $extension;
                                         $counter++;
                                     }
 
