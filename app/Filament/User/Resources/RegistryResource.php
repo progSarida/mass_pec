@@ -25,6 +25,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -211,7 +212,7 @@ class RegistryResource extends Resource
                             ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                         TextInput::make('flow_index')
-                            ->label('Indice')
+                            ->label('Indice interno')
                             ->extraInputAttributes(['class' => 'text-right'])
                             ->required()
                             // ->disabled()
@@ -1035,19 +1036,19 @@ class RegistryResource extends Resource
                 //     ->icon('heroicon-o-folder-open')
                 //     ->color('primary'),
             ])
-            ->filtersFormWidth('5xl')
-            ->filtersFormColumns(3)
+            ->filtersFormWidth('6xl')
+            ->filtersFormColumns(30)
             ->filters([
                 SelectFilter::make('flow_type')
                     ->label('Corrispondenza')
                     ->options(FlowType::class)
                     // ->searchable()
-                    ->columnSpan(1),
+                    ->columnSpan(6),
                 SelectFilter::make('registry_origin_type')
                     ->label('Origine')
                     ->options(RegistryOriginType::class)
                     // ->searchable()
-                    ->columnSpan(1),
+                    ->columnSpan(6),
                 SelectFilter::make('account_id')
                     ->label('Account')
                     ->options(Account::where('mail_type', MailType::PEC)->pluck('public_name', 'id'))
@@ -1076,7 +1077,145 @@ class RegistryResource extends Resource
 
                         return ['Account: ' . $account->public_name];
                     })
-                    ->columnSpan(1),
+                    ->columnSpan(6),
+                SelectFilter::make('is_email')
+                    ->label('Tipo')
+                    ->options([
+                        'si' => 'Posta elettronica',
+                        'no' => 'Posta ordinaria',
+                    ])
+                    ->placeholder('Tutta')
+                    ->query(function (Builder $query, array $data): Builder {
+                        // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
+                        $value = $data['value'] ?? null;
+
+                        // Se non è selezionato nulla, non applichiamo filtri alla query
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        if ($value === 'si') {
+                            // Mostra Registry relativo ad una comunicazione tramite posta elettronica
+                            return $query->where('is_email', true);
+                        }
+
+                        if ($value === 'no') {
+                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
+                            return $query->where('is_email', false);
+                        }
+
+                        return $query;
+                    })
+                    ->columnSpan(6),
+                SelectFilter::make('manage_registry_type')
+                    ->label('Gestione')
+                    ->options(ManageRegistryType::class)
+                    ->multiple()
+                    ->columnSpan(6),
+
+                Filter::make('ricerca_su_indirizzo')
+                    ->columns(6)
+                    ->form([
+                        TextInput::make('address_search')
+                            ->label('Ricerca per indirizzo email')
+                            ->placeholder('')
+                            ->columnSpan(3),
+                        Radio::make('address_type')
+                            ->label('Ricerca su')
+                            ->options([
+                                'sender' => 'Mittente',
+                                'receiver' => 'Destinatario',
+                                'all' => 'Entrambi',
+                            ])
+                            ->inline()
+                            ->default('all')
+                            ->columnSpan(3),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        // Eseguiamo il filtro solo se l'utente ha digitato qualcosa nel campo di testo
+                        return $query->when(
+                            $data['address_search'],
+                            function (Builder $query, $searchTerm) use ($data) {
+                                
+                                // Raggruppiamo le condizioni in una sottoquery per non rompere altri filtri (es. clausole WHERE esterne)
+                                return $query->where(function (Builder $subQuery) use ($searchTerm, $data) {
+                                    
+                                    // 1. Logica per MITTENTE (se 'sender' o 'all')
+                                    if (in_array($data['address_type'], ['sender', 'all'])) {
+                                        $subQuery->where('from', 'like', "%{$searchTerm}%");
+                                    }
+
+                                    // 2. Logica per DESTINATARIO (se 'receiver' o 'all')
+                                    if (in_array($data['address_type'], ['receiver', 'all'])) {
+                                        
+                                        // Se la selezione è 'all', usiamo orWhereHas per unire le ricerche in OR
+                                        // Se è solo 'receiver', usiamo whereHas standard
+                                        $method = $data['address_type'] === 'all' ? 'orWhereHas' : 'whereHas';
+
+                                        $subQuery->{$method}('registryReceivers', function (Builder $relationQuery) use ($searchTerm) {
+                                            $relationQuery->where('address', 'like', "%{$searchTerm}%");
+                                        });
+                                    }
+                                });
+                            }
+                        );
+                    })
+                    ->indicateUsing(function (array $data): ?string {
+                        // Questo mostra un "badge" sopra la tabella per indicare che il filtro è attivo
+                        if (! $data['address_search']) {
+                            return null;
+                        }
+
+                        return 'Ricerca per indirizzo: ' . $data['address_search'];
+                    })
+                    ->columnSpanFull(),
+
+                SelectFilter::make('interested')
+                    ->label('Iterlocutore')
+                    ->multiple()
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array =>
+                        Recipient::where('description', 'like', "%{$search}%")
+                            ->limit(50)
+                            ->pluck('description', 'id')
+                            ->toArray()
+                    )
+                    ->getOptionLabelsUsing(fn (array $values): array =>
+                        Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
+                    )
+                   ->query(function (Builder $query, array $data): Builder {
+                        $searchIds = $data['values'] ?? [];
+
+                        if (empty($searchIds)) {
+                            return $query;
+                        }
+
+                        return $query->where(function ($q) use ($searchIds) {
+                            // sender_id diretto
+                            $q->whereIn('sender_id', $searchIds)
+                            // other_senders JSON
+                            ->orWhere(function ($subQuery) use ($searchIds) {
+                                foreach ($searchIds as $id) {
+                                    $subQuery->orWhereJsonContains('other_senders', (string)$id)
+                                            ->orWhereJsonContains('other_senders', (int)$id);
+                                }
+                            })
+                            // destinatari tramite relazione
+                            ->orWhereHas('registryReceivers', function ($q) use ($searchIds) {
+                                $q->whereIn('recipient_id', $searchIds);
+                            });
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) return [];
+
+                        $labels = Recipient::whereIn('id', $data['values'])
+                            ->pluck('description')
+                            ->toArray();
+
+                        return ['Mittenti: ' . implode(', ', $labels)];
+                    })
+                    ->columnSpan(10),
                 SelectFilter::make('sender')
                     ->label('Mittente')
                     ->multiple()
@@ -1119,35 +1258,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(2),
-                SelectFilter::make('is_email')
-                    ->label('Tipo')
-                    ->options([
-                        'si' => 'Posta elettronica',
-                        'no' => 'Posta ordinaria',
-                    ])
-                    ->placeholder('Tutta')
-                    ->query(function (Builder $query, array $data): Builder {
-                        // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
-                        $value = $data['value'] ?? null;
-
-                        // Se non è selezionato nulla, non applichiamo filtri alla query
-                        if (blank($value)) {
-                            return $query;
-                        }
-
-                        if ($value === 'si') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta elettronica
-                            return $query->where('is_email', true);
-                        }
-
-                        if ($value === 'no') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
-                            return $query->where('is_email', false);
-                        }
-
-                        return $query;
-                    }),
+                    ->columnSpan(10),
                 SelectFilter::make('recipient')
                     ->label('Destinatario')
                     ->multiple()
@@ -1186,12 +1297,7 @@ class RegistryResource extends Resource
 
                         return ['Destinatari: ' . implode(', ', $recipients)];
                     })
-                    ->columnSpan(2),
-                SelectFilter::make('manage_registry_type')
-                    ->label('Gestione')
-                    ->options(ManageRegistryType::class)
-                    ->multiple()
-                    ->columnSpan(1),
+                    ->columnSpan(10),
                 Filter::make('registration_date_range')
                     ->columns(2)
                     ->form([
@@ -1222,12 +1328,12 @@ class RegistryResource extends Resource
                         }
                         return null;
                     })
-                    ->columnSpan(2),
+                    ->columnSpan(10),
                 SelectFilter::make('register_user_id')
                     ->label('Registrato da')
                     ->options(fn () => User::pluck('name', 'id')->toArray())
                     ->searchable()
-                    ->columnSpan(1),
+                    ->columnSpan(5),
                 Filter::make('send_date_range')
                     ->columns(2)
                     ->form([
@@ -1258,13 +1364,13 @@ class RegistryResource extends Resource
                         }
                         return null;
                     })
-                    ->columnSpan(2),
+                    ->columnSpan(10),
                 SelectFilter::make('esito_invio')
                     ->label('Esito invio')
                     ->options([
                         'non_inviato' => 'Non inviato',
                         'consegnato' => 'Tutto consegnato',
-                        'parziale' => 'Consegnato parzialmente',
+                        'parziale' => 'Cons. parzialmente',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         $value = $data['value'] ?? null;
@@ -1311,7 +1417,7 @@ class RegistryResource extends Resource
 
                         return $query;
                     })
-                    ->columnSpan(1),
+                    ->columnSpan(5),
             ])
             ->actions([
                 // Tables\Actions\ViewAction::make(),
