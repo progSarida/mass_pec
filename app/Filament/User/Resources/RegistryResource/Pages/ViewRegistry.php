@@ -15,7 +15,7 @@ class ViewRegistry extends ViewRecord
     public function getTitle(): string | Htmlable
     {
         // return $this->record->subject;
-        return "Visualizza voce protocollo";
+        return "Visualizza {$this->record->protocol_number}";
     }
 
     protected function getHeaderActions(): array
@@ -49,7 +49,7 @@ class ViewRegistry extends ViewRecord
                 }),
             // Scorrimento tipo flusso
             Actions\Action::make('previous_i_registry')
-                ->label('Flusso')
+                ->label('Corrispondenza')
                 ->color('info')
                 ->icon('heroicon-o-arrow-left-circle')
                 ->visible(function () use ($previousIRegistry) { return $previousIRegistry;})
@@ -57,7 +57,7 @@ class ViewRegistry extends ViewRecord
                     $this->redirect(RegistryResource::getUrl('view', ['record' => $previousIRegistry->id]));
                 }),
             Actions\Action::make('next_i_registry')
-                ->label('Flusso')
+                ->label('Corrispondenza')
                 ->color('info')
                 ->icon('heroicon-o-arrow-right-circle')
                 ->visible(function () use ($nextIRegistry) { return $nextIRegistry;})

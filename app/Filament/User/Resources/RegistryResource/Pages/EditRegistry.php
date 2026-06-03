@@ -45,7 +45,7 @@ class EditRegistry extends EditRecord
 
     public function getTitle(): string | Htmlable
     {
-        return "Modifica voce protocollo";
+        return "Gestisci {$this->record->protocol_number}";
     }
 
     protected function getHeaderActions(): array
@@ -76,7 +76,7 @@ class EditRegistry extends EditRecord
                 }),
             // Scorrimento tipo flusso
             Actions\Action::make('previous_i_registry')
-                ->label('Flusso')
+                ->label('Corrispondenza')
                 ->color('info')
                 ->icon('heroicon-o-arrow-left-circle')
                 ->visible(function () use ($previousIRegistry) { return $previousIRegistry;})
@@ -84,7 +84,7 @@ class EditRegistry extends EditRecord
                     $this->redirect(RegistryResource::getUrl('edit', ['record' => $previousIRegistry->id]));
                 }),
             Actions\Action::make('next_i_registry')
-                ->label('Flusso')
+                ->label('Corrispondenza')
                 ->color('info')
                 ->icon('heroicon-o-arrow-right-circle')
                 ->visible(function () use ($nextIRegistry) { return $nextIRegistry;})
