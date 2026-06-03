@@ -198,14 +198,6 @@ class RegistryResource extends Resource
                             // ->disabled(fn ($record) => $record?->isIngoingEmail())
                             ->columnSpan(['sm' => 'full', 'md' => 3]),
 
-                        TextInput::make('flow_index')
-                            ->label('Indice')
-                            ->extraInputAttributes(['class' => 'text-right'])
-                            ->required()
-                            // ->disabled()
-                            ->dehydrated()
-                            ->columnSpan(['sm' => 'full', 'md' => 2]),
-
                         Select::make('scope_type_id')
                             ->label('Settore interno')
                             ->required()
@@ -217,6 +209,14 @@ class RegistryResource extends Resource
                                 modifyQueryUsing: fn ($query) => $query->orderBy('position', 'asc')
                             )
                             ->columnSpan(['sm' => 'full', 'md' => 5]),
+
+                        TextInput::make('flow_index')
+                            ->label('Indice')
+                            ->extraInputAttributes(['class' => 'text-right'])
+                            ->required()
+                            // ->disabled()
+                            ->dehydrated()
+                            ->columnSpan(['sm' => 'full', 'md' => 2]),
 
                         // TextInput::make('parent_reply')
                         //     ->label('Risposta a')
