@@ -18,7 +18,29 @@ class ListDownloadEmails extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            // Actions\CreateAction::make(),
+
+            // Actions\Action::make('update_list')
+            //     ->label('Aggiorna pagina')
+            //     ->icon('ri-refresh-line')
+            //     ->color('warning')
+            //     ->visible(fn () => session('downloaded_emails_update'))
+            //     ->action(function ($livewire) {
+            //         try {
+            //             session(['downloaded_emails' => false]);
+
+            //             if ($livewire instanceof ListRecords) {
+            //                 $livewire->dispatch('$refresh');
+            //             }
+
+            //         } catch (\Exception $e) {
+            //             Notification::make()
+            //                 ->title('Errore avvio download')
+            //                 ->body($e->getMessage())
+            //                 ->danger()
+            //                 ->send();
+            //         }
+            //     }),
 
             // Actions\Action::make('download')
             //     ->label('Scarico email')
@@ -58,16 +80,22 @@ class ListDownloadEmails extends ListRecords
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
+                        session(['downloaded_emails' => false]);
+
                         // Dispatch job combinato in background
                         DownloadEmailsWithReceiptsJob::dispatch(Auth::id());
-
-                        session(['downloaded_emails' => true]);
 
                         Notification::make()
                             ->title('Download avviato')
                             ->body('Il download di email e ricevute è stato avviato in background. Riceverai una notifica al termine.')
                             ->success()
                             ->send();
+
+                        sleep(20);
+
+                        // session(['downloaded_emails_update' => true]);
+
+                        session(['downloaded_emails' => true]);
 
                     } catch (\Exception $e) {
                         Notification::make()

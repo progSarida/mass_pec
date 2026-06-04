@@ -27,6 +27,8 @@ class ListInMails extends ListRecords
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
+                        session(['in_mails' => false]);
+
                         // Dispatch job combinato in background
                         // DownloadInMailsJob::dispatch(Auth::id());
                         DownloadInMailsWithReceiptsJob::dispatch(Auth::id());
@@ -36,6 +38,10 @@ class ListInMails extends ListRecords
                             ->body('Il download di email e ricevute è stato avviato in background. Riceverai una notifica al termine.')
                             ->success()
                             ->send();
+
+                        sleep(20);
+
+                        session(['in_mails' => true]);
 
                     } catch (\Exception $e) {
                         Notification::make()

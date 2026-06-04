@@ -99,10 +99,13 @@ class ProcessEmailJob implements ShouldQueue
 
                 $user = \App\Models\User::find($userId);
 
+                $emailSubject = Email::find($emailId)?->subject ?? 'N/A';
+
                 if ($user) {
                     \Filament\Notifications\Notification::make()
                         ->title('Errore critico invio email')
-                        ->body("Il processo di invio per l'email ID {$emailId} si è interrotto bruscamente.")
+                        // ->body("Il processo di invio per l'email ID {$emailId} si è interrotto bruscamente.")
+                        ->body("Il processo di invio per l'email {$emailSubject} si è interrotto bruscamente.")
                         ->danger()
                         ->persistent()
                         ->sendToDatabase($user);

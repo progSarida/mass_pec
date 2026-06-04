@@ -402,6 +402,18 @@ class EmailReceiveResource extends Resource
                         return $query;
                     }),
             ])
+            ->emptyStateHeading(fn () => session('email_receives')
+                ? 'Nessuna mail scaricata' 
+                : ''
+            )
+            ->emptyStateDescription(fn () => session('email_receives')
+                ? 'Non sono state trovate nuove email nelle caselle' 
+                : ''
+            )
+            ->emptyStateIcon(fn () => session('email_receives') 
+                ? 'fluentui-mail-dismiss-20-o' 
+                : null
+            )
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),

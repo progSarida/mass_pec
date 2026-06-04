@@ -114,10 +114,13 @@ class ProcessRegistryEmailJob implements ShouldQueue
                 ]);
                 $user = \App\Models\User::find($userId);
 
+                $protocolNumber = Registry::find($registryId)?->protocol_number ?? 'N/A';
+
                 if ($user) {
                     \Filament\Notifications\Notification::make()
                         ->title('Errore critico invio email')
-                        ->body("Il processo di invio per il protocollo ID {$registryId} si è interrotto bruscamente.")
+                        // ->body("Il processo di invio per il protocollo ID {$registryId} si è interrotto bruscamente.")
+                        ->body("Il processo di invio per il protocollo {$protocolNumber} si è interrotto bruscamente.")
                         ->danger()
                         ->persistent()
                         ->sendToDatabase($user);

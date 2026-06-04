@@ -356,6 +356,18 @@ class InMailResource extends Resource
                         return $query;
                     }),
             ])
+            ->emptyStateHeading(fn () => session('in_mails')
+                ? 'Nessuna mail scaricata' 
+                : ''
+            )
+            ->emptyStateDescription(fn () => session('in_mails')
+                ? 'Non sono state trovate nuove email nelle caselle' 
+                : ''
+            )
+            ->emptyStateIcon(fn () => session('in_mails') 
+                ? 'fluentui-mail-dismiss-20-o' 
+                : null
+            )
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),

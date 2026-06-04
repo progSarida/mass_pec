@@ -32,6 +32,8 @@ class ListEmailReceives extends ListRecords
                 ->modalSubmitActionLabel('Scarica')
                 ->action(function () {
                     try {
+                        session(['email_receives' => false]);
+
                         EmailReceiveJob::dispatch(Auth::id());
 
                         Notification::make()
@@ -39,6 +41,10 @@ class ListEmailReceives extends ListRecords
                             ->body('Il download di email e ricevute è stato avviato in background. Riceverai una notifica al termine.')
                             ->success()
                             ->send();
+
+                        sleep(20);
+
+                        session(['email_receives' => true]);
 
                     } catch (\Exception $e) {
                         Notification::make()
