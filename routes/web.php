@@ -21,3 +21,15 @@ Route::get('/download-zip/{type}/{id}', [AttachmentController::class, 'downloadZ
 Route::get('/download-zip-receipts/{id}', [AttachmentController::class, 'downloadZipReceipts'])->name('receipts.zip')->middleware(['auth']);
 // scarico zip dei documenti integrativi
 Route::get('/download-zip-related/{id}', [AttachmentController::class, 'downloadZipRelated'])->name('related.zip')->middleware(['auth']);
+
+
+// ROTTA DI TEST PER VERIFICA IP PUBBLICO E GEOLOCALIZZAZIONE
+Route::get('/my-ip', function () {
+    $ip = file_get_contents('https://ifconfig.me/ip');
+    $info = file_get_contents('https://ipinfo.io/' . $ip);
+    
+    return response()->json([
+        'ip' => trim($ip),
+        'info' => json_decode($info, true)
+    ]);
+});
