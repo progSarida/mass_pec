@@ -19,7 +19,7 @@ class CustomDashboard extends BaseDashboard
     // Questo metodo viene eseguito ogni volta che la pagina viene caricata
     public function mount(): void
     {
-        session()->put('daily_summary', false);
+        // session()->put('daily_summary', false);
         try {
             $today = now()->format('Y-m-d');
 
