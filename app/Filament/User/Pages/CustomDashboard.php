@@ -19,25 +19,36 @@ class CustomDashboard extends BaseDashboard
     // Questo metodo viene eseguito ogni volta che la pagina viene caricata
     public function mount(): void
     {
-        if(Company::first()->auto_daily_summary ?? false){
+        session()->put('daily_summary', false);
+        try {
+            $today = now()->format('Y-m-d');
+
+            $registryDates = Registry::selectRaw('DATE(created_at) as date')
+                ->whereDate('created_at', '<', $today)
+                ->orderBy('date', 'asc')
+                ->distinct()
+                ->pluck('date');
+
+            $processedDates = DailySummary::whereNotNull('file_date')
+                ->pluck('registration_date')
+                ->map(fn($date) => $date->format('Y-m-d'));
+
+            $datesToProcess = $registryDates->diff($processedDates);
+        } catch (\Exception $e) {
+            Log::error("Errore durante il controllo su nuove voci protocollo");
+            Log::error($e->getMessage());
+            Notification::make()
+                ->title('Errore durante il controllo su nuove voci protocollo')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+
+        if(Company::first()->auto_daily_summary){
             DB::beginTransaction();
             try {
                 // Controllo se nella sessione dell'utente esiste già il "marchio"
-                if (!session()->has('daily_summary')) {
-
-                    $today = now()->format('Y-m-d');
-
-                    $registryDates = Registry::selectRaw('DATE(created_at) as date')
-                        ->whereDate('created_at', '<', $today)
-                        ->orderBy('date', 'asc')
-                        ->distinct()
-                        ->pluck('date');
-
-                    $processedDates = DailySummary::whereNotNull('file_date')
-                        ->pluck('registration_date')
-                        ->map(fn($date) => $date->format('Y-m-d'));
-
-                    $datesToProcess = $registryDates->diff($processedDates);
+                if (!session('daily_summary')) {
 
                     $list = '';
                     foreach($datesToProcess as $date){
@@ -64,8 +75,7 @@ class CustomDashboard extends BaseDashboard
                                 ->success()
                                 ->sendToDatabase(auth()->user())    // Salva nel DB
                                 ->send();                           // Invia all'interfaccia
-                        }
-                        else if (count($datesToProcess) > 1) {
+                        } else if (count($datesToProcess) > 1) {
                             Notification::make()
                                 ->title('Creati registri giornalieri per le date')
                                 ->body($list)
@@ -73,9 +83,6 @@ class CustomDashboard extends BaseDashboard
                                 ->sendToDatabase(auth()->user())    // Salva nel DB
                                 ->send();                           // Invia all'interfaccia
                         }
-
-                        // Scrivo in sessione che abbiamo già inviato la notifica
-                        session()->put('daily_summary', true);
                     } else {
                         Notification::make()
                                 ->title('Nessun registro giornaliero creato')
@@ -84,6 +91,9 @@ class CustomDashboard extends BaseDashboard
                                 ->send();                           // Invia all'interfaccia
                     }
                     DB::commit();
+
+                    // Scrivo in sessione che abbiamo già inviato la notifica
+                    session()->put('daily_summary', true);
                 }
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -94,6 +104,42 @@ class CustomDashboard extends BaseDashboard
                     ->body($e->getMessage())
                     ->danger()
                     ->send();
+            }
+        } else {
+            if (!session('daily_summary')) {
+                $list = '';
+                foreach($datesToProcess as $date){
+                    $data = \Carbon\Carbon::parse($date)->format('d/m/Y');
+                    $list .= $data . '<br>';
+                }
+
+                if ($datesToProcess->isNotEmpty()) {
+                    if (count($datesToProcess) == 1) {
+                        Notification::make()
+                            ->title('Creare registro giornaliero per la data')
+                            ->body($list)
+                            ->success()
+                            ->sendToDatabase(auth()->user())    // Salva nel DB
+                            ->send();                           // Invia all'interfaccia
+                    }
+                    else if (count($datesToProcess) > 1) {
+                        Notification::make()
+                            ->title('Creare registri giornalieri per le date')
+                            ->body($list)
+                            ->success()
+                            ->sendToDatabase(auth()->user())    // Salva nel DB
+                            ->send();                           // Invia all'interfaccia
+                    }
+                } else {
+                        Notification::make()
+                                ->title('Nessun registro giornaliero da creare')
+                                ->info()
+                                ->sendToDatabase(auth()->user())    // Salva nel DB
+                                ->send();                           // Invia all'interfaccia
+                    }
+
+                // Scrivo in sessione che abbiamo già inviato la notifica
+                session()->put('daily_summary', true);
             }
         }
     }
