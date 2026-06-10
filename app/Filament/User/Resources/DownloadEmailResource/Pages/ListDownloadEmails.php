@@ -91,9 +91,7 @@ class ListDownloadEmails extends ListRecords
                             ->success()
                             ->send();
 
-                        sleep(20);
-
-                        // session(['downloaded_emails_update' => true]);
+                        sleep(10);
 
                         session(['downloaded_emails' => true]);
 
@@ -106,6 +104,11 @@ class ListDownloadEmails extends ListRecords
                     }
                 }),
         ];
+    }
+
+    public function getPollingInterval(): ?string
+    {
+        return '30s';
     }
 
     public function getMaxContentWidth(): MaxWidth|string|null

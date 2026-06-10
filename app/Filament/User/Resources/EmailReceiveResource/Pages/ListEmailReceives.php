@@ -42,7 +42,7 @@ class ListEmailReceives extends ListRecords
                             ->success()
                             ->send();
 
-                        sleep(20);
+                        sleep(10);
 
                         session(['email_receives' => true]);
 
@@ -94,6 +94,11 @@ class ListEmailReceives extends ListRecords
                         }, "Elenco email.pdf");
                 }),
         ];
+    }
+
+    public function getPollingInterval(): ?string
+    {
+        return '30s';
     }
 
     public function getMaxContentWidth(): MaxWidth|string|null
