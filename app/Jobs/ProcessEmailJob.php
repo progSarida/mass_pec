@@ -60,6 +60,7 @@ class ProcessEmailJob implements ShouldQueue
 
         // Crea un batch di job per ogni destinatario
         $jobs = $recipients->map(fn ($recipient) => new EmailSendJob(
+            userId: $this->userId,
             emailId: $this->emailId,
             recipientEmail: $recipient->email,
             recipientName: $recipient->name,

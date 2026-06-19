@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Mail\RegistryMailable;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
+use App\Models\User;
 use App\Services\RegistryEmailService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -29,6 +30,7 @@ class SendRegistryEmailJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
+        public int $userId,
         public int $registryId,
         public string $recipientEmail,
         public int $registryReceiverId,
@@ -45,6 +47,7 @@ class SendRegistryEmailJob implements ShouldQueue
         // if (!$registry || $registry->send_date) return;
         if (!$registry) return;                                                                     // elimninato controllosu data di invio perchè quando è presente l'invio batch non è visibile
 
+        $user = User::find($this->userId);
         try {
 
             $registryEmailService->setAccount($registry->account_id);
@@ -85,6 +88,13 @@ class SendRegistryEmailJob implements ShouldQueue
 
             // Verifichiamo se l'errore contiene il codice di blocco IP (554 o 5.7.1)
             $isIpBlocked = str_contains($errorMessage, '554') || str_contains($errorMessage, '5.7.1');
+
+            \Filament\Notifications\Notification::make()
+                    ->title('Errore invio email protocollo ' . $registry->protocol_number)
+                    ->body($errorMessage)
+                    ->danger()
+                    ->persistent()
+                    ->sendToDatabase($user);
 
             Log::error("Errore invio email Registry", [
                 'registry_id' => $this->registryId,

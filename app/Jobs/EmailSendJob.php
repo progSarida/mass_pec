@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\EmailMailable;
 use App\Models\Email;
+use App\Models\User;
 use App\Services\EmailService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -28,6 +29,7 @@ class EmailSendJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
+        public int $userId,
         public int $emailId,
         public string $recipientEmail,
         public ?string $recipientName = null,
@@ -43,6 +45,9 @@ class EmailSendJob implements ShouldQueue
         $email = Email::find($this->emailId);
 
         if (!$email) return;
+
+        $user = User::find($this->userId);
+        $account = '';
 
         try {
             $emailService->setAccount($email->account_id);
@@ -83,6 +88,13 @@ class EmailSendJob implements ShouldQueue
 
             // Verifichiamo se l'errore contiene il codice di blocco IP (554 o 5.7.1)
             $isIpBlocked = str_contains($errorMessage, '554') || str_contains($errorMessage, '5.7.1');
+
+            \Filament\Notifications\Notification::make()
+                ->title('Errore invio email da account ' . $account->username)
+                ->body($errorMessage)
+                ->danger()
+                ->persistent()
+                ->sendToDatabase($user);
 
             Log::error("Errore invio Email", [
                 'email_id' => $this->emailId,

@@ -18,6 +18,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\On;
@@ -227,6 +228,7 @@ class RegistryReceiversRelationManager extends RelationManager
                         try {
 
                             \App\Jobs\SendRegistryEmailJob::dispatch(
+                                userId: Auth::user()->id,
                                 registryId: $record->registry_id,
                                 recipientEmail: $record->address,
                                 registryReceiverId: $record->id,

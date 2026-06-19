@@ -63,6 +63,7 @@ class ProcessRegistryEmailJob implements ShouldQueue
 
         // Crea un batch di job per ogni destinatario
         $jobs = $recipients->map(fn (RegistryReceiver $recipient) => new SendRegistryEmailJob(
+            userId: $this->userId,
             registryId: $this->registryId,
             recipientEmail: $recipient->address,
             registryReceiverId: $recipient->id,

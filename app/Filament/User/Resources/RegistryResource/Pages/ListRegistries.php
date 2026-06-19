@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\MaxWidth;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 
 class ListRegistries extends ListRecords
@@ -102,6 +103,7 @@ class ListRegistries extends ListRecords
 
                         foreach($receivers as $receiver){
                             \App\Jobs\SendRegistryEmailJob::dispatch(
+                                userId: Auth::user()->id,
                                 registryId: $receiver->registry_id,
                                 recipientEmail: $receiver->address,
                                 registryReceiverId: $receiver->id,

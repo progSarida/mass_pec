@@ -49,6 +49,9 @@ class DownloadEmailsJob implements ShouldQueue
         $accountsProcessed = 0;
         $accountsFailed = 0;
         $errors = [];
+        $downloaded = 0;
+        $deleted = 0;
+        $skipped = 0;
 
         foreach ($accounts as $account) {
             $errorMsg = '';
@@ -72,6 +75,8 @@ class DownloadEmailsJob implements ShouldQueue
 
                 $errorMsg = "Errore account {$account->address}: " . $e->getMessage();
                 $errors[] = $errorMsg;
+
+                $this->sendAccountNotification($user, $downloaded, $deleted, $skipped, $account, $errorMsg);
 
                 Log::error("Errore download email da account", [
                     'account_id' => $account->id,

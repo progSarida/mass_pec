@@ -88,6 +88,13 @@ class EmailReceiveJob implements ShouldQueue
                 $errorMsg = "Errore account {$account->username}: " . $e->getMessage();
                 $errors[] = $errorMsg;
 
+                \Filament\Notifications\Notification::make()
+                    ->title('Errore download email da account ' . $account->username)
+                    ->body($errorMsg)
+                    ->danger()
+                    ->persistent()
+                    ->sendToDatabase($user);
+
                 Log::error("Errore download email da account", [
                     'account_id' => $account->id,
                     'username' => $account->username,
