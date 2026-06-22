@@ -759,7 +759,8 @@ class RegistryResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('created_at', 'desc')
+            // ->defaultSort('created_at', 'desc')
+            ->modifyQueryUsing(fn (Builder $query) => $query->orderByGestionePriority())
             ->columns([
                 // TextColumn::make('flow_type')
                 //     ->label('Corr.')
@@ -1509,7 +1510,7 @@ class RegistryResource extends Resource
         return $report;
     }
 
-    private static function checkReceipts($registry)
+    public static function checkReceipts($registry)
     {
         $cacheKey = $registry->id;
 
@@ -1531,18 +1532,19 @@ class RegistryResource extends Resource
         foreach($registry->registryReceivers as $receiver){
             // Log::info("{$receiver->id}: {$receiver->pec_status->getLabel()}");
 
-            if($receiver->message_id) {
+            
+            if ($receiver->pec_status == PecStatus::ACCEPTED) {
                 $sent++;
-            }
-            if($receiver->pec_status == PecStatus::ACCEPTED) {
                 $accepted++;
-            }
-            if($receiver->pec_status == PecStatus::DELIVERED) {
+            } else if ($receiver->pec_status == PecStatus::DELIVERED) {
+                $sent++;
                 $accepted++;
                 $delivered++;
-            }
-            if($receiver->pec_status == PecStatus::NOT_DELIVERED) {
+            } else if ($receiver->pec_status == PecStatus::NOT_DELIVERED) {
+                $sent++;
                 $accepted++;
+            } else if ($receiver->message_id) {
+                $sent++;
             }
         }
 

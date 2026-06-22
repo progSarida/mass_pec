@@ -442,18 +442,21 @@ class DownloadEmailResource extends Resource
                         return $query;
                     }),
             ])
-            ->emptyStateHeading(fn () => session('downloaded_emails')
-                ? 'Nessuna mail scaricata' 
-                : ''
-            )
-            ->emptyStateDescription(fn () => session('downloaded_emails')
-                ? 'Non sono state trovate nuove email nelle caselle' 
-                : ''
-            )
-            ->emptyStateIcon(fn () => session('downloaded_emails') 
-                ? 'fluentui-mail-dismiss-20-o' 
-                : null
-            )
+            // ->emptyStateHeading(fn () => session('downloaded_emails')
+            //     ? 'Nessuna mail scaricata' 
+            //     : ''
+            // )
+            // ->emptyStateDescription(fn () => session('downloaded_emails')
+            //     ? 'Non sono state trovate nuove email nelle caselle' 
+            //     : ''
+            // )
+            // ->emptyStateIcon(fn () => session('downloaded_emails') 
+            //     ? 'fluentui-mail-dismiss-20-o' 
+            //     : null
+            // )
+            ->emptyStateHeading(fn () => '')
+            ->emptyStateDescription(fn () => '')
+            ->emptyStateIcon(fn () => 'fluentui-mail-dismiss-20-o')
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),

@@ -7,6 +7,7 @@ use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Enums\RelationshipType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -335,4 +336,137 @@ class Registry extends Model
             throw $e;
         }
     }
+
+    public function scopeOrderByGestionePriority(Builder $query): Builder
+    {
+        $registryTable = $this->getTable();
+        $receiversTable = $this->registryReceivers()->getModel()->getTable();
+
+        $outgoingTypes = [
+            RegistryOriginType::SEND_EMAIL->value,
+            RegistryOriginType::REPLY->value,
+            RegistryOriginType::FORWARD->value,
+        ];
+
+        /**
+         * Ordina i Registry per priorità di gestione:
+         * 0) outgoing non inviati (send_date null)
+         * 1) outgoing inviati ma con almeno un registryReceiver che non ha message_id
+         * 2) tutto il resto
+         * All'interno di ogni gruppo: id desc
+         */
+        $outgoingPlaceholders = implode(',', array_fill(0, count($outgoingTypes), '?'));
+
+        $priorityCase = "
+            CASE
+                WHEN {$registryTable}.registry_origin_type IN ({$outgoingPlaceholders})
+                    AND {$registryTable}.send_date IS NULL
+                    THEN 0
+                WHEN {$registryTable}.registry_origin_type IN ({$outgoingPlaceholders})
+                    AND {$registryTable}.send_date IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM {$receiversTable}
+                        WHERE {$receiversTable}.registry_id = {$registryTable}.id
+                        AND (
+                            {$receiversTable}.message_id IS NULL
+                        )
+                    )
+                    THEN 1
+                ELSE 2
+            END
+        ";
+
+        $bindings = [
+            ...$outgoingTypes,
+            ...$outgoingTypes,
+        ];
+
+        return $query
+            ->orderByRaw("{$priorityCase} ASC", $bindings)
+            ->orderBy("{$registryTable}.id", 'desc');
+    }
+
+    /**
+     * Ordina i Registry per priorità di gestione:
+     * 0) outgoing non inviati (send_date null)
+     * 1) outgoing inviati ma con almeno un registryReceiver non in stato ACCEPTED/DELIVERED/NOT_DELIVERED
+     * 2) tutto il resto
+     * All'interno di ogni gruppo: id desc
+     */
+    public function scopeOrderByGestionePriorityStatus(Builder $query): Builder
+    {
+        $registryTable = $this->getTable();
+        $receiversTable = $this->registryReceivers()->getModel()->getTable();
+
+        $outgoingTypes = [
+            RegistryOriginType::SEND_EMAIL->value,
+            RegistryOriginType::REPLY->value,
+            RegistryOriginType::FORWARD->value,
+        ];
+
+        $finalStatuses = [
+            PecStatus::ACCEPTED->value,
+            PecStatus::DELIVERED->value,
+            PecStatus::NOT_DELIVERED->value,
+        ];
+
+        $outgoingPlaceholders = implode(',', array_fill(0, count($outgoingTypes), '?'));
+        $finalStatusPlaceholders = implode(',', array_fill(0, count($finalStatuses), '?'));
+
+        $priorityCase = "
+            CASE
+                WHEN {$registryTable}.registry_origin_type IN ({$outgoingPlaceholders})
+                    AND {$registryTable}.send_date IS NULL
+                    THEN 0
+                WHEN {$registryTable}.registry_origin_type IN ({$outgoingPlaceholders})
+                    AND {$registryTable}.send_date IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1 FROM {$receiversTable}
+                        WHERE {$receiversTable}.registry_id = {$registryTable}.id
+                        AND (
+                            {$receiversTable}.pec_status IS NULL
+                            OR {$receiversTable}.pec_status NOT IN ({$finalStatusPlaceholders})
+                        )
+                    )
+                    THEN 1
+                ELSE 2
+            END
+        ";
+
+        $bindings = [
+            ...$outgoingTypes,
+            ...$outgoingTypes,
+            ...$finalStatuses,
+        ];
+
+        return $query
+            ->orderByRaw("{$priorityCase} ASC", $bindings)
+            ->orderBy("{$registryTable}.id", 'desc');
+    }
+
+    // // Blocca l'invio della voce del protocollo se una delle precedenti è da inviare
+    // private function sendLock()
+    // {
+    //     $registries = Registry::where('id', '<' , $this->id)->get();
+    //     // dd($registries);
+    //     $test = array();
+    //     foreach($registries as $registry)
+    //     {
+    //         $check = RegistryResource::checkReceipts($registry);
+    //         if ($check) {
+    //             $detail = [$sent, $accepted, $delivered] = explode(',', $check);
+    //             $count = $registry->registryReceivers()->count();                                                                       // numero destinatari
+
+    //             if($sent == 0) $test[$registry->protocol_number] = "NESSUNA INVIATA - {$count} -  {$check}";                            // nessuna mail inviata
+
+    //             if($sent == $count) {                                                                                                   // tutte le mail inviate
+    //                 if($sent == $delivered) $test[$registry->protocol_number] = "TUTTE CONSEGNATE - {$count} -  {$check}";              // numero inviate = numero consegnate
+    //                 else if($sent == $accepted) $test[$registry->protocol_number] = "TUTTE INVIATE - {$count} -  {$check}";             // numero inviate = numero accettate
+    //                 else $test[$registry->protocol_number] = "ERRORE INVIO - {$count} -  {$check}";                                     // numero accettate < numero inviate => errore invio
+    //             }
+    //             else $test[$registry->protocol_number] = "NON TUTTE INVIATE - {$count} -  {$check}";                                    // non tutte le mail sono state elaborate
+    //         }
+    //     }
+    //     dd($test);
+    // }
 }

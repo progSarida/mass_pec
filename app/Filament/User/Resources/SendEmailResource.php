@@ -440,6 +440,9 @@ class SendEmailResource extends Resource
             ->filters([
                 //
             ])
+            ->emptyStateHeading(fn () => '')
+            ->emptyStateDescription(fn () => '')
+            ->emptyStateIcon(fn () => 'fluentui-mail-dismiss-20-o')
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 // Tables\Actions\EditAction::make(),
