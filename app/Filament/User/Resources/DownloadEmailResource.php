@@ -301,7 +301,7 @@ class DownloadEmailResource extends Resource
                     // 3. Colore rosso solo per il badge "non registrato"
                     ->color(fn ($record) => ! $record->sender ? 'danger' : null)
                     ->limit(25)
-                    ->tooltip(fn ($record) => $record->from),
+                    ->tooltip(fn ($record) => $record->from . ($record->sender?->adminType?->name ? ' - ' . $record->sender?->adminType?->name : '')),
 
                 TextColumn::make('from')
                     ->label('indirizzo mittente')

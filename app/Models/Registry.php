@@ -337,6 +337,13 @@ class Registry extends Model
         }
     }
 
+    /**
+     * Ordina i Registry per priorità di gestione:
+     * 0) outgoing non inviati (send_date null)
+     * 1) outgoing inviati ma con almeno un registryReceiver che non ha message_id
+     * 2) tutto il resto
+     * All'interno di ogni gruppo: id desc
+     */
     public function scopeOrderByGestionePriority(Builder $query): Builder
     {
         $registryTable = $this->getTable();
