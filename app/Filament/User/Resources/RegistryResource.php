@@ -386,7 +386,7 @@ class RegistryResource extends Resource
                             ->label('Altre parti interessate')
                             ->multiple()
                             ->searchable()
-                            ->visible(fn(Get $get) => $get('flow_type') == FlowType::INTERNAL->value)
+                            // ->visible(fn(Get $get) => $get('flow_type') == FlowType::INTERNAL->value)
                             ->placeholder('Seleziona le parti interessate')
                             ->columnSpan(['sm' => 'full', 'md' => 15])
                             ->getSearchResultsUsing(function (string $search) {
@@ -804,6 +804,14 @@ class RegistryResource extends Resource
                         if ($record->account_id && $record->account) {
                             return $record->account->public_name ?? '';
                         }
+                        if ($record->other_senders && !empty($record->other_senders)) {
+                            // Recupera solo la colonna 'description' per ottimizzare la query
+                            $descriptions = Recipient::whereIn('id', $record->other_senders)
+                                ->pluck('description') // Estrae solo i valori della colonna 'description'
+                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+
+                            return $descriptions;
+                        }
                         if ($record->interested_parties && !empty($record->interested_parties)) {
                             // Recupera solo la colonna 'description' per ottimizzare la query
                             $descriptions = Recipient::whereIn('id', $record->interested_parties)
@@ -812,13 +820,8 @@ class RegistryResource extends Resource
 
                             return 'Sarida srl, ' . $descriptions;
                         }
-                        if ($record->other_senders && !empty($record->other_senders)) {
-                            // Recupera solo la colonna 'description' per ottimizzare la query
-                            $descriptions = Recipient::whereIn('id', $record->other_senders)
-                                ->pluck('description') // Estrae solo i valori della colonna 'description'
-                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
-
-                            return $descriptions;
+                        if ($record->registry_origin_type == RegistryOriginType::SHIPMENT){
+                            return Sender::first()->public_name;
                         }
                         return '';
                     })
@@ -830,23 +833,63 @@ class RegistryResource extends Resource
                         });
                     })
                     ->sortable()
-                    ->tooltip(function ($record): string {
-                        if ($record->interested_parties && !empty($record->interested_parties)) {
-                            // Recupera solo la colonna 'description' per ottimizzare la query
-                            $descriptions = Recipient::whereIn('id', $record->interested_parties)
-                                ->pluck('description') // Estrae solo i valori della colonna 'description'
-                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+                    // ->tooltip(function ($record): string {
+                    //     if ($record->interested_parties && !empty($record->interested_parties)) {
+                    //         // Recupera solo la colonna 'description' per ottimizzare la query
+                    //         $descriptions = Recipient::whereIn('id', $record->interested_parties)
+                    //             ->pluck('description') // Estrae solo i valori della colonna 'description'
+                    //             ->implode(', ');      // Li concatena separandoli con virgola e spazio
 
-                            return 'Sarida srl, ' . $descriptions;
-                        }
+                    //         return 'Sarida srl, ' . $descriptions;
+                    //     }
+                    //     if ($record->other_senders && !empty($record->other_senders)) {
+                    //         // Recupera solo la colonna 'description' per ottimizzare la query
+                    //         $descriptions = Recipient::whereIn('id', $record->other_senders)
+                    //             ->pluck('description') // Estrae solo i valori della colonna 'description'
+                    //             ->implode(', ');      // Li concatena separandoli con virgola e spazio
+
+                    //         return $descriptions;
+                    //     }
+                    //     return $record->sender ? $record->from . ' - ' . $record->sender?->adminType?->name : '';
+                    //     // return '';
+                    // })
+                    ->tooltip(function ($record): string {
+                        // 1. Gestione ALTRI MITTENTI
                         if ($record->other_senders && !empty($record->other_senders)) {
-                            // Recupera solo la colonna 'description' per ottimizzare la query
-                            $descriptions = Recipient::whereIn('id', $record->other_senders)
-                                ->pluck('description') // Estrae solo i valori della colonna 'description'
-                                ->implode(', ');      // Li concatena separandoli con virgola e spazio
+                            $descriptions = Recipient::with('adminType')
+                                ->whereIn('id', $record->other_senders)
+                                ->get()
+                                ->map(function ($recipient) {
+                                    $typeName = $recipient->adminType?->name;
+                                    return $typeName 
+                                        ? "{$recipient->description} ({$typeName})" 
+                                        : $recipient->description;
+                                })
+                                ->implode(', ');
 
                             return $descriptions;
                         }
+                        // 2. Gestione PARTI INTERESSATE
+                        if ($record->interested_parties && !empty($record->interested_parties)) {
+                            $descriptions = Recipient::with('adminType')
+                                ->whereIn('id', $record->interested_parties)
+                                ->get()
+                                ->map(function ($recipient) {
+                                    $typeName = $recipient->adminType?->name;
+                                    return $typeName 
+                                        ? "{$recipient->description} ({$typeName})" 
+                                        : $recipient->description;
+                                })
+                                ->implode(', ');
+
+                            return 'Sarida srl, ' . $descriptions;
+                        }
+
+                        // 3. DEFAULT (Se i blocchi precedenti sono vuoti/falsi)
+                        if ($record->sender) {
+                            return "{$record->from}  ({$record->sender?->adminType?->name})";
+                        }
+
                         return '';
                     })
                     ->limit(250),
@@ -1557,7 +1600,7 @@ class RegistryResource extends Resource
         return $report;
     }
 
-    private static function getRecipientsName($addresses)
+    private static function getRecipientsNameOld($addresses)
     {
         $output = "";
         $count = count($addresses);
@@ -1570,6 +1613,31 @@ class RegistryResource extends Resource
             }
         }
         return $output;
+    }
+
+    private static function getRecipientsName($addresses)
+    {
+        $output = [];
+
+        foreach ($addresses as $address) {
+            // Usiamo il tuo metodo custom già pronto
+            $recipient = Recipient::findByEmail($address);
+            
+            if ($recipient) {
+                // Carichiamo la relazione 'adminType' sul record trovato
+                $recipient->load('adminType');
+                
+                $typeName = $recipient->adminType?->name;
+                
+                // Componiamo la stringa
+                $output[] = $typeName 
+                    ? "{$recipient->description} ({$typeName})" 
+                    : $recipient->description;
+            }
+        }
+
+        // Uniamo tutto con la virgola
+        return implode(', ', $output);
     }
 
     public static function getEloquentQuery(): Builder

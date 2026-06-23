@@ -513,7 +513,21 @@ class ManualInsertResource extends Resource
                     })
                     ->tooltip(function ($record) {
                         if (!is_array($record->senders) || empty($record->senders)) return '';
-                        return Recipient::whereIn('id', $record->senders)->pluck('description')->implode(', ');
+                        // return Recipient::whereIn('id', $record->senders)->pluck('description')->implode(', ');
+                        return Recipient::with('adminType')
+                            ->whereIn('id', $record->senders)
+                            ->get()
+                            ->map(function ($recipient) {
+                                // Verifichiamo se la relazione esiste per evitare errori sul log
+                                $typeName = $recipient->adminType?->name; 
+                                
+                                if ($typeName) {
+                                    return "{$recipient->description} ({$typeName})";
+                                }
+                                
+                                return $recipient->description;
+                            })
+                            ->implode(', ');
                     }),
 
                 Tables\Columns\TextColumn::make('interested_parties')
@@ -533,7 +547,19 @@ class ManualInsertResource extends Resource
                     })
                     ->tooltip(function ($record) {
                         if (!is_array($record->interested_parties) || empty($record->interested_parties)) return '';
-                        return Recipient::whereIn('id', $record->interested_parties)->pluck('description')->implode(', ');
+                        // return Recipient::whereIn('id', $record->interested_parties)->pluck('description')->implode(', ');
+                        return Recipient::with('adminType')
+                            ->whereIn('id', $record->interested_parties)
+                            ->get()
+                            ->map(function ($recipient) {
+                                $typeName = $recipient->adminType?->name;
+
+                                // Se il tipo esiste, lo accodiamo tra parentesi
+                                return $typeName 
+                                    ? "{$recipient->description} ({$typeName})" 
+                                    : $recipient->description;
+                            })
+                            ->implode(', ');
                     }),
 
                 Tables\Columns\TextColumn::make('created_at')

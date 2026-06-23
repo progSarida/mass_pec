@@ -381,13 +381,22 @@ class SendEmailResource extends Resource
                         $count = is_array($emails) ? count($emails) : 0;
                         return $count . ' ' . ($count === 1 ? 'destinatario' : 'destinatari');
                     })
+                    // ->tooltip(function ($state) {
+                    //     // Se lo stato non è un array o è vuoto, restituisci null
+                    //     if (!is_array($state) || empty($state)) {
+                    //         return null;
+                    //     }
+                    //     // Unisce i nomi con una virgola e uno spazio per il tooltip
+                    //     return implode(', ', $state);
+                    // })
                     ->tooltip(function ($state) {
                         // Se lo stato non è un array o è vuoto, restituisci null
                         if (!is_array($state) || empty($state)) {
                             return null;
                         }
-                        // Unisce i nomi con una virgola e uno spazio per il tooltip
-                        return implode(', ', $state);
+                        
+                        // Passiamo l'array di indirizzi alla funzione helper che abbiamo modificato prima
+                        return self::getRecipientsName($state);
                     }),
                 Tables\Columns\TextColumn::make('subject')
                     ->label('Oggetto')
@@ -742,5 +751,30 @@ class SendEmailResource extends Resource
     {
         $recipient = Recipient::findByEmail($from);
         return $recipient?->id;
+    }
+
+    private static function getRecipientsName($addresses)
+    {
+        $output = [];
+
+        foreach ($addresses as $address) {
+            // Usiamo il tuo metodo custom già pronto
+            $recipient = Recipient::findByEmail($address);
+            
+            if ($recipient) {
+                // Carichiamo la relazione 'adminType' sul record trovato
+                $recipient->load('adminType');
+                
+                $typeName = $recipient->adminType?->name;
+                
+                // Componiamo la stringa
+                $output[] = $typeName 
+                    ? "{$recipient->description} ({$typeName})" 
+                    : $recipient->description;
+            }
+        }
+
+        // Uniamo tutto con la virgola
+        return implode(', ', $output);
     }
 }

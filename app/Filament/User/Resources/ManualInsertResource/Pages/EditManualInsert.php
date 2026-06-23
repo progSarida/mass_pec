@@ -12,7 +12,6 @@ use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use App\Models\ScopeType;
-use DB;
 use Exception;
 use Filament\Actions;
 use Filament\Actions\Action;
@@ -21,8 +20,9 @@ use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Log;
 use setasign\Fpdi\Fpdi;
 
 class EditManualInsert extends EditRecord
