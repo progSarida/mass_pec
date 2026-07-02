@@ -275,6 +275,10 @@ class DownloadEmailResource extends Resource
                 //     ->limit(25)
                 //     ->tooltip(fn ($record) => $record->from),
 
+                Tables\Columns\TextColumn::make('index')
+                    ->label('#')
+                    ->rowIndex(),
+
                 // TextColumn::make('sender.description')
                 //     ->label('Mittente')
                 //     ->searchable(query: function (Builder $query, string $search): Builder {

@@ -379,6 +379,9 @@ class SendEmailResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('index')
+                    ->label('#')
+                    ->rowIndex(),
                 Tables\Columns\TextColumn::make('account.public_name')
                     ->label('Mittente'),
                 Tables\Columns\TextColumn::make('recipients')

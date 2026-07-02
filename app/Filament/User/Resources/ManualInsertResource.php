@@ -472,6 +472,9 @@ class ManualInsertResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('index')
+                    ->label('#')
+                    ->rowIndex(),
                 Tables\Columns\IconColumn::make('flow_type')
                     ->label('')
                     ->tooltip(fn ($record) => $record->flow_type?->getLabel())
