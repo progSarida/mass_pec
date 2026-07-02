@@ -37,6 +37,15 @@ class ManualInsertResource extends Resource
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 4;
 
+    public static function getNavigationLabel(): string
+    {
+        $waiting = static::getModel()::count();
+
+        return $waiting > 0
+            ? "Inserimento manuale ({$waiting})"
+            : 'Inserimento manuale';
+    }
+
     public static function form(Form $form): Form
     {
         return $form

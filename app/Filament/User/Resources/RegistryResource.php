@@ -57,6 +57,36 @@ class RegistryResource extends Resource
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 1;
 
+    public static function getNavigationLabel(): string
+    {
+        $waitingEmails = static::getModel()::where('flow_type', 'issued')
+                        ->whereNull('send_date')
+                        ->count();
+
+        $waitingRegistries = static::getModel()::where('flow_type', 'issued')
+                        ->whereNotNull('send_date')
+                        ->whereHas('registryReceivers', function ($query) { 
+                            $query->whereNull('message_id'); 
+                        })->count();
+
+        $label = 'Protocollo';
+        if($waitingEmails > 0 || $waitingRegistries > 0) {
+            $label .= ' (';
+            if($waitingEmails > 0) {
+                $label .= "{$waitingEmails}";
+            }
+            if($waitingRegistries > 0) {
+                if($waitingEmails > 0) {
+                    $label .= ' - ';
+                }
+                $label .= "{$waitingRegistries}";
+            }
+            $label .= ")";
+        }
+
+        return $label;
+    }
+
     private static $receiptsCache = [];
 
     public static function form(Form $form): Form

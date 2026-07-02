@@ -41,6 +41,15 @@ class SendEmailResource extends Resource
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 3;
 
+    public static function getNavigationLabel(): string
+    {
+        $waiting = static::getModel()::count();
+
+        return $waiting > 0
+            ? "Gestione PEC in uscita ({$waiting})"
+            : 'Gestione PEC in uscita';
+    }
+
     public static function form(Form $form): Form
     {
         return $form

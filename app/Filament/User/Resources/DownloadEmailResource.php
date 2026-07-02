@@ -46,6 +46,15 @@ class DownloadEmailResource extends Resource
     protected static ?string $navigationGroup = 'Protocollo';
     protected static ?int $navigationSort = 2;
 
+    public static function getNavigationLabel(): string
+    {
+        $waiting = static::getModel()::count();
+
+        return $waiting > 0
+            ? "Gestione PEC in arrivo ({$waiting})"
+            : 'Gestione PEC in arrivo';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
