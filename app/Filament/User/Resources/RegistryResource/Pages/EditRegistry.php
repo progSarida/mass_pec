@@ -651,7 +651,7 @@ class EditRegistry extends EditRecord
                 Actions\Action::make('print')
                     ->icon('heroicon-o-printer')
                     ->label('Stampa')
-                    ->tooltip('Stampa elenco registri')
+                    ->tooltip('Stampa')
                     ->color(Color::rgb('rgb(255, 0, 0)'))
                     ->action(function ($record) {
                         Notification::make()
@@ -667,8 +667,8 @@ class EditRegistry extends EditRecord
                                         'registry' => $record,
                                     ])
                                 )
-                                    ->setPaper('A4', 'portrait')
-                                    ->stream();
+                                ->setPaper('A4', 'portrait')
+                                ->stream();
                             }, "Voce protocollo_{$record->protocol_number}.pdf");
                     }),
                 // Actions\Action::make('link')

@@ -5,8 +5,13 @@ namespace App\Filament\User\Resources\DownloadEmailResource\Pages;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use App\Filament\User\Resources\DownloadEmailResource;
+use App\Models\Company;
 use App\Models\DownloadEmail;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Filament\Notifications\Notification;
+use Filament\Support\Colors\Color;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Blade;
 
 class ViewDownloadEmail extends ViewRecord
 {
@@ -89,7 +94,36 @@ class ViewDownloadEmail extends ViewRecord
                 ->action(function () use ($nextRDownloadEmail) {
                     $this->redirect(DownloadEmailResource::getUrl('view', ['record' => $nextRDownloadEmail->id]));
                 }),
-            Actions\EditAction::make(),
+            Actions\ActionGroup::make([
+                Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($record) {
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
+
+                        return response()
+                            ->streamDownload(function () use ($record) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.download_email', [
+                                        'company' => Company::first(),
+                                        'email' => $record,
+                                    ])
+                                )
+                                ->setPaper('A4', 'portrait')
+                                ->stream();
+                            }, "Pec ricevuta_{$record->id}.pdf");
+                    }),
+                Actions\EditAction::make(),
+            ])
+            ->label('Operazioni')
+            ->icon('heroicon-m-ellipsis-vertical')
+            ->color('info')
+            ->button(),
         ];
     }
 }

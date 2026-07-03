@@ -3,9 +3,14 @@
 namespace App\Filament\User\Resources\SendEmailResource\Pages;
 
 use App\Filament\User\Resources\SendEmailResource;
+use App\Models\Company;
 use App\Models\SendEmail;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Support\Colors\Color;
+use Illuminate\Support\Facades\Blade;
 
 class ViewSendEmail extends ViewRecord
 {
@@ -95,6 +100,29 @@ class ViewSendEmail extends ViewRecord
                     $this->redirect(SendEmailResource::getUrl('view', ['record' => $nextSSendEmail->id]));
                 }),
             Actions\ActionGroup::make([
+                Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($record) {
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
+
+                        return response()
+                            ->streamDownload(function () use ($record) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.send_email', [
+                                        'company' => Company::first(),
+                                        'email' => $record,
+                                    ])
+                                )
+                                ->setPaper('A4', 'portrait')
+                                ->stream();
+                            }, "Pec da inviare_{$record->id}.pdf");
+                    }),
                 Actions\EditAction::make(),
             ])
             ->label('Operazioni')

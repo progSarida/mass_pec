@@ -58,7 +58,7 @@
     <br>
     <br>
     @php
-        $tipo = $registry->is_email ? 'Posta Elettronica' : 'Posta Orinaria';
+        $tipo = $registry->is_email ? 'Posta Elettronica' : 'Posta Ordinaria';
         switch($registry->flow_type){
             case \App\Enums\FlowType::ISSUED :
                 $data = $registry->send_date;

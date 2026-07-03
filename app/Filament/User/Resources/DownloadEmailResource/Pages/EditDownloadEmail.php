@@ -8,13 +8,16 @@ use App\Models\Company;
 use App\Models\DownloadEmail;
 use App\Models\Registry;
 use App\Models\ScopeType;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Filament\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Colors\Color;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -98,6 +101,29 @@ class EditDownloadEmail extends EditRecord
                     $this->redirect(DownloadEmailResource::getUrl('edit', ['record' => $nextRDownloadEmail->id]));
                 }),
             Actions\ActionGroup::make([
+                Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($record) {
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
+
+                        return response()
+                            ->streamDownload(function () use ($record) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.download_email', [
+                                        'company' => Company::first(),
+                                        'email' => $record,
+                                    ])
+                                )
+                                ->setPaper('A4', 'portrait')
+                                ->stream();
+                            }, "Pec ricevuta_{$record->id}.pdf");
+                    }),
                 Actions\Action::make('register')
                     ->label('Protocolla')
                     ->icon('fluentui-pen-20-o')

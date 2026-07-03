@@ -3,10 +3,15 @@
 namespace App\Filament\User\Resources\RegistryResource\Pages;
 
 use App\Filament\User\Resources\RegistryResource;
+use App\Models\Company;
 use App\Models\Registry;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Support\Colors\Color;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Blade;
 
 class ViewRegistry extends ViewRecord
 {
@@ -65,6 +70,29 @@ class ViewRegistry extends ViewRecord
                     $this->redirect(RegistryResource::getUrl('view', ['record' => $nextIRegistry->id]));
                 }),
             Actions\ActionGroup::make([
+                Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($record) {
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
+
+                        return response()
+                            ->streamDownload(function () use ($record) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.registry', [
+                                        'company' => Company::first(),
+                                        'registry' => $record,
+                                    ])
+                                )
+                                ->setPaper('A4', 'portrait')
+                                ->stream();
+                            }, "Voce protocollo_{$record->protocol_number}.pdf");
+                    }),
                 Actions\EditAction::make()
                     ->label('Gestisci'),
             ])

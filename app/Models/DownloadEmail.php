@@ -24,7 +24,7 @@ class DownloadEmail extends Model
     ];
 
     protected $casts = [
-        //
+        'receive_date' => 'datetime',
     ];
 
     public function downloadUser(){

@@ -12,6 +12,7 @@ use App\Models\Recipient;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use App\Models\ScopeType;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Filament\Actions;
 use Filament\Actions\Action;
@@ -19,7 +20,9 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Colors\Color;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -234,6 +237,29 @@ class EditManualInsert extends EditRecord
                                 ->warning()
                                 ->send();
                         }
+                    }),                    
+                Actions\Action::make('print')
+                    ->icon('heroicon-o-printer')
+                    ->label('Stampa')
+                    ->tooltip('Stampa')
+                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->action(function ($record) {
+                        Notification::make()
+                            ->title('Stampa avviata')
+                            ->success()
+                            ->send();
+
+                        return response()
+                            ->streamDownload(function () use ($record) {
+                                echo Pdf::loadHTML(
+                                    Blade::render('print.manual_insert', [
+                                        'company' => Company::first(),
+                                        'element' => $record,
+                                    ])
+                                )
+                                ->setPaper('A4', 'portrait')
+                                ->stream();
+                            }, "Inserimento manuale_{$record->id}.pdf");
                     }),
                 Action::make('register')
                     ->label('Protocolla')
