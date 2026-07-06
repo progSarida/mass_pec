@@ -922,7 +922,7 @@ class RegistryResource extends Resource
 
                         return '';
                     })
-                    ->limit(250),
+                    ->limit(90),
 
                 Tables\Columns\TextColumn::make('receivers')
                     ->label('Destinatari')
