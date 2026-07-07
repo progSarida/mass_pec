@@ -2,7 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Enums\PecInteractionType;
 use App\Enums\ShipmentErrorType;
+use App\Models\PecInteraction;
 use App\Models\Receiver;
 // use App\Models\Sender;
 use App\Models\Shipment;
@@ -110,6 +112,14 @@ class DownloadShipmentReceiptsJob implements ShouldQueue
 
             @imap_expunge($imap);
             @imap_close($imap);
+
+            // INSERISCO QUI LA CREAZIONE DEL RECORD DI pec_interactions ('shipment_receipts', today())
+            PecInteraction::create([
+                'pec_interaction_type' => PecInteractionType::SHIPMENT_RECEIPT,
+                'registry_id' => null,
+                'interaction_date' => today(),
+                'user_id' => $user->id,
+            ]);
 
             $this->sendFinalNotification($user, $shipment, $count);
 

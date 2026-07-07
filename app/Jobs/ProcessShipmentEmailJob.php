@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Enums\PecInteractionType;
+use App\Models\PecInteraction;
 use App\Models\Shipment;
 use App\Models\User;
 use App\Services\ShipmentEmailService;
@@ -92,6 +94,14 @@ class ProcessShipmentEmailJob implements ShouldQueue
                     $hasFailures = $batch->failedJobs > 0;
 
                     Log::info($hasFailures ? 'Spedizione terminata con alcuni errori' : 'Spedizione completata');
+
+                    // INSERISCO QUI LA CREAZIONE DEL RECORD DI pec_interactions ('shipment', today())
+                    PecInteraction::create([
+                        'pec_interaction_type' => PecInteractionType::SHIPMENT,
+                        'registry_id' => null,
+                        'interaction_date' => now(),
+                        'user_id' => $userId,
+                    ]);
 
                     \Filament\Notifications\Notification::make()
                         ->title($hasFailures ? 'Spedizione terminata con alcuni errori' : 'Spedizione completata')

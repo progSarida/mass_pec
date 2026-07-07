@@ -2,8 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Enums\PecInteractionType;
 use App\Enums\PecStatus;
 use App\Models\Account;
+use App\Models\PecInteraction;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use Illuminate\Bus\Queueable;
@@ -114,6 +116,14 @@ class DownloadReceiptsJob implements ShouldQueue
 
             // Notifica finale
             $this->sendFinalNotification($user, $registry, $receiptsProcessed, $receiversProcessed, $receiversFailed, $errors);
+
+            // INSERISCO QUI LA CREAZIONE DEL RECORD DI pec_interactions ('receipt', today())
+            PecInteraction::create([
+                'pec_interaction_type' => PecInteractionType::RECEIPT,
+                'registry_id' => null,
+                'interaction_date' => today(),
+                'user_id' => $this->userId,
+            ]);
 
         } catch (\Throwable $e) {
             Log::error("Errore download ricevute: " . $e->getMessage(), [

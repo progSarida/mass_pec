@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Enums\PecInteractionType;
+use App\Models\PecInteraction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -36,6 +38,14 @@ class DownloadEmailsWithReceiptsJob implements ShouldQueue
 
             // 2. Poi scarica le ricevute per tutte le registry in uscita inviate
             $this->downloadAllPendingReceipts();
+
+            // INSERISCO QUI LA CREAZIONE DEL RECORD DI pec_interactions ('download', today())
+            PecInteraction::create([
+                'pec_interaction_type' => PecInteractionType::DOWNLOAD,
+                'registry_id' => null,
+                'interaction_date' => today(),
+                'user_id' => $this->userId,
+            ]);
 
         } catch (\Throwable $e) {
             Log::error("Errore download email con ricevute: " . $e->getMessage(), [

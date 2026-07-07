@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Enums\PecInteractionType;
+use App\Models\PecInteraction;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use App\Services\RegistryEmailService;
@@ -141,6 +143,14 @@ class ProcessRegistryEmailJob implements ShouldQueue
                     'total' => $totalJobs,
                     'success' => $successJobs,
                     'failed' => $failedJobs,
+                ]);
+
+                // INSERISCO QUI LA CREAZIONE DEL RECORD DI pec_interactions ('pec', today())
+                PecInteraction::create([
+                    'pec_interaction_type' => PecInteractionType::PEC,
+                    'registry_id' => $registryId,
+                    'interaction_date' => today(),
+                    'user_id' => $userId,
                 ]);
 
                 if ($failedJobs > 0) {
