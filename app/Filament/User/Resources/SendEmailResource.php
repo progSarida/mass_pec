@@ -260,6 +260,7 @@ class SendEmailResource extends Resource
                 Forms\Components\RichEditor::make('body')
                     ->label('Messaggio')
                     ->required()
+                    ->extraInputAttributes(['style' => 'line-height: 0.6;'])
                     ->columnSpanFull(),
 
                 FileUpload::make('attachments')
