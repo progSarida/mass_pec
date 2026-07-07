@@ -121,7 +121,7 @@ class DownloadReceiptsJob implements ShouldQueue
             PecInteraction::create([
                 'pec_interaction_type' => PecInteractionType::RECEIPT,
                 'registry_id' => null,
-                'interaction_date' => today(),
+                'interaction_date' => now(),
                 'user_id' => $this->userId,
             ]);
 

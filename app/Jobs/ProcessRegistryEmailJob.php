@@ -149,7 +149,7 @@ class ProcessRegistryEmailJob implements ShouldQueue
                 PecInteraction::create([
                     'pec_interaction_type' => PecInteractionType::PEC,
                     'registry_id' => $registryId,
-                    'interaction_date' => today(),
+                    'interaction_date' => now(),
                     'user_id' => $userId,
                 ]);
 
