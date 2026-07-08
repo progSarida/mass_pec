@@ -50,7 +50,7 @@ class PecInteractionResource extends Resource
                     ->label('Protocollo')
                     ->sortable(),
 
-                TextColumn::make('interaction_date')
+                TextColumn::make('created_at')
                     ->label('Data interazione')
                     ->sortable()
                     ->date('d/m/Y h:m:s'),
