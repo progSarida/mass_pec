@@ -37,6 +37,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use setasign\Fpdi\Fpdi;
 
 class EditRegistry extends EditRecord
@@ -339,11 +340,51 @@ class EditRegistry extends EditRecord
                             ->preserveFilenames()
                             ->required(),
                     ])
-                    ->action(function (array $data) {
+                    ->action(function (array $data, $record, $livewire) {
+                        $fileNames = collect($data['receipts'])->map(fn ($path) => basename($path))->toArray();
+
+                        foreach ($record->registryReceivers as $receiver) {
+                            if ($receiver->pec_status == PecStatus::DELIVERED) {
+                                continue;
+                            }
+
+                            // Isolo solo i file che appartengono a questo receiver (match sull'indirizzo)
+                            $receiverFiles = collect($fileNames)->filter(function ($name) use ($receiver) {
+                                $addressPart = Str::beforeLast($name, '_');
+                                return strcasecmp($addressPart, $receiver->address) === 0;
+                            });
+
+                            if ($receiverFiles->isEmpty()) {
+                                continue;
+                            }
+
+                            foreach ($receiverFiles as $fileName) {
+                                $fullPath = $record->attachment_path . '/receipts/' . $fileName;
+                                $content = Storage::get($fullPath);
+
+                                $referencedMessageId = static::extractReferencedMessageId($content);
+
+                                if (!$receiver->message_id && $referencedMessageId && $referencedMessageId !== $record->message_id) {
+                                    $receiver->update(['message_id' => $referencedMessageId]);
+                                }
+
+                                $hasConsegna = Str::contains($fileName, 'CONSEGNA', ignoreCase: true);
+                                $hasAccettazione = Str::contains($fileName, 'ACCETTAZIONE', ignoreCase: true);
+
+                                if ($hasConsegna) {
+                                    $receiver->update(['pec_status' => PecStatus::DELIVERED]);
+                                } elseif ($hasAccettazione) {
+                                    $receiver->update(['pec_status' => PecStatus::ACCEPTED]);
+                                }
+                            }
+                        }                    
+
                         Notification::make()
                             ->title('Caricamento completato')
                             ->success()
                             ->send();
+
+                        return redirect(request()->header('Referer'));
                     }),
 
                 Action::make('uploadFile')
@@ -1146,6 +1187,19 @@ class EditRegistry extends EditRecord
                 'trace'       => $e->getTraceAsString(),
             ]);
         }
+    }
+
+    private static function extractReferencedMessageId(string $emlContent): ?string
+    {
+        if (preg_match('/^X-Riferimento-Message-ID:\s*(.+)$/mi', $emlContent, $matches)) {
+            return trim($matches[1], "<> \t\n\r\0\x0B");
+        }
+
+        if (preg_match('/^Message-ID:\s*(.+)$/mi', $emlContent, $matches)) {
+            return trim($matches[1], "<> \t\n\r\0\x0B");
+        }
+
+        return null;
     }
 
     // private function copyAttachmentsOld(?string $sourcePath, string $destinationPath): void
