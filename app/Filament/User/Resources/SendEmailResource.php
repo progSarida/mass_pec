@@ -260,7 +260,7 @@ class SendEmailResource extends Resource
                 Forms\Components\RichEditor::make('body')
                     ->label('Messaggio')
                     ->required()
-                    ->extraInputAttributes(['style' => 'line-height: 0.6;'])
+                    ->extraInputAttributes(['style' => 'line-height: 0.8;'])
                     ->columnSpanFull(),
 
                 FileUpload::make('attachments')
@@ -439,6 +439,14 @@ class SendEmailResource extends Resource
                             ? "C'è 1 allegato"
                             : "Ci sono {$count} allegati";
                     }),
+                IconColumn::make('registrable')
+                    ->label('Protocollabile')
+                    ->getStateUsing(fn ($record) => static::canRegister($record))
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
                 Tables\Columns\TextColumn::make('create_date')
                     ->label('Data creazione')
                     ->date()
@@ -789,5 +797,10 @@ class SendEmailResource extends Resource
 
         // Uniamo tutto con la virgola
         return implode(', ', $output);
+    }
+
+    private static function canRegister($record): bool
+    {
+        return $record->account_id && $record->subject && !empty($record->recipients) && $record->body;
     }
 }

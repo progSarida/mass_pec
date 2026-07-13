@@ -305,7 +305,7 @@ class ManualInsertResource extends Resource
                 RichEditor::make('body')
                     ->label('Messaggio')
                     ->default('')
-                    ->extraInputAttributes(['style' => 'line-height: 0.6;'])
+                    ->extraInputAttributes(['style' => 'line-height: 0.8;'])
                     ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
                     ->columnSpanFull(),
 
