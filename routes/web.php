@@ -3,6 +3,8 @@
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\SsoController;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 // ROTTE PER LA LOGIN CENTRALIZZATA
@@ -22,41 +24,76 @@ Route::get('/download-zip-receipts/{id}', [AttachmentController::class, 'downloa
 // scarico zip dei documenti integrativi
 Route::get('/download-zip-related/{id}', [AttachmentController::class, 'downloadZipRelated'])->name('related.zip')->middleware(['auth']);
 
-// ROTTA DI TEST PER VERIFICA IP PUBBLICO V6 E GEOLOCALIZZAZIONE
+// 1. ROTTA IP V6 (o IP di default del server)
 Route::get('/my-ip6', function () {
-    $ip = file_get_contents('https://ifconfig.me/ip');
-    $info = file_get_contents('https://ipinfo.io/' . $ip);
+    // Recuperiamo prima l'IP del server tramite ifconfig.me
+    $ipResponse = Http::timeout(3)->get('https://ifconfig.me/ip');
     
+    if ($ipResponse->failed()) {
+        return response()->json(['error' => 'Impossibile recuperare l\'IP pubblico'], 500);
+    }
+    
+    $ip = trim($ipResponse->body());
+
+    // Chiamata a ipinfo.io con gestione dell'errore (es. 429 o 500)
+    $infoResponse = Http::timeout(3)->get("https://ipinfo.io/{$ip}");
+
+    $infoData = null;
+    if ($infoResponse->successful()) {
+        $infoData = $infoResponse->json();
+    } else {
+        // Logghiamo l'errore per monitorarlo (es. se vedi 429 nei log, sai che hai finito il limite)
+        Log::warning("Errore ipinfo.io per IP {$ip}: Codice " . $infoResponse->status());
+    }
+
     return response()->json([
-        'ip' => trim($ip),
-        'info' => json_decode($info, true)
+        'ip'   => $ip,
+        'info' => $infoData ?? ['error' => 'Dati di geolocalizzazione non disponibili (Rate limit o API offline)']
     ]);
 });
 
-// ROTTA DI TEST PER VERIFICA IP PUBBLICO V4 E GEOLOCALIZZAZIONE
-use Illuminate\Support\Facades\Http;
+
+// 2. ROTTA IP V4 E GEOLOCALIZZAZIONE (Senza doppie chiamate ridondanti)
 Route::get('/my-ip4', function () {
-    // Utilizziamo il client HTTP di Laravel forzando l'uso di IPv4 (CURLOPT_IPRESOLVE)
-    $response = Http::withOptions([
-        'curl' => [
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4
-        ]
+    
+    // 1. Recupero Info IPv4 forzando la risoluzione di rete su IPv4
+    $responseV4 = Http::withOptions([
+        'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+        'timeout' => 3
     ])->get('https://ipinfo.io/json');
 
-    if ($response->failed()) {
-        return response()->json(['error' => 'Impossibile recuperare i dati'], 500);
+    $dataV4 = null;
+    $ipV4 = null;
+
+    if ($responseV4->successful()) {
+        $dataV4 = $responseV4->json();
+        $ipV4 = $dataV4['ip'] ?? null;
+    } else {
+        Log::warning("Errore ipinfo.io (IPv4): Codice " . $responseV4->status());
     }
 
-    // Recupero i dati con IPv6
-    $ip = file_get_contents('https://ifconfig.me/ip');
-    $info = file_get_contents('https://ipinfo.io/' . $ip);
+    // 2. Recupero IP V6 (ifconfig.me risolve normalmente in IPv6 se il server lo supporta)
+    $ipV6Response = Http::timeout(3)->get('https://ifconfig.me/ip');
+    $ipV6 = null;
+    $dataV6 = null;
 
-    $data = $response->json();
+    if ($ipV6Response->successful()) {
+        $ipV6 = trim($ipV6Response->body());
+        
+        // Eseguiamo la chiamata per IPv6 solo se abbiamo effettivamente un IP valido 
+        // e se la prima chiamata non ha già fallito per rate limit (per evitare di sprecare API call)
+        if ($ipV6 && $responseV4->status() !== 429) {
+            $responseV6 = Http::timeout(3)->get("https://ipinfo.io/{$ipV6}");
+            if ($responseV6->successful()) {
+                $dataV6 = $responseV6->json();
+            }
+        }
+    }
 
     return response()->json([
-        'ip_v4'   => $data['ip'] ?? null,
-        'info_v4' => $data,
-        'ip_v6' => trim($ip),
-        'info_v6' => json_decode($info, true)
+        'ip_v4'   => $ipV4,
+        'info_v4' => $dataV4 ?? ['error' => 'Dati IPv4 non disponibili'],
+        'ip_v6'   => $ipV6,
+        'info_v6' => $dataV6 ?? ['error' => 'Dati IPv6 non disponibili o limite raggiunto']
     ]);
 });
