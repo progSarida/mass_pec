@@ -33,30 +33,30 @@ Route::get('/download-zip-related/{id}', [AttachmentController::class, 'download
 //     ]);
 // });
 
-// // ROTTA DI TEST PER VERIFICA IP PUBBLICO V4 E GEOLOCALIZZAZIONE
-// use Illuminate\Support\Facades\Http;
-// Route::get('/my-ip', function () {
-//     // Utilizziamo il client HTTP di Laravel forzando l'uso di IPv4 (CURLOPT_IPRESOLVE)
-//     $response = Http::withOptions([
-//         'curl' => [
-//             CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4
-//         ]
-//     ])->get('https://ipinfo.io/json');
+// ROTTA DI TEST PER VERIFICA IP PUBBLICO V4 E GEOLOCALIZZAZIONE
+use Illuminate\Support\Facades\Http;
+Route::get('/my-ip', function () {
+    // Utilizziamo il client HTTP di Laravel forzando l'uso di IPv4 (CURLOPT_IPRESOLVE)
+    $response = Http::withOptions([
+        'curl' => [
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4
+        ]
+    ])->get('https://ipinfo.io/json');
 
-//     if ($response->failed()) {
-//         return response()->json(['error' => 'Impossibile recuperare i dati'], 500);
-//     }
+    if ($response->failed()) {
+        return response()->json(['error' => 'Impossibile recuperare i dati'], 500);
+    }
 
-//     // Recupero i dati con IPv6
-//     $ip = file_get_contents('https://ifconfig.me/ip');
-//     $info = file_get_contents('https://ipinfo.io/' . $ip);
+    // Recupero i dati con IPv6
+    $ip = file_get_contents('https://ifconfig.me/ip');
+    $info = file_get_contents('https://ipinfo.io/' . $ip);
 
-//     $data = $response->json();
+    $data = $response->json();
 
-//     return response()->json([
-//         'ip_v4'   => $data['ip'] ?? null,
-//         'info_v4' => $data,
-//         'ip_v6' => trim($ip),
-//         'info_v6' => json_decode($info, true)
-//     ]);
-// });
+    return response()->json([
+        'ip_v4'   => $data['ip'] ?? null,
+        'info_v4' => $data,
+        'ip_v6' => trim($ip),
+        'info_v6' => json_decode($info, true)
+    ]);
+});
