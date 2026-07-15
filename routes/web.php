@@ -54,46 +54,64 @@ Route::get('/my-ip6', function () {
 
 
 // 2. ROTTA IP V4 E GEOLOCALIZZAZIONE (Senza doppie chiamate ridondanti)
-Route::get('/my-ip4', function () {
+// Route::get('/my-ip4', function () {
     
-    // 1. Recupero Info IPv4 forzando la risoluzione di rete su IPv4
+//     // 1. Recupero Info IPv4 forzando la risoluzione di rete su IPv4
+//     $responseV4 = Http::withOptions([
+//         'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+//         'timeout' => 3
+//     ])->get('https://ipinfo.io/json');
+
+//     $dataV4 = null;
+//     $ipV4 = null;
+
+//     if ($responseV4->successful()) {
+//         $dataV4 = $responseV4->json();
+//         $ipV4 = $dataV4['ip'] ?? null;
+//     } else {
+//         Log::warning("Errore ipinfo.io (IPv4): Codice " . $responseV4->status());
+//     }
+
+//     // 2. Recupero IP V6 (ifconfig.me risolve normalmente in IPv6 se il server lo supporta)
+//     $ipV6Response = Http::timeout(3)->get('https://ifconfig.me/ip');
+//     $ipV6 = null;
+//     $dataV6 = null;
+
+//     if ($ipV6Response->successful()) {
+//         $ipV6 = trim($ipV6Response->body());
+        
+//         // Eseguiamo la chiamata per IPv6 solo se abbiamo effettivamente un IP valido 
+//         // e se la prima chiamata non ha già fallito per rate limit (per evitare di sprecare API call)
+//         if ($ipV6 && $responseV4->status() !== 429) {
+//             $responseV6 = Http::timeout(3)->get("https://ipinfo.io/{$ipV6}");
+//             if ($responseV6->successful()) {
+//                 $dataV6 = $responseV6->json();
+//             }
+//         }
+//     }
+
+//     return response()->json([
+//         'ip_v4'   => $ipV4,
+//         'info_v4' => $dataV4 ?? ['error' => 'Dati IPv4 non disponibili'],
+//         'ip_v6'   => $ipV6,
+//         'info_v6' => $dataV6 ?? ['error' => 'Dati IPv6 non disponibili o limite raggiunto']
+//     ]);
+// });
+
+Route::get('/my-ip4', function () {
+    // Chiamata a ip-api.com forzando IPv4
     $responseV4 = Http::withOptions([
         'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
         'timeout' => 3
-    ])->get('https://ipinfo.io/json');
+    ])->get('http://ip-api.com/json'); // Nota: la versione free usa http, non https
 
     $dataV4 = null;
-    $ipV4 = null;
-
     if ($responseV4->successful()) {
         $dataV4 = $responseV4->json();
-        $ipV4 = $dataV4['ip'] ?? null;
-    } else {
-        Log::warning("Errore ipinfo.io (IPv4): Codice " . $responseV4->status());
-    }
-
-    // 2. Recupero IP V6 (ifconfig.me risolve normalmente in IPv6 se il server lo supporta)
-    $ipV6Response = Http::timeout(3)->get('https://ifconfig.me/ip');
-    $ipV6 = null;
-    $dataV6 = null;
-
-    if ($ipV6Response->successful()) {
-        $ipV6 = trim($ipV6Response->body());
-        
-        // Eseguiamo la chiamata per IPv6 solo se abbiamo effettivamente un IP valido 
-        // e se la prima chiamata non ha già fallito per rate limit (per evitare di sprecare API call)
-        if ($ipV6 && $responseV4->status() !== 429) {
-            $responseV6 = Http::timeout(3)->get("https://ipinfo.io/{$ipV6}");
-            if ($responseV6->successful()) {
-                $dataV6 = $responseV6->json();
-            }
-        }
     }
 
     return response()->json([
-        'ip_v4'   => $ipV4,
+        'ip_v4'   => $dataV4['query'] ?? null, // ip-api usa la chiave 'query' per l'IP
         'info_v4' => $dataV4 ?? ['error' => 'Dati IPv4 non disponibili'],
-        'ip_v6'   => $ipV6,
-        'info_v6' => $dataV6 ?? ['error' => 'Dati IPv6 non disponibili o limite raggiunto']
     ]);
 });
