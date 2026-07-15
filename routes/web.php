@@ -24,36 +24,36 @@ Route::get('/download-zip-receipts/{id}', [AttachmentController::class, 'downloa
 // scarico zip dei documenti integrativi
 Route::get('/download-zip-related/{id}', [AttachmentController::class, 'downloadZipRelated'])->name('related.zip')->middleware(['auth']);
 
-// 1. ROTTA IP V6 (o IP di default del server)
-Route::get('/my-ip6', function () {
-    // Recuperiamo prima l'IP del server tramite ifconfig.me
-    $ipResponse = Http::timeout(3)->get('https://ifconfig.me/ip');
+// // 1. ROTTA IP V6 (o IP di default del server)
+// Route::get('/my-ip6', function () {
+//     // Recuperiamo prima l'IP del server tramite ifconfig.me
+//     $ipResponse = Http::timeout(3)->get('https://ifconfig.me/ip');
     
-    if ($ipResponse->failed()) {
-        return response()->json(['error' => 'Impossibile recuperare l\'IP pubblico'], 500);
-    }
+//     if ($ipResponse->failed()) {
+//         return response()->json(['error' => 'Impossibile recuperare l\'IP pubblico'], 500);
+//     }
     
-    $ip = trim($ipResponse->body());
+//     $ip = trim($ipResponse->body());
 
-    // Chiamata a ipinfo.io con gestione dell'errore (es. 429 o 500)
-    $infoResponse = Http::timeout(3)->get("https://ipinfo.io/{$ip}");
+//     // Chiamata a ipinfo.io con gestione dell'errore (es. 429 o 500)
+//     $infoResponse = Http::timeout(3)->get("https://ipinfo.io/{$ip}");
 
-    $infoData = null;
-    if ($infoResponse->successful()) {
-        $infoData = $infoResponse->json();
-    } else {
-        // Logghiamo l'errore per monitorarlo (es. se vedi 429 nei log, sai che hai finito il limite)
-        Log::warning("Errore ipinfo.io per IP {$ip}: Codice " . $infoResponse->status());
-    }
+//     $infoData = null;
+//     if ($infoResponse->successful()) {
+//         $infoData = $infoResponse->json();
+//     } else {
+//         // Logghiamo l'errore per monitorarlo (es. se vedi 429 nei log, sai che hai finito il limite)
+//         Log::warning("Errore ipinfo.io per IP {$ip}: Codice " . $infoResponse->status());
+//     }
 
-    return response()->json([
-        'ip'   => $ip,
-        'info' => $infoData ?? ['error' => 'Dati di geolocalizzazione non disponibili (Rate limit o API offline)']
-    ]);
-});
+//     return response()->json([
+//         'ip'   => $ip,
+//         'info' => $infoData ?? ['error' => 'Dati di geolocalizzazione non disponibili (Rate limit o API offline)']
+//     ]);
+// });
 
 
-// 2. ROTTA IP V4 E GEOLOCALIZZAZIONE (Senza doppie chiamate ridondanti)
+// // 2. ROTTA IP V4 E GEOLOCALIZZAZIONE (Senza doppie chiamate ridondanti)
 // Route::get('/my-ip4', function () {
     
 //     // 1. Recupero Info IPv4 forzando la risoluzione di rete su IPv4
