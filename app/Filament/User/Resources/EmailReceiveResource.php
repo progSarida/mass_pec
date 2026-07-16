@@ -167,7 +167,8 @@ class EmailReceiveResource extends Resource
                             // Il pulsante appare solo se c'è più di un file
                             ->visible(function ($record) {
                                 if (!$record || !$record->attachment_path) return false;
-                                return count(Storage::files($record->attachment_path)) > 1;
+                                // return count(Storage::files($record->attachment_path)) > 1;
+                                return true;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
                                 'type' => $record->getMorphClass(),

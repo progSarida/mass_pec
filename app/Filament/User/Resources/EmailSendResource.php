@@ -282,9 +282,10 @@ class EmailSendResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record->attachment_path) return false;
-                                // Mostra il tasto solo se ci sono 2 o più file
-                                $files = Storage::files($record->attachment_path);
-                                return count($files) > 1;
+                                // // Mostra il tasto solo se ci sono 2 o più file
+                                // $files = Storage::files($record->attachment_path);
+                                // return count($files) > 1;
+                                return true;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
                                 'type' => $record->getMorphClass(),

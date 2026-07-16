@@ -305,7 +305,7 @@ class ManualInsertResource extends Resource
                 RichEditor::make('body')
                     ->label('Messaggio')
                     ->default('')
-                    ->extraInputAttributes(['style' => 'line-height: 0.8;'])
+                    // ->extraInputAttributes(['style' => 'line-height: 0.8;'])
                     ->formatStateUsing(fn ($record, $state) => $record->eml_body ?? ($state ?? ''))
                     ->columnSpanFull(),
 
@@ -369,9 +369,10 @@ class ManualInsertResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record?->attachment_path) return false;
-                                // Il pulsante appare solo se ci sono almeno 2 file
-                                $files = Storage::files($record?->attachment_path);
-                                return count($files) > 1;
+                                // // Il pulsante appare solo se ci sono almeno 2 file
+                                // $files = Storage::files($record?->attachment_path);
+                                // return count($files) > 1;
+                                return true;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
                                 'type' => $record?->getMorphClass(),
@@ -426,9 +427,10 @@ class ManualInsertResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record?->attachment_path) return false;
-                                // Il pulsante appare solo se ci sono almeno 2 file
-                                $files = Storage::files($record?->attachment_path . '/related');
-                                return count($files) > 1;
+                                // // Il pulsante appare solo se ci sono almeno 2 file
+                                // $files = Storage::files($record?->attachment_path . '/related');
+                                // return count($files) > 1;
+                                return true;
                             })
                             ->url(fn ($record) => route('related.zip', [
                                 'id' => $record?->id

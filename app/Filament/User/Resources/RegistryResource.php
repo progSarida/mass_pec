@@ -647,9 +647,10 @@ class RegistryResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record?->attachment_path) return false;
-                                // Il pulsante appare solo se ci sono almeno 2 file
-                                $files = Storage::files($record?->attachment_path);
-                                return count($files) > 1;
+                                // // Il pulsante appare solo se ci sono almeno 2 file
+                                // $files = Storage::files($record?->attachment_path);
+                                // return count($files) > 1;
+                                return true;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
                                 'type' => $record?->getMorphClass(),
@@ -704,9 +705,10 @@ class RegistryResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record?->attachment_path) return false;
-                                // Il pulsante appare solo se ci sono almeno 2 file
-                                $files = Storage::files($record?->attachment_path . '/related');
-                                return count($files) > 1;
+                                // // Il pulsante appare solo se ci sono almeno 2 file
+                                // $files = Storage::files($record?->attachment_path . '/related');
+                                // return count($files) > 1;
+                                return true;
                             })
                             ->url(fn ($record) => route('related.zip', [
                                 'id' => $record?->id
@@ -991,59 +993,96 @@ class RegistryResource extends Resource
                     }),
 
                 IconColumn::make('esito_report')
-                    ->label('Esito invio')
+                    ->label('Esito')
                     ->getStateUsing(function ($record) {
                         return static::checkReceipts($record);
                     })
                     ->icon(function ($state, $record) {
-                        if(!$state) {
-                            return null;
+                        if(!$state) { return null; }
+
+                        switch($state){
+                            case 'manual':
+                                return 'heroicon-o-pencil-square';
+                                break;
+                            case 'download':
+                                return 'heroicon-o-check-circle';
+                                break;
+                            case 'shipment':
+                                return 'heroicon-m-arrow-up-tray';
+                                break;
+                            default:
+                                [$sent, $accepted, $delivered] = explode(',', $state);                                              // inviate, accettate, consegnate
+                                $count = $record->registryReceivers()->count();                                                     // numero destinatari
+
+                                if($sent == 0) return 'heroicon-o-envelope';                                                        // nessuna mail inviata
+
+                                if($sent == $count) {                                                                               // tutte le mail inviate
+                                    if($sent == $delivered) return 'heroicon-o-check-circle';                                       // numero inviate = numero consegnate
+                                    else if($sent == $accepted) return 'heroicon-o-clock';                                          // numero inviate = numero accettate
+                                    else return 'heroicon-o-exclamation-triangle';                                                  // numero accettate < numero inviate => errore invio
+                                }
+                                else return 'heroicon-o-exclamation-triangle';                                                      // non tutte le mail sono state elaborate
+                                break;
                         }
-
-                        [$sent, $accepted, $delivered] = explode(',', $state);                                              // inviate, accettate, consegnate
-                        $count = $record->registryReceivers()->count();                                                     // numero destinatari
-
-                        if($sent == 0) return 'heroicon-o-envelope';                                                        // nessuna mail inviata
-
-                        if($sent == $count) {                                                                               // tutte le mail inviate
-                            if($sent == $delivered) return 'heroicon-o-check-circle';                                       // numero inviate = numero consegnate
-                            else if($sent == $accepted) return 'heroicon-o-clock';                                          // numero inviate = numero accettate
-                            else return 'heroicon-o-exclamation-triangle';                                                  // numero accettate < numero inviate => errore invio
-                        }
-                        else return 'heroicon-o-exclamation-triangle';                                                      // non tutte le mail sono state elaborate
                     })
                     ->color(function ($state, $record) {
-                        if(!$state) return 'gray';
+                        if(!$state) { return 'gray'; }
 
-                        [$sent, $accepted, $delivered] = explode(',', $state);
-                        $count = $record->registryReceivers()->count();
+                        switch($state){
+                            case 'manual':
+                                return 'gray';
+                                break;
+                            case 'download':
+                                return 'info';
+                                break;
+                            case 'shipment':
+                                return 'success';
+                                break;
+                            default:
+                                [$sent, $accepted, $delivered] = explode(',', $state);
+                                $count = $record->registryReceivers()->count();
 
-                        if($sent == 0) return 'danger';
+                                if($sent == 0) return 'danger';
 
-                        if($sent == $count) {                                                                               // tutte le mail inviate
-                            if($sent == $delivered) return 'success';                                                       // numero inviate = numero consegnate
-                            else if($sent == $accepted) return 'info';                                                      // numero inviate = numero accettate
-                            else return 'warning';                                                                          // numero accettate < numero inviate => errore invio
-                        }
-                        else return 'warning';                                                                              // non tutte le mail sono state elaborate
+                                if($sent == $count) {                                                                               // tutte le mail inviate
+                                    if($sent == $delivered) return 'success';                                                       // numero inviate = numero consegnate
+                                    else if($sent == $accepted) return 'info';                                                      // numero inviate = numero accettate
+                                    else return 'warning';                                                                          // numero accettate < numero inviate => errore invio
+                                }
+                                else return 'warning';                                                                              // non tutte le mail sono state elaborate
+                                break;
+                        } 
                     })
                     ->tooltip(function ($state, $record) {
-                        if (!$state) return null;
+                        if(!$state) { return null; }
 
-                        [$sent, $accepted, $delivered] = explode(',', $state);
-                        $count = $record->registryReceivers()->count();
+                        switch($state){
+                            case 'manual':
+                                return 'Protocollata';
+                                break;
+                            case 'download':
+                                return 'Protocollata';
+                                break;
+                            case 'shipment':
+                                return 'Inviata';
+                                break;
+                            default:
+                                [$sent, $accepted, $delivered] = explode(',', $state);
+                                $count = $record->registryReceivers()->count();
 
-                        if($sent == 0) return 'Non inviata';
+                                if($sent == 0) return 'Non inviata';
 
-                        if($accepted == $delivered && $accepted == 0) return 'Inviata, ricevute da scaricare';
+                                if($accepted == $delivered && $accepted == 0) return 'Inviata, ricevute da scaricare';
 
-                        $tooltip = $sent == 1 ? "1 inviata" : "{$sent} inviate";
-                        // $tooltip .= $accepted == 1 ? ", 1 accetatta" : ", {$accepted} accettate";
-                        $tooltip .= $delivered == 1 ? " e 1 consegnata" : " e {$delivered} consegnate";
+                                $tooltip = $sent == 1 ? "1 inviata" : "{$sent} inviate";
+                                // $tooltip .= $accepted == 1 ? ", 1 accetatta" : ", {$accepted} accettate";
+                                $tooltip .= $delivered == 1 ? " e 1 consegnata" : " e {$delivered} consegnate";
 
-                        $tooltip .= " su {$count} destinatari";
+                                $tooltip .= " su {$count} destinatari";
 
-                        return $tooltip;
+                                return $tooltip;
+                                break;
+                        }
                     }),
 
                 IconColumn::make('manage_registry_type')
@@ -1593,9 +1632,21 @@ class RegistryResource extends Resource
 
         // Log::info("{$registry->protocol_number} -----------------------------------------------------");
 
-        if(!$registry->isOutgoingEmail()) {
-            self::$receiptsCache[$cacheKey] = null;
-            return null;
+        // if(!$registry->isOutgoingEmail()) {
+        //     self::$receiptsCache[$cacheKey] = null;
+        //     return null;
+        // }
+
+        switch($registry->registry_origin_type){
+            case RegistryOriginType::MANUAL:
+                return 'manual';
+                break;
+            case RegistryOriginType::DOWNLOAD_EMAIL:
+                return 'download';
+                break;
+            case RegistryOriginType::SHIPMENT:
+                return 'shipment';
+                break;
         }
 
         $sent = 0;
