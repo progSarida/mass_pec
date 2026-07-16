@@ -1002,13 +1002,9 @@ class RegistryResource extends Resource
 
                         switch($state){
                             case 'manual':
-                                return 'heroicon-o-pencil-square';
-                                break;
                             case 'download':
-                                return 'heroicon-o-check-circle';
-                                break;
                             case 'shipment':
-                                return 'heroicon-m-arrow-up-tray';
+                                return 'heroicon-o-check-circle';
                                 break;
                             default:
                                 [$sent, $accepted, $delivered] = explode(',', $state);                                              // inviate, accettate, consegnate
@@ -1058,13 +1054,9 @@ class RegistryResource extends Resource
 
                         switch($state){
                             case 'manual':
-                                return 'Protocollata';
-                                break;
                             case 'download':
-                                return 'Protocollata';
-                                break;
                             case 'shipment':
-                                return 'Inviata';
+                                return 'Protocollata';
                                 break;
                             default:
                                 [$sent, $accepted, $delivered] = explode(',', $state);
