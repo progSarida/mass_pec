@@ -210,7 +210,7 @@ class EmailSendResource extends Resource
                     ->extraInputAttributes(['class' => 'text-center'])
                     ->visible(fn($record) => $record?->send_date)
                     ->displayFormat('d/m/Y')
-                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    ->columnSpan(['sm' => 'full', 'md' => 5]),
 
                 Forms\Components\Select::make('send_user_id')
                     ->label('Inviato da')
@@ -223,7 +223,7 @@ class EmailSendResource extends Resource
                 Placeholder::make('blank')
                     ->label('')
                     ->visible(fn($record) => !$record?->send_date && !$record?->send_user_id)
-                    ->columnSpan(['sm' => 'full', 'md' => 8]),
+                    ->columnSpan(['sm' => 'full', 'md' => 9]),
 
                 Select::make('manage_email_type')
                     ->label('Gestione')
@@ -232,7 +232,7 @@ class EmailSendResource extends Resource
                     ->afterStateUpdated(function(Set $set) {
                         //
                     })
-                    ->columnSpan(['sm' => 'full', 'md' => 4]),
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
 
                 DatePicker::make('manage_email_date')
                     ->label('Gestito il')
