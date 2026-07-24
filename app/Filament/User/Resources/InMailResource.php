@@ -142,9 +142,8 @@ class InMailResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record->attachment_path) return false;
-                                // // Mostra il tasto solo se ci sono almeno 2 file
-                                // return count(Storage::files($record->attachment_path)) > 1;
-                                return true;
+                                // Mostra il tasto solo se ci sono almeno 2 file
+                                return count(Storage::files($record->attachment_path)) > 0;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
                                 'type' => $record->getMorphClass(),

@@ -647,10 +647,9 @@ class RegistryResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record?->attachment_path) return false;
-                                // // Il pulsante appare solo se ci sono almeno 2 file
-                                // $files = Storage::files($record?->attachment_path);
-                                // return count($files) > 1;
-                                return true;
+                                // Il pulsante appare solo se ci sono almeno 2 file
+                                $files = Storage::files($record?->attachment_path);
+                                return count($files) > 0;
                             })
                             ->url(fn ($record) => route('attachments.zip', [
                                 'type' => $record?->getMorphClass(),
@@ -705,10 +704,9 @@ class RegistryResource extends Resource
                             ->size('sm')
                             ->visible(function ($record) {
                                 if (!$record || !$record?->attachment_path) return false;
-                                // // Il pulsante appare solo se ci sono almeno 2 file
-                                // $files = Storage::files($record?->attachment_path . '/related');
-                                // return count($files) > 1;
-                                return true;
+                                // Il pulsante appare solo se ci sono almeno 2 file
+                                $files = Storage::files($record?->attachment_path . '/related');
+                                return count($files) > 0;
                             })
                             ->url(fn ($record) => route('related.zip', [
                                 'id' => $record?->id

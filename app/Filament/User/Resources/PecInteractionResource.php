@@ -36,6 +36,7 @@ class PecInteractionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('interaction_date', 'desc')
             ->columns([
                 // IconColumn::make('pec_interaction_type')
                 //     ->label('')
@@ -50,7 +51,7 @@ class PecInteractionResource extends Resource
                     ->label('Protocollo')
                     ->sortable(),
 
-                TextColumn::make('created_at')
+                TextColumn::make('interaction_date')
                     ->label('Data interazione')
                     ->sortable()
                     ->date('d/m/Y h:m:s'),

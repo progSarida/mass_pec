@@ -170,6 +170,38 @@ class Registry extends Model
         }
     }
 
+    /**
+     * Helper per ottenere il badge completo della relazione
+     */
+    public function getRelationMetaAttribute(): array
+    {
+        $type = $this->relationship_type;
+
+        // 1. Se è una stringa (derivata dalla JOIN), la convertiamo nell'Enum
+        if (is_string($type)) {
+            $type = RelationshipType::tryFrom($type);
+        }
+
+        $direction = $this->direction ?? 'indirect';
+        $depth = (int) ($this->depth ?? 1);
+
+        // 2. Se il tipo non è valido o è nullo, fallback sicuro
+        if (! $type instanceof RelationshipType) {
+            return [
+                'label' => 'Sconosciuto',
+                'color' => 'gray',
+                'icon' => 'heroicon-m-question-mark-circle',
+            ];
+        }
+
+        // 3. Ora siamo sicuri che $type sia un'istanza dell'Enum!
+        return [
+            'label' => $type->getRelationLabel($direction, $depth),
+            'color' => $type->getRelationColor($direction, $depth),
+            'icon'  => $type->getRelationIcon($direction, $depth),
+        ];
+    }
+
     protected static function booted()
     {
         static::creating(function ($registry) {
