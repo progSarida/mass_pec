@@ -664,7 +664,10 @@ class EditShipment extends EditRecord
                     $finalPath = $newPath . '/' . $newFileName;
 
                     try {
-                        if ($extension === 'pdf') {
+                        // TODO: disabilitata apposizione watermark 
+                        // => studiare un modo per applicarlo senza perdere firma digitale
+                        // => nella condizione usare il flag 'add_watermark' di Company per gestire da parametri il watermark una volta trovato il modo
+                        if ($extension === 'pdf' && false) {
                             // Caso PDF: Scarichiamo in memoria, applichiamo watermark e ricarichiamo
                             $pdfContent = $storage->get($file);
                             $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber, $registry);

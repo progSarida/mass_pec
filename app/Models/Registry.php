@@ -7,6 +7,7 @@ use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Enums\RelationshipType;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -244,7 +245,10 @@ class Registry extends Model
                 $finalPath = rtrim($registry->attachment_path, '/') . '/' . $newFileName;
 
                 try {
-                    if ($extension === 'pdf') {
+                        // TODO: disabilitata apposizione watermark 
+                        // => studiare un modo per applicarlo senza perdere firma digitale
+                        // => nella condizione usare il flag 'add_watermark' di Company per gestire da parametri il watermark una volta trovato il modo
+                        if ($extension === 'pdf' && false) {
                         // PDF: applica watermark
                         $pdfContent = $storage->get($file);
                         $watermarkedPdf = static::addProtocolWatermarkBottom(
@@ -262,19 +266,60 @@ class Registry extends Model
                         $storage->delete($file);
 
                         Log::info("PDF con watermark creato: $finalPath");
+                    // } else {
+                    //     // Non-PDF: spostamento semplice
+                    //     $storage->move($file, $finalPath);
+                    //     Log::info("File non-PDF spostato: $finalPath");
+                    // }
                     } else {
-                        // Non-PDF: spostamento semplice
-                        $storage->move($file, $finalPath);
-                        Log::info("File non-PDF spostato: $finalPath");
+                        // Caso NON PDF: Usiamo lo Stream per file grandi (ottimo per S3)
+                        $stream = $storage->readStream($file);
+
+                        if ($stream === null) {
+                            throw new Exception("Impossibile leggere lo stream sorgente: $file");
+                        }
+
+                        $result = $storage->writeStream($finalPath, $stream, [
+                            'visibility' => 'private'
+                        ]);
+
+                        if (is_resource($stream)) {
+                            fclose($stream);
+                        }
+
+                        if (!$result) {
+                            throw new Exception("Scrittura stream fallita per: $finalPath");
+                        }
+                        Log::info("File non-PDF copiato via stream su S3: $finalPath");
                     }
 
                 } catch (\Exception $e) {
                     Log::error("Errore durante lo spostamento/watermark per {$fileName}: " . $e->getMessage());
 
                     // Fallback: spostamento semplice senza watermark
+                    // try {
+                    //     $storage->move($file, $finalPath);
+                    //     Log::warning("Fallback: file spostato senza watermark");
                     try {
-                        $storage->move($file, $finalPath);
-                        Log::warning("Fallback: file spostato senza watermark");
+                            $stream = $storage->readStream($file);
+                            if ($stream === false || $stream === null) {
+                                Log::error("Impossibile aprire stream per: {$file}");
+                                continue;
+                            }
+
+                            $success = $storage->writeStream($finalPath, $stream, [
+                                'visibility' => 'private'
+                            ]);
+
+                            if (is_resource($stream)) {
+                                fclose($stream);
+                            }
+
+                            if ($success) {
+                                Log::info("Fallback stream riuscito: {$finalPath}");
+                            } else {
+                                Log::error("Fallback stream fallito per: {$finalPath}");
+                            }
                     } catch (\Exception $fallbackEx) {
                         Log::error("Anche il fallback è fallito: " . $fallbackEx->getMessage());
                     }

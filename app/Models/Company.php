@@ -19,10 +19,12 @@ class Company extends Model
         'email',
         'pec',
         'auto_daily_summary',
+        'add_watermark',
     ];
 
     protected $casts = [
         'auto_daily_summary' => 'boolean',
+        'add_watermark' => 'boolean',
     ];
 
     public function city()

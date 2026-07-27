@@ -126,53 +126,57 @@ class EditRegistry extends EditRecord
                             ->required(),
                     ])
                     ->action(function (array $data, $record) {
-                        // 1. Recuperiamo il disco corretto
-                        $disk = config('filesystems.default');
-                        $storage = Storage::disk($disk);
+                        // TODO: disabilitata apposizione watermark 
+                        // => studiare un modo per applicarlo senza perdere firma digitale
+                        // => nella condizione usare il flag 'add_watermark' di Company per gestire da parametri il watermark una volta trovato il modo
 
-                        // 2. Otteniamo l'array dei file.
-                        // Attenzione: Filament a seconda della config potrebbe passarti un array o una stringa JSON
-                        $attachments = $data['attachments'] ?? [];
+                        // // 1. Recuperiamo il disco corretto
+                        // $disk = config('filesystems.default');
+                        // $storage = Storage::disk($disk);
 
-                        if (!is_array($attachments)) {
-                            $attachments = [$attachments];
-                        }
+                        // // 2. Otteniamo l'array dei file.
+                        // // Attenzione: Filament a seconda della config potrebbe passarti un array o una stringa JSON
+                        // $attachments = $data['attachments'] ?? [];
 
-                        foreach ($attachments as $filePath) {
-                            // Pulizia percorso (alcuni driver aggiungono slash iniziali)
-                            $filePath = ltrim($filePath, '/');
+                        // if (!is_array($attachments)) {
+                        //     $attachments = [$attachments];
+                        // }
 
-                            if (!$storage->exists($filePath)) {
-                                Log::warning("File non trovato per watermark: " . $filePath);
-                                continue;
-                            }
+                        // foreach ($attachments as $filePath) {
+                        //     // Pulizia percorso (alcuni driver aggiungono slash iniziali)
+                        //     $filePath = ltrim($filePath, '/');
 
-                            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+                        //     if (!$storage->exists($filePath)) {
+                        //         Log::warning("File non trovato per watermark: " . $filePath);
+                        //         continue;
+                        //     }
 
-                            if ($extension === 'pdf') {
-                                try {
-                                    // Leggiamo il contenuto
-                                    $pdfContent = $storage->get($filePath);
+                        //     $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
-                                    // Usiamo il numero di protocollo dal record
-                                    $protocolNumber = $record->protocol_number ?? 'N/A';
+                        //     if ($extension === 'pdf') {
+                        //         try {
+                        //             // Leggiamo il contenuto
+                        //             $pdfContent = $storage->get($filePath);
 
-                                    // Applichiamo il watermark
-                                    $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber, $record);
+                        //             // Usiamo il numero di protocollo dal record
+                        //             $protocolNumber = $record->protocol_number ?? 'N/A';
 
-                                    // Sovrascriviamo
-                                    $storage->put($filePath, $watermarkedPdf, [
-                                        'visibility' => 'private',
-                                        'ContentType' => 'application/pdf',
-                                    ]);
+                        //             // Applichiamo il watermark
+                        //             $watermarkedPdf = static::addProtocolWatermarkBottom($pdfContent, $protocolNumber, $record);
 
-                                    Log::info("Watermark applicato con successo a: " . $filePath);
+                        //             // Sovrascriviamo
+                        //             $storage->put($filePath, $watermarkedPdf, [
+                        //                 'visibility' => 'private',
+                        //                 'ContentType' => 'application/pdf',
+                        //             ]);
 
-                                } catch (\Exception $e) {
-                                    Log::error("Errore watermark su {$filePath}: " . $e->getMessage());
-                                }
-                            }
-                        }
+                        //             Log::info("Watermark applicato con successo a: " . $filePath);
+
+                        //         } catch (\Exception $e) {
+                        //             Log::error("Errore watermark su {$filePath}: " . $e->getMessage());
+                        //         }
+                        //     }
+                        // }
 
                         // Fondamentale: Se l'azione deve salvare i percorsi nel database,
                         // assicurati che il record sia aggiornato se non lo fa Filament in automatico
@@ -181,7 +185,7 @@ class EditRegistry extends EditRecord
 
                         Notification::make()
                             ->title('Caricamento completato')
-                            ->body('I file PDF sono stati protocollati correttamente.')
+                            ->body('I file sono stati caricati correttamente.')
                             ->success()
                             ->send();
                     }),

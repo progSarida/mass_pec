@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\State;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -124,11 +125,22 @@ class ManageCompany extends Page implements HasForms
                     ->columnSpan(3),
                 Toggle::make('auto_daily_summary')
                     ->label('Registro giornaliero automatico')
-                    ->onIcon('fluentui-signature-20-o')
+                    ->onIcon('fluentui-signature-20')
                     ->onColor('success')
                     ->offIcon('heroicon-o-x-circle')
                     ->offColor('danger')
-                    ->columnSpan(3),
+                    ->columnSpan(4),
+                // TODO abilitare una volta trovato il modo di mettere il watermark senza perdere la firma digitale
+                // Toggle::make('add_watermark')
+                //     ->label('Applica watermark ad allegati protocollo')
+                //     ->onIcon('fas-stamp')
+                //     ->onColor('success')
+                //     ->offIcon('heroicon-o-x-circle')
+                //     ->offColor('danger')
+                //     ->columnSpan(4),
+                Placeholder::make('fill')
+                    ->label('')
+                    ->columnSpan(5),
             ])
             ->columns(12)
             ->statePath('data');
