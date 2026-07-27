@@ -1139,19 +1139,9 @@ class RegistryResource extends Resource
                 //     ->icon('heroicon-o-folder-open')
                 //     ->color('primary'),
             ])
-            ->filtersFormWidth('6xl')
-            ->filtersFormColumns(30)
+            ->filtersFormWidth('4xl')
+            ->filtersFormColumns(18)
             ->filters([
-                SelectFilter::make('flow_type')
-                    ->label('Corrispondenza')
-                    ->options(FlowType::class)
-                    // ->searchable()
-                    ->columnSpan(6),
-                SelectFilter::make('registry_origin_type')
-                    ->label('Origine')
-                    ->options(RegistryOriginType::class)
-                    // ->searchable()
-                    ->columnSpan(6),
                 SelectFilter::make('account_id')
                     ->label('Account')
                     ->options(Account::where('mail_type', MailType::PEC)->pluck('public_name', 'id'))
@@ -1180,6 +1170,77 @@ class RegistryResource extends Resource
 
                         return ['Account: ' . $account->public_name];
                     })
+                    ->columnSpan(6),
+                SelectFilter::make('manage_registry_type')
+                    ->label('Gestione')
+                    ->options(ManageRegistryType::class)
+                    ->multiple()
+                    ->columnSpan(6),
+                SelectFilter::make('received')
+                    ->label('Esito')
+                    ->options([
+                        'yes' => 'Consegnate',
+                        'no' => 'Non consegnate',
+                        'partial' => 'Parzialmente consegnate',
+                    ])
+                    ->placeholder('Tutta')
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->where(function (Builder $q) use ($value) {
+                            $q->where('flow_type', FlowType::ISSUED);
+
+                            if ($value === 'yes') {
+                                $q->whereNotNull('send_date')
+                                    ->whereHas('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', PecStatus::DELIVERED);
+                                    })
+                                    ->whereDoesntHave('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', '!=', PecStatus::DELIVERED);
+                                    });
+                            }
+
+                            if ($value === 'no') {
+                                $q->whereNotNull('send_date')
+                                    ->whereHas('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', '!=', PecStatus::DELIVERED);
+                                    })
+                                    ->whereDoesntHave('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', PecStatus::DELIVERED);
+                                    });
+                            }
+
+                            if ($value === 'partial') {
+                                $q->whereNotNull('send_date')
+                                    ->whereHas('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', PecStatus::DELIVERED);
+                                    })
+                                    ->whereHas('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', '!=', PecStatus::DELIVERED);
+                                    });
+                            }
+                        });
+                    })
+                    ->columnSpan(6),
+                SelectFilter::make('flow_type')
+                    ->label('Corrispondenza')
+                    ->options(FlowType::class)
+                    // ->searchable()
+                    ->columnSpan(6),
+                SelectFilter::make('registry_origin_type')
+                    ->label('Origine')
+                    ->options(RegistryOriginType::class)
+                    // ->searchable()
                     ->columnSpan(6),
                 SelectFilter::make('is_email')
                     ->label('Tipo')
@@ -1210,19 +1271,10 @@ class RegistryResource extends Resource
                         return $query;
                     })
                     ->columnSpan(6),
-                SelectFilter::make('manage_registry_type')
-                    ->label('Gestione')
-                    ->options(ManageRegistryType::class)
-                    ->multiple()
-                    ->columnSpan(6),
 
                 Filter::make('ricerca_su_indirizzo')
-                    ->columns(6)
+                    ->columns(3)
                     ->form([
-                        TextInput::make('address_search')
-                            ->label('Ricerca per indirizzo email')
-                            ->placeholder('')
-                            ->columnSpan(3),
                         Radio::make('address_type')
                             ->label('Ricerca su')
                             ->options([
@@ -1232,6 +1284,10 @@ class RegistryResource extends Resource
                             ])
                             ->inline()
                             ->default('all')
+                            ->columnSpan(3),
+                        TextInput::make('address_search')
+                            ->label('Ricerca per indirizzo email')
+                            ->placeholder('')
                             ->columnSpan(3),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -1318,7 +1374,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(10),
+                    ->columnSpan(18),
                 SelectFilter::make('sender')
                     ->label('Mittente')
                     ->multiple()
@@ -1361,7 +1417,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(10),
+                    ->columnSpan(18),
                 SelectFilter::make('recipient')
                     ->label('Destinatario')
                     ->multiple()
@@ -1400,7 +1456,7 @@ class RegistryResource extends Resource
 
                         return ['Destinatari: ' . implode(', ', $recipients)];
                     })
-                    ->columnSpan(10),
+                    ->columnSpan(18),
                 Filter::make('registration_date_range')
                     ->columns(2)
                     ->form([
@@ -1431,12 +1487,12 @@ class RegistryResource extends Resource
                         }
                         return null;
                     })
-                    ->columnSpan(10),
+                    ->columnSpan(12),
                 SelectFilter::make('register_user_id')
                     ->label('Registrato da')
                     ->options(fn () => User::pluck('name', 'id')->toArray())
                     ->searchable()
-                    ->columnSpan(5),
+                    ->columnSpan(6),
                 Filter::make('send_date_range')
                     ->columns(2)
                     ->form([
@@ -1467,7 +1523,7 @@ class RegistryResource extends Resource
                         }
                         return null;
                     })
-                    ->columnSpan(10),
+                    ->columnSpan(12),
                 SelectFilter::make('esito_invio')
                     ->label('Esito invio')
                     ->options([
@@ -1520,7 +1576,7 @@ class RegistryResource extends Resource
 
                         return $query;
                     })
-                    ->columnSpan(5),
+                    ->columnSpan(6),
             ])
             ->actions([
                 // Tables\Actions\ViewAction::make(),

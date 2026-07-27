@@ -39,7 +39,7 @@ class RegistryReceiversRelationManager extends RelationManager
 
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
-        return $ownerRecord->isOutgoingEmail();                                                         // mostrata solo se email protocollata in uscita
+        return $ownerRecord->isOutgoingEmail() || $ownerRecord->isOutgoingPosta();                     // mostrata solo se email protocollata in uscita (PEC o fisica)
     }
 
     public function form(Form $form): Form
@@ -140,12 +140,19 @@ class RegistryReceiversRelationManager extends RelationManager
                                     return 'Nessuna ricevuta trovata.';
                                 }
 
-                                $files = Storage::files($receiptsPath);
+                                $files = collect(Storage::files($receiptsPath));
+                                $registry = $this->getOwnerRecord();
 
-                                // Filtro i file: devono contenere l'indirizzo nel nome
-                                $filteredFiles = collect($files)->filter(function ($file) use ($record) {
-                                    return str_contains(basename($file), $record->address);
-                                });
+                                if ($registry->isOutgoingEmail()) {
+                                    // Filtro i file: devono contenere l'indirizzo nel nome
+                                    $filteredFiles = $files->filter(function ($file) use ($record) {
+                                        return str_contains(basename($file), $record->address);
+                                    });
+                                } else {
+                                    $filteredFiles = $files->filter(function ($file) use ($record) {
+                                        return str_contains(basename($file), $record->recipient->description);
+                                    });
+                                }
 
                                 if ($filteredFiles->isEmpty()) {
                                     return "Nessuna ricevuta disponibile per {$record->address}.";

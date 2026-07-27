@@ -26,6 +26,9 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
@@ -322,6 +325,7 @@ class EditRegistry extends EditRecord
                         }
                     }),
 
+                // Per PEC inviate tramite webmail
                 Action::make('uploadReceipts')
                     ->label('Carica Ricevute')
                     ->visible(function($record) {
@@ -389,6 +393,70 @@ class EditRegistry extends EditRecord
                             ->send();
 
                         return redirect(request()->header('Referer'));
+                    }),
+
+                // Per posta ordinaria fisica
+                Action::make('uploadPostaReceipts')
+                    ->label('Carica Ricevute')
+                    ->visible(function($record) {
+                            $allDone = $record->checkReceipts();
+                            return $record->isOutgoingPosta()
+                                    && $record->registryReceivers
+                                    && !$allDone;
+                        }
+                    )
+                    ->icon('fluentui-receipt-20-o')
+                    ->color('info')
+                    ->modalSubmitActionLabel('Carica')
+                    ->form([
+                        FileUpload::make('receipts')
+                            ->label('Seleziona File')
+                            ->helperText('Prima di caricare la ricevuta aggiungere il destinatario indicato nell\'elenco al nome del file')
+                            ->multiple()
+                            ->directory(fn () => $this->getRecord()->attachment_path . '/receipts')
+                            ->preserveFilenames()
+                            ->required(),
+                        Repeater::make('check_receiver')
+                            ->label('Destinatari')
+                            ->helperText('Seleziona a quali destinatari fanno riferimento le ricevute caricate')
+                            ->schema([
+                                Hidden::make('registry_receiver_id'),
+                                Placeholder::make('recipient_label')
+                                    ->label('')
+                                    ->content(fn ($get) => $get('recipient_label')),
+                                Checkbox::make('received')
+                                    ->label('Ricevuta caricata / consegnato'),
+                            ])
+                            ->default(function ($record) {
+                                return $record->registryReceivers
+                                    ->map(fn ($receiver) => [
+                                        'registry_receiver_id' => $receiver->id,
+                                        'recipient_label' => $receiver->recipient->description,
+                                        'received' => $receiver->pec_status === PecStatus::DELIVERED,
+                                    ])
+                                    ->toArray();
+                            })
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                            ->columns(2),
+                    ])
+                    ->action(function (array $data, $record) {
+                        // I file sono già stati salvati in {attachment_path}/receipts da FileUpload,
+                        // qui aggiorniamo solo lo stato dei registryReceivers spuntati come consegnati
+
+                        collect($data['check_receiver'] ?? [])
+                            ->filter(fn ($row) => $row['received'] ?? false)
+                            ->each(function ($row) {
+                                RegistryReceiver::where('id', $row['registry_receiver_id'])
+                                    ->where('pec_status', '!=', PecStatus::DELIVERED)
+                                    ->update(['pec_status' => PecStatus::DELIVERED]);
+                            });
+
+                        Notification::make()
+                            ->title('Ricevute caricate con successo')
+                            ->success()
+                            ->send();
                     }),
 
                 Action::make('uploadFile')

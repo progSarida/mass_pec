@@ -13,6 +13,7 @@ class ManualInsert extends Model
 {
     protected $fillable = [
         'flow_type',
+        'pending_receipt',
         'scope_type_id',
         'receivers',
         'senders',
@@ -32,6 +33,7 @@ class ManualInsert extends Model
 
     protected $casts = [
         'flow_type' => FlowType::class,
+        'pending_receipt' => 'boolean',
         'receivers' => 'array',
         'senders' => 'array',
         'interested_parties' => 'array',

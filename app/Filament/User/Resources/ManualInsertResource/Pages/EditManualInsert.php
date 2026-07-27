@@ -411,8 +411,9 @@ class EditManualInsert extends EditRecord
                     'registry_id' => $registry->id,
                     'protocol_number' => $protocolNumber,
                     'recipient_id' => static::getRecipientId($receiver),
-                    'address' => $receiver,
-                    'pec_status' => PecStatus::WAITING,
+                    'address' => $registry->isOutgoingPosta() ? null : $receiver,
+                    'message_id' => $registry->flow_type === FlowType::ISSUED ? $registry->id . '_' . now()->format('YmdHis') : null,
+                    'pec_status' => $registry->isOutgoingPosta() && !$record->pending_receipt ? PecStatus::DELIVERED : PecStatus::WAITING,
                 ]);
             }
 

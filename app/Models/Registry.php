@@ -171,6 +171,16 @@ class Registry extends Model
         }
     }
 
+    public function isOutgoingPosta()
+    {
+        switch($this->registry_origin_type){
+            case RegistryOriginType::MANUAL:
+                return $this->flow_type === FlowType::ISSUED ? true : false;
+            default:
+                return false;
+        }
+    }
+
     /**
      * Helper per ottenere il badge completo della relazione
      */

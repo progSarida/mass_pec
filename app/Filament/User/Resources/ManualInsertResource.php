@@ -9,10 +9,12 @@ use App\Models\ManualInsert;
 use App\Models\Recipient;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -83,66 +85,18 @@ class ManualInsertResource extends Resource
                     ->displayFormat('d/m/Y H:i:s')
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
+                Radio::make('pending_receipt')
+                    ->label('Prevista ricevuta di consegna')
+                    ->required()
+                    ->boolean() // mostra automaticamente Sì/No mappati a true/false
+                    ->inline()
+                    // ->default(false)
+                    ->visible(fn (Get $get) => $get('flow_type') === FlowType::ISSUED->value)
+                    ->columnSpan(['sm' => 'full', 'md' => 9]),
+                
                 Placeholder::make('first_row_placeholder')
                     ->label('')
-                    ->columnSpan(['sm' => 'full', 'md' => 9]),
-
-                // Select::make('scope_type_id')
-                //     ->label('Settore interno')
-                //     ->required()
-                //     // ->disabled(fn ($record) => $record?->isIngoingEmail())
-                //     ->relationship('scopeType', 'name')
-                //     ->relationship(
-                //         name: 'scopeType',
-                //         titleAttribute: 'name',
-                //         modifyQueryUsing: fn ($query) => $query->orderBy('position', 'asc')
-                //     )
-                //     ->columnSpan(['sm' => 'full', 'md' => 5]),
-
-                // Select::make('receivers')
-                //     ->label('Destinatari')
-                //     ->multiple()
-                //     ->searchable()
-                //     ->visible(fn(Get $get) => $get('flow_type') === FlowType::ISSUED->value)
-                //     ->required()
-                //     ->live()
-                //     ->placeholder('Inizia a scrivere per cercare un\'email o una descrizione...')
-                //     ->columnSpanFull()
-                //     ->getSearchResultsUsing(function (string $search) {
-                //         if (strlen($search) < 3) {
-                //             return [];
-                //         }
-
-                //         $words = array_filter(explode(' ', $search));
-
-                //         $query = Recipient::query();
-
-                //         if (!empty($words)) {
-                //             $query->where(function ($q) use ($words) {
-                //                 foreach ($words as $word) {
-                //                     $q->where(function ($subQuery) use ($word) {
-                //                         $subQuery->where('description', 'like', "%{$word}%")
-                //                             ->orWhere('resp_surname', 'like', "%{$word}%")
-                //                             ->orWhere('resp_name', 'like', "%{$word}%");
-                //                     });
-                //                 }
-                //             });
-                //         }
-
-                //         return $query
-                //             ->limit(50)
-                //             ->get()
-                //             ->mapWithKeys(fn ($recipient) => [
-                //                 $recipient->id => "{$recipient->description}"
-                //             ])
-                //             ->toArray();
-                //     })
-                //     ->getOptionLabelsUsing(function ($values) {
-                //         return collect($values)->mapWithKeys(fn ($id) => [
-                //             $id => static::labelRecipient($id)
-                //         ])->toArray();
-                //     })
-                //     ->createOptionUsing(fn (string $data) => $data),
+                    ->columnSpan(['sm' => 'full', 'md' => 2]),
 
                 Forms\Components\Select::make('receivers')
                     ->label('Destinatari')
