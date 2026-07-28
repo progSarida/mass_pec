@@ -853,7 +853,7 @@ class RegistryResource extends Resource
                         if ($record->registry_origin_type == RegistryOriginType::SHIPMENT){
                             return Sender::first()->public_name;
                         }
-                        return '';
+                        return 'Sarida srl (tramite posta)';                                      // caso in cui si tratti di posta fisica
                     })
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
@@ -862,7 +862,7 @@ class RegistryResource extends Resource
                             ->orWhereHas('account', fn ($q) => $q->where('public_name', 'like', "%{$search}%"));
                         });
                     })
-                    ->sortable()
+                    // ->sortable()
                     // ->tooltip(function ($record): string {
                     //     if ($record->interested_parties && !empty($record->interested_parties)) {
                     //         // Recupera solo la colonna 'description' per ottimizzare la query
@@ -942,7 +942,8 @@ class RegistryResource extends Resource
                             // return 'Nessun destinatario';
                             return '';
                         }
-                        return static::getRecipientsName($receivers->pluck('address')) ;
+                        // return static::getRecipientsNameFromAddresses($receivers->pluck('address')) ;
+                        return static::getRecipientsNameFromIds($receivers->pluck('recipient_id')) ;
                     }),
 
                 TextColumn::make('date')
@@ -1727,28 +1728,38 @@ class RegistryResource extends Resource
         return $report;
     }
 
-    private static function getRecipientsNameOld($addresses)
-    {
-        $output = "";
-        $count = count($addresses);
-        foreach($addresses as $key =>$address){
-            $recipient = Recipient::findByEmail($address);
-            if($recipient) {
-                $output .= $recipient->description;
-                if($key < $count - 1)
-                    $output .= ", ";
-            }
-        }
-        return $output;
-    }
-
-    private static function getRecipientsName($addresses)
+    private static function getRecipientsNameFromAddresses($addresses)
     {
         $output = [];
 
         foreach ($addresses as $address) {
             // Usiamo il tuo metodo custom già pronto
             $recipient = Recipient::findByEmail($address);
+            
+            if ($recipient) {
+                // Carichiamo la relazione 'adminType' sul record trovato
+                $recipient->load('adminType');
+                
+                $typeName = $recipient->adminType?->name;
+                
+                // Componiamo la stringa
+                $output[] = $typeName 
+                    ? "{$recipient->description} ({$typeName})" 
+                    : $recipient->description;
+            }
+        }
+
+        // Uniamo tutto con la virgola
+        return implode(', ', $output);
+    }
+
+    private static function getRecipientsNameFromIds($ids)
+    {
+        $output = [];
+
+        foreach ($ids as $id) {
+            // Usiamo il tuo metodo custom già pronto
+            $recipient = Recipient::find($id);
             
             if ($recipient) {
                 // Carichiamo la relazione 'adminType' sul record trovato
