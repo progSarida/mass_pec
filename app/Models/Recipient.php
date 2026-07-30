@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Enums\MailType;
 use App\Enums\RecipientType;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class Recipient extends Model
@@ -206,15 +208,15 @@ class Recipient extends Model
 
     protected static function booted()
     {
-        static::creating(function ($attachment) {
+        static::creating(function ($recipient) {
             //
         });
 
-        static::created(function ($attachment) {
+        static::created(function ($recipient) {
             //
         });
 
-        static::updating(function ($attachment) {
+        static::updating(function ($recipient) {
             //
         });
 
@@ -237,15 +239,47 @@ Log::info("Nuova colonna ricerca: {$search}");
             }
         });
 
-        static::saved(function ($attachment) {
+        static::saved(function ($recipient) {
             //
         });
 
-        static::deleting(function ($attachment) {
-            //
+        static::deleting(function ($recipient) {
+            $isReferenced = DB::table('recipients as r')
+                ->where('r.id', $recipient->id)
+                ->where(function ($query) {
+                    $query->whereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('receivers as x')->whereColumn('x.recipient_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('registry_receivers as x')->whereColumn('x.recipient_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('archived_receivers as x')->whereColumn('x.recipient_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('archived_emails as x')->whereColumn('x.sender_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('emails as x')->whereColumn('x.sender_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('download_emails as x')->whereColumn('x.sender_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('registries as x')->whereColumn('x.sender_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('in_mails as x')->whereColumn('x.sender_id', 'r.id'))
+                        ->orWhereExists(fn ($q) => $q->select(DB::raw(1))
+                            ->from('shipment_errors as x')->whereColumn('x.recipient_id', 'r.id'));
+                })
+                ->exists();
+
+            if ($isReferenced) {
+                Notification::make()
+                    ->title('Eliminazione bloccata')
+                    ->body("L'interlocutore \"{$recipient->description}\" è referenziato all'interno del programma.")
+                    ->danger()
+                    ->send();
+
+                return false;
+            }
         });
 
-        static::deleted(function ($attachment) {
+        static::deleted(function ($recipient) {
             //
         });
 
