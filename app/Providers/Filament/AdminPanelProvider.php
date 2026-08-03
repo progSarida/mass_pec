@@ -32,7 +32,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()->databaseNotifications()
-            ->databaseNotificationsPolling('30s')
+            ->databaseNotificationsPolling('10s')
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -77,15 +77,53 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Operatore')
                     ->url('/user')
                     ->icon('fas-user'),
-                    MenuItem::make()
+                MenuItem::make()
                     ->label('Pannello Utente')
                     ->url(config('services.sso.user_dashboard'))
                     ->icon('heroicon-o-cog-6-tooth')
                     ->openUrlInNewTab(),
+                MenuItem::make()
+                    ->label('Controlla IP server')
+                    ->url(fn () => route('filament.admin.ip-check'))
+                    ->icon('heroicon-o-globe-alt')
+                    ->visible(fn () => auth()->user()?->hasRole('super_admin')),
                 'logout'=>MenuItem::make()
                     ->label('Vai al Portale')
                     ->icon('heroicon-o-arrow-left-start-on-rectangle'),
                 // ...
-            ]);
+            ])
+            ->routes(function () {
+                \Illuminate\Support\Facades\Route::get('/my-ip4', function () {
+                    abort_unless(auth()->user()->hasRole('super_admin'), 404);
+
+                    $responseV4 = \Illuminate\Support\Facades\Http::withOptions([
+                        'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+                        'timeout' => 3,
+                    ])->get('http://ip-api.com/json');
+
+                    $dataV4 = $responseV4->successful() ? $responseV4->json() : null;
+                    $ip = $dataV4['query'] ?? null;
+
+                    $title = $ip ? "IP pubblico: {$ip}" : 'IP non disponibile';
+                    $body = $dataV4 ? "Città: {$dataV4['city']}, ISP: {$dataV4['isp']}" : ($dataV4['error'] ?? null);
+                    $status = $ip ? 'success' : 'danger';
+
+                    // Toast immediato (richiede il redirect per essere mostrato)
+                    \Filament\Notifications\Notification::make()
+                        ->title($title)
+                        ->body($body)
+                        ->status($status)
+                        ->send();
+
+                    // Copia persistente nello storico notifiche
+                    \Filament\Notifications\Notification::make()
+                        ->title($title)
+                        ->body($body)
+                        ->status($status)
+                        ->sendToDatabase(auth()->user());
+
+                    return redirect()->back();
+                })->name('ip-check');
+            });
     }
 }
