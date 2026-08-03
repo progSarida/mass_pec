@@ -98,20 +98,20 @@ Route::get('/download-zip-related/{id}', [AttachmentController::class, 'download
 //     ]);
 // });
 
-// Route::get('/my-ip4', function () {
-//     // Chiamata a ip-api.com forzando IPv4
-//     $responseV4 = Http::withOptions([
-//         'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
-//         'timeout' => 3
-//     ])->get('http://ip-api.com/json'); // Nota: la versione free usa http, non https
+Route::get('/my-ip4', function () {
+    // Chiamata a ip-api.com forzando IPv4
+    $responseV4 = Http::withOptions([
+        'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+        'timeout' => 3
+    ])->get('http://ip-api.com/json'); // Nota: la versione free usa http, non https
 
-//     $dataV4 = null;
-//     if ($responseV4->successful()) {
-//         $dataV4 = $responseV4->json();
-//     }
+    $dataV4 = null;
+    if ($responseV4->successful()) {
+        $dataV4 = $responseV4->json();
+    }
 
-//     return response()->json([
-//         'ip_v4'   => $dataV4['query'] ?? null, // ip-api usa la chiave 'query' per l'IP
-//         'info_v4' => $dataV4 ?? ['error' => 'Dati IPv4 non disponibili'],
-//     ]);
-// });
+    return response()->json([
+        'ip_v4'   => $dataV4['query'] ?? null, // ip-api usa la chiave 'query' per l'IP
+        'info_v4' => $dataV4 ?? ['error' => 'Dati IPv4 non disponibili'],
+    ]);
+});
