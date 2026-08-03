@@ -7,6 +7,7 @@ use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
 use App\Enums\RelationshipType;
+use App\Filament\User\Resources\RegistryResource;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -563,4 +564,42 @@ class Registry extends Model
     //     }
     //     dd($test);
     // }
+
+    public function syncReceiversFromKeys(array $keys): void
+    {
+        $existing = $this->registryReceivers()
+            ->get()
+            ->mapWithKeys(fn ($item) => [
+                RegistryResource::receiverKey($item->recipient_id, $item->address) => $item,
+            ]);
+
+        foreach ($keys as $key) {
+            if ($existing->has($key)) {
+                continue;
+            }
+
+            [$recipientId, $address] = RegistryResource::parseReceiverKey($key);
+            if (!$recipientId || !$address) {
+                continue;
+            }
+
+            $this->registryReceivers()->create([
+                'protocol_number' => $this->protocol_number,
+                'recipient_id' => $recipientId,
+                'address' => $address,
+                'pec_status' => PecStatus::WAITING,
+            ]);
+        }
+
+        foreach ($existing as $key => $receiver) {
+            if (in_array($key, $keys, true)) {
+                continue;
+            }
+
+            // non permettere di togliere un destinatario a cui è già stata inviata la mail
+            if (!$receiver->message_id) {
+                $receiver->delete();
+            }
+        }
+    }
 }

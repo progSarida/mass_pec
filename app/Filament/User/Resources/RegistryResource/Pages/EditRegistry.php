@@ -47,6 +47,8 @@ class EditRegistry extends EditRecord
 {
     protected static string $resource = RegistryResource::class;
 
+    protected ?array $pendingReceiverKeys = null;
+
     public function getTitle(): string | Htmlable
     {
         return "Gestisci {$this->record->protocol_number}";
@@ -882,7 +884,15 @@ class EditRegistry extends EditRecord
     protected function getFormActions(): array
     {
         return [
-            $this->getSaveFormAction()->color('success'),
+            $this->getSaveFormAction()
+                ->visible(function ($record, $livewire) {
+                    // Mostro se comunicazione in uscita non ancora inviata
+                    if($record->isOutgoingEmail() && !$record->send_date) {
+                        return true;
+                    }
+                    return false;
+                })
+                ->color('success'),
             $this->getCancelFormAction(),
             $this->getResetFormAction(),
             // $this->getDeleteFormAction()
@@ -1340,4 +1350,21 @@ class EditRegistry extends EditRecord
     //         $disk->copy($file, $newFilePath);
     //     }
     // }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (array_key_exists('registryReceivers', $data)) {
+            $this->pendingReceiverKeys = $data['registryReceivers'] ?? [];
+            unset($data['registryReceivers']);
+        }
+
+        return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        if ($this->pendingReceiverKeys !== null) {
+            $this->record->syncReceiversFromKeys($this->pendingReceiverKeys);
+        }
+    }
 }

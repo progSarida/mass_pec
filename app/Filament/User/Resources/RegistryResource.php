@@ -114,11 +114,20 @@ class RegistryResource extends Resource
             //     return false;
             // })
             ->disabled(function ($record, $livewire) {
-                 // Mai disabilitato in Create
+                // Sempre disabilitato in View
+                if ($livewire instanceof \Filament\Resources\Pages\ViewRecord) {
+                    return true;
+                }
+
+                // Mai disabilitato in Create
                 if (!$record) {
                     return false;
                 }
-
+                // Non disabilitato se comunicazione in uscita non ancora inviata
+                if($record->isOutgoingEmail() && !$record->send_date) {
+                    return false;
+                }
+                // Disabilitato negli altri casi
                 return true;
             })
             ->schema([
@@ -393,23 +402,84 @@ class RegistryResource extends Resource
                                 return collect($values)->mapWithKeys(fn ($id) => [$id => static::labelRecipient($id)])->toArray();
                             }),
 
+                        // Select::make('registryReceivers')
+                        //     ->label('Destinatari')
+                        //     ->multiple()
+                        //     ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && !$record?->shipment_id)
+                        //     // Recuperiamo i record legati a questo modello specifico
+                        //     ->options(function ($record) {
+                        //         if (!$record) return [];
+                        //         return $record->registryReceivers()
+                        //             ->with('recipient')
+                        //             ->get()
+                        //             ->mapWithKeys(fn ($item) => [
+                        //                 $item->id => $item->recipient?->description ?  $item->recipient?->description . ' (' . $item->address . ')' : $item->address
+                        //             ]);
+                        //     })
+                        //     // Impostiamo i valori selezionati di default
+                        //     ->formatStateUsing(fn ($record) => $record?->registryReceivers->pluck('id')->toArray())
+                        //     ->dehydrated(false) // Non salva nulla al submit (sola lettura)
+                        //     ->columnSpanFull(),
+
                         Select::make('registryReceivers')
                             ->label('Destinatari')
                             ->multiple()
+                            ->searchable()
                             ->visible(fn(Get $get, $record) => $get('flow_type') == FlowType::ISSUED->value && !$record?->shipment_id)
-                            // Recuperiamo i record legati a questo modello specifico
                             ->options(function ($record) {
                                 if (!$record) return [];
                                 return $record->registryReceivers()
                                     ->with('recipient')
                                     ->get()
                                     ->mapWithKeys(fn ($item) => [
-                                        $item->id => $item->recipient?->description ?  $item->recipient?->description . ' (' . $item->address . ')' : $item->address
+                                        static::receiverKey($item->recipient_id, $item->address) =>
+                                            $item->recipient?->description
+                                                ? "{$item->recipient->description} ({$item->address})"
+                                                : $item->address,
                                     ]);
                             })
-                            // Impostiamo i valori selezionati di default
-                            ->formatStateUsing(fn ($record) => $record?->registryReceivers->pluck('id')->toArray())
-                            ->dehydrated(false) // Non salva nulla al submit (sola lettura)
+                            ->getSearchResultsUsing(function (string $search) {
+                                if (strlen($search) < 3) {
+                                    return [];
+                                }
+
+                                $words = array_filter(explode(' ', $search));
+                                $query = Recipient::query();
+
+                                if (!empty($words)) {
+                                    $query->where(function ($q) use ($words) {
+                                        foreach ($words as $word) {
+                                            $q->where(function ($subQuery) use ($word) {
+                                                $subQuery->where('description', 'like', "%{$word}%")
+                                                    ->orWhere('resp_surname', 'like', "%{$word}%")
+                                                    ->orWhere('resp_name', 'like', "%{$word}%");
+                                            });
+                                        }
+                                    });
+                                }
+
+                                return $query->limit(50)->get()
+                                    ->flatMap(function ($recipient) {
+                                        $out = [];
+                                        foreach ($recipient->emails as $email) {
+                                            $key = static::receiverKey($recipient->id, $email->email);
+                                            $out[$key] = "{$recipient->description} - <{$email->email}>";
+                                        }
+                                        return $out;
+                                    })
+                                    ->toArray();
+                            })
+                            ->getOptionLabelsUsing(function (array $values) {
+                                return collect($values)->mapWithKeys(function ($key) {
+                                    [$recipientId, $address] = static::parseReceiverKey($key);
+                                    $label = Recipient::find($recipientId)?->description ?? $address;
+                                    return [$key => "{$label} ({$address})"];
+                                })->toArray();
+                            })
+                            ->formatStateUsing(fn ($record) => $record?->registryReceivers
+                                ->map(fn ($item) => static::receiverKey($item->recipient_id, $item->address))
+                                ->toArray())
+                            ->placeholder('Seleziona destinatari')
                             ->columnSpanFull(),
 
                         Select::make('interested_parties')
@@ -1041,7 +1111,7 @@ class RegistryResource extends Resource
 
                                 if($sent == $count) {                                                                               // tutte le mail inviate
                                     if($sent == $delivered) return 'success';                                                       // numero inviate = numero consegnate
-                                    else if($sent == $accepted) return 'info';                                                      // numero inviate = numero accettate
+                                    else if($sent == $accepted) return 'success';                                                   // numero inviate = numero accettate
                                     else return 'warning';                                                                          // numero accettate < numero inviate => errore invio
                                 }
                                 else return 'warning';                                                                              // non tutte le mail sono state elaborate
@@ -1249,7 +1319,7 @@ class RegistryResource extends Resource
                         'si' => 'Posta elettronica',
                         'no' => 'Posta ordinaria',
                     ])
-                    ->placeholder('Tutta')
+                    ->placeholder('Entrambe le tipologie')
                     ->query(function (Builder $query, array $data): Builder {
                         // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
                         $value = $data['value'] ?? null;
@@ -1797,5 +1867,16 @@ class RegistryResource extends Resource
 
         // Se dopo aver rimosso i tag il contenuto è diverso, significa che c'erano tag HTML
         return $content !== $stripped;
+    }
+
+    public static function receiverKey($recipientId, string $address): string
+    {
+        return $recipientId . '::' . $address;
+    }
+
+    public static function parseReceiverKey(string $key): array
+    {
+        $parts = explode('::', $key, 2);
+        return [$parts[0] ?? null, $parts[1] ?? null];
     }
 }
