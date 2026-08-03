@@ -108,7 +108,7 @@ class ListDownloadEmails extends ListRecords
 
     public function getPollingInterval(): ?string
     {
-        return '30s';
+        return '20s';
     }
 
     public function getMaxContentWidth(): MaxWidth|string|null

@@ -55,7 +55,10 @@ class DownloadReceiptsJob implements ShouldQueue
             return;
         }
 
-        $receivers = RegistryReceiver::where('registry_id', $registry->id)->get();
+        // $receivers = RegistryReceiver::where('registry_id', $registry->id)->get();                                      // elaboro tutti i receiver
+        $receivers = RegistryReceiver::where('registry_id', $registry->id)                                              // 
+                        ->whereIn('pec_status', [PecStatus::WAITING, PecStatus::ACCEPTED])                              // elaboro solo i receiver non consegnati
+                        ->get();                                                                                        // 
         if ($receivers->isEmpty()) {
             Log::warning("Nessun destinatario trovato", ['registry_id' => $this->registryId]);
             $this->notifyError($user, "Nessun destinatario trovato");
