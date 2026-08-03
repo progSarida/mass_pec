@@ -91,7 +91,7 @@ class ListDownloadEmails extends ListRecords
                             ->success()
                             ->send();
 
-                        sleep(10);
+                        // sleep(10);
 
                         session(['downloaded_emails' => true]);
 
