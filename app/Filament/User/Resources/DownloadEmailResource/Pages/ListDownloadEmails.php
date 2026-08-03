@@ -106,11 +106,6 @@ class ListDownloadEmails extends ListRecords
         ];
     }
 
-    public function getPollingInterval(): ?string
-    {
-        return '20s';
-    }
-
     public function getMaxContentWidth(): MaxWidth|string|null
     {
         return MaxWidth::Full;

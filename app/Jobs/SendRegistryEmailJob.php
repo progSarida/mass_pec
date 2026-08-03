@@ -108,7 +108,18 @@ class SendRegistryEmailJob implements ShouldQueue
             if ($isIpBlocked) {
                 // Opzionale: segna il destinatario o l'invio come "fallito per blocco" nel DB
                 // RegistryReceiver::where('id', $this->registryReceiverId)->update(['status' => 'blocked']);
-
+                $responseV4 = \Illuminate\Support\Facades\Http::withOptions([
+                    'curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4],
+                    'timeout' => 3,
+                ])->get('http://ip-api.com/json');
+                $dataV4 = $responseV4->successful() ? $responseV4->json() : null;
+                $ip = $dataV4['query'] ?? null;
+                // Notifico l'ip che genera il blocco
+                \Filament\Notifications\Notification::make()
+                    ->title("IP pubblico: {$ip}")
+                    ->danger()
+                    ->persistent()
+                    ->sendToDatabase($user);
                 // Interrompiamo immediatamente i tentativi (fail) senza fare retry
                 $this->fail($e);
                 return;

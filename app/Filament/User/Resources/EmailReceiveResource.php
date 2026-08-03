@@ -212,6 +212,7 @@ class EmailReceiveResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('20s')
             ->query(Email::received())
             ->columns([
                 TextColumn::make('receiving_mail')

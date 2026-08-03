@@ -267,6 +267,7 @@ class DownloadEmailResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('20s')
             ->defaultSort('receive_date', 'asc')
             ->columns([
                 // TextColumn::make('from')

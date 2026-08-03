@@ -89,16 +89,11 @@ class ListEmailReceives extends ListRecords
                                     'filters' => $filters,
                                 ])
                             )
-                                ->setPaper('A4', 'landscape')
-                                ->stream();
+                            ->setPaper('A4', 'landscape')
+                            ->stream();
                         }, "Elenco email.pdf");
                 }),
         ];
-    }
-
-    public function getPollingInterval(): ?string
-    {
-        return '30s';
     }
 
     public function getMaxContentWidth(): MaxWidth|string|null
