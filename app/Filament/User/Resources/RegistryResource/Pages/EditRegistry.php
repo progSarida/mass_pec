@@ -266,7 +266,7 @@ class EditRegistry extends EditRecord
                                 registryId: $record->id,
                                 userId: Auth::id(),
                                 autoDownloadReceipts: true,  // Download automatico ricevute
-                                receiptsDelayMinutes: 15,     // Delay scarico ricevute
+                                receiptsDelayMinutes: 5,     // Delay scarico ricevute
                             );
 
                             Notification::make()
