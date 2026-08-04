@@ -264,7 +264,7 @@ class RegistryResource extends Resource
                         //     ->disabled()
                         //     ->formatStateUsing(function ($record) {
                         //             $parent = $record?->registry;
-                        //             return "[{$parent?->from}] {$parent?->subject} - {$parent?->receive_date?->format('d/m/Y H:m:s')}";
+                        //             return "[{$parent?->from}] {$parent?->subject} - {$parent?->receive_date?->format('d/m/Y H:i:s')}";
                         //         })
                         //     ->columnSpan(['sm' => 'full', 'md' => 'full'])
                         //     ->suffixAction(
@@ -623,12 +623,12 @@ class RegistryResource extends Resource
                     // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
 
-                DatePicker::make('send_date')
+                DateTimePicker::make('send_date')
                     ->label('Inviato il')
                     ->visible(fn ($record) => $record?->isOutgoingEmail()
                                             || $record?->registry_origin_type == RegistryOriginType::SHIPMENT || ($record?->registry_origin_type == RegistryOriginType::MANUAL && $record->flow_type == FlowType::ISSUED))
                     ->extraInputAttributes(['class' => 'text-center'])
-                    ->displayFormat('d/m/Y')
+                    ->displayFormat('d/m/Y H:i:s')
                     // ->visible(fn(Get $get) => $get('is_email'))
                     ->columnSpan(['sm' => 'full', 'md' => 3]),
                     // ->formatStateUsing(fn ($state) => $state ? \Carbon\Carbon::parse($state)->format('d/m/Y') : null),
@@ -1028,8 +1028,9 @@ class RegistryResource extends Resource
                     ->state(function ($record) {
                         if($record->flow_type == FlowType::ISSUED) return $record->send_date;
                         else if($record->flow_type == FlowType::RECEIVED) return $record->receive_date;
+                        else return null;
                     })
-                    ->date('d/m/Y h:m:s'),
+                    ->date('d/m/Y H:i:s'),
 
                 TextColumn::make('subject')
                     ->label('Oggetto')
