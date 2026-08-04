@@ -1211,7 +1211,11 @@ class RegistryResource extends Resource
                 //     ->color('primary'),
             ])
             ->filtersFormWidth('4xl')
-            ->filtersFormColumns(18)
+            ->filtersFormColumns([
+                'sm' => 1,
+                'md' => 6,
+                'xl' => 18,
+            ])
             ->filters([
                 SelectFilter::make('account_id')
                     ->label('Account')
@@ -1241,18 +1245,21 @@ class RegistryResource extends Resource
 
                         return ['Account: ' . $account->public_name];
                     })
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('manage_registry_type')
                     ->label('Gestione')
                     ->options(ManageRegistryType::class)
                     ->multiple()
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('received')
                     ->label('Esito')
                     ->options([
                         'yes' => 'Consegnate',
                         'no' => 'Non consegnate',
                         'partial' => 'Parzialmente consegnate',
+                        'void' => 'Inviate con ricevute da scaricare',
                     ])
                     ->placeholder('Tutta')
                     ->query(function (Builder $query, array $data): Builder {
@@ -1300,30 +1307,42 @@ class RegistryResource extends Resource
                                             ->where('pec_status', '!=', PecStatus::DELIVERED);
                                     });
                             }
+
+                            if ($value === 'void') {
+                                $q->whereNotNull('send_date')
+                                    ->whereHas('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', PecStatus::WAITING);
+                                    })
+                                    ->whereDoesntHave('registryReceivers', function ($r) {
+                                        $r->whereNotNull('message_id')
+                                            ->where('pec_status', '!=', PecStatus::WAITING);
+                                    });
+                            }
                         });
                     })
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('flow_type')
                     ->label('Corrispondenza')
                     ->options(FlowType::class)
-                    // ->searchable()
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('registry_origin_type')
                     ->label('Origine')
                     ->options(RegistryOriginType::class)
-                    // ->searchable()
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('is_email')
                     ->label('Tipo')
                     ->options([
-                        'si' => 'Posta elettronica',
-                        'no' => 'Posta ordinaria',
+                        'si' => 'PEC',
+                        'no' => 'Corrispondenza cartacea',
                     ])
                     ->placeholder('Entrambe le tipologie')
                     ->query(function (Builder $query, array $data): Builder {
                         // Recuperiamo il valore. In Filament SelectFilter, il dato è in $data['value']
                         $value = $data['value'] ?? null;
-
                         // Se non è selezionato nulla, non applichiamo filtri alla query
                         if (blank($value)) {
                             return $query;
@@ -1335,16 +1354,16 @@ class RegistryResource extends Resource
                         }
 
                         if ($value === 'no') {
-                            // Mostra Registry relativo ad una comunicazione tramite posta ordinaria
+                            // Mostra Registry relativo ad una comunicazione tramite posta cartacea
                             return $query->where('is_email', false);
                         }
 
                         return $query;
                     })
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
 
                 Filter::make('ricerca_su_indirizzo')
-                    ->columns(3)
+                    ->columns(['sm' => 1, 'md' => 3])
                     ->form([
                         Radio::make('address_type')
                             ->label('Ricerca su')
@@ -1355,29 +1374,25 @@ class RegistryResource extends Resource
                             ])
                             ->inline()
                             ->default('all')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                         TextInput::make('address_search')
                             ->label('Ricerca per indirizzo email')
                             ->placeholder('')
-                            ->columnSpan(3),
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         // Eseguiamo il filtro solo se l'utente ha digitato qualcosa nel campo di testo
                         return $query->when(
                             $data['address_search'],
                             function (Builder $query, $searchTerm) use ($data) {
-                                
                                 // Raggruppiamo le condizioni in una sottoquery per non rompere altri filtri (es. clausole WHERE esterne)
                                 return $query->where(function (Builder $subQuery) use ($searchTerm, $data) {
-                                    
                                     // 1. Logica per MITTENTE (se 'sender' o 'all')
                                     if (in_array($data['address_type'], ['sender', 'all'])) {
                                         $subQuery->where('from', 'like', "%{$searchTerm}%");
                                     }
-
                                     // 2. Logica per DESTINATARIO (se 'receiver' o 'all')
                                     if (in_array($data['address_type'], ['receiver', 'all'])) {
-                                        
                                         // Se la selezione è 'all', usiamo orWhereHas per unire le ricerche in OR
                                         // Se è solo 'receiver', usiamo whereHas standard
                                         $method = $data['address_type'] === 'all' ? 'orWhereHas' : 'whereHas';
@@ -1413,7 +1428,7 @@ class RegistryResource extends Resource
                     ->getOptionLabelsUsing(fn (array $values): array =>
                         Recipient::whereIn('id', $values)->pluck('description', 'id')->toArray()
                     )
-                   ->query(function (Builder $query, array $data): Builder {
+                ->query(function (Builder $query, array $data): Builder {
                         $searchIds = $data['values'] ?? [];
 
                         if (empty($searchIds)) {
@@ -1445,7 +1460,8 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(18),
+                    ->columnSpanFull(),
+
                 SelectFilter::make('sender')
                     ->label('Mittente')
                     ->multiple()
@@ -1488,7 +1504,8 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(18),
+                    ->columnSpanFull(),
+
                 SelectFilter::make('recipient')
                     ->label('Destinatario')
                     ->multiple()
@@ -1511,7 +1528,6 @@ class RegistryResource extends Resource
                         if (empty($recipientIds)) {
                             return $query;
                         }
-
                         // 3. whereHas è corretto se hai una relazione Many-to-Many o One-to-Many
                         return $query->whereHas('registryReceivers', function ($q) use ($recipientIds) {
                             $q->whereIn('recipient_id', $recipientIds);
@@ -1519,17 +1535,17 @@ class RegistryResource extends Resource
                     })
                     ->indicateUsing(function (array $data): array {
                         if (empty($data['values'])) return [];
-
-                        // 4. Ottimizzazione: ritorniamo un array per gli indicatori (Filament v3 style)
+                        // 4. Ottimizzazione: ritorniamo un array per gli indicatori (Filament v3 style)            
                         $recipients = Recipient::whereIn('id', $data['values'])
                             ->pluck('description')
                             ->toArray();
 
                         return ['Destinatari: ' . implode(', ', $recipients)];
                     })
-                    ->columnSpan(18),
+                    ->columnSpanFull(),
+
                 Filter::make('registration_date_range')
-                    ->columns(2)
+                    ->columns(['sm' => 1, 'md' => 2])
                     ->form([
                         DatePicker::make('registration_from_date')
                             ->label('Registrazione dal')
@@ -1558,14 +1574,16 @@ class RegistryResource extends Resource
                         }
                         return null;
                     })
-                    ->columnSpan(12),
+                    ->columnSpan(['sm' => 'full', 'md' => 6, 'xl' => 12]),
+
                 SelectFilter::make('register_user_id')
                     ->label('Registrato da')
                     ->options(fn () => User::pluck('name', 'id')->toArray())
                     ->searchable()
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 Filter::make('send_date_range')
-                    ->columns(2)
+                    ->columns(['sm' => 1, 'md' => 2])
                     ->form([
                         DatePicker::make('send_from_date')
                             ->label('Invio dal')
@@ -1594,7 +1612,8 @@ class RegistryResource extends Resource
                         }
                         return null;
                     })
-                    ->columnSpan(12),
+                    ->columnSpan(['sm' => 'full', 'md' => 6, 'xl' => 12]),
+
                 SelectFilter::make('esito_invio')
                     ->label('Esito invio')
                     ->options([
@@ -1608,8 +1627,7 @@ class RegistryResource extends Resource
                         if (blank($value)) {
                             return $query;
                         }
-
-                        // Filtriamo solo le email in uscita
+                        // Filtriamo solo le email in uscita       
                         $query->where('is_email', true);
 
                         if ($value === 'non_inviato') {
@@ -1647,7 +1665,7 @@ class RegistryResource extends Resource
 
                         return $query;
                     })
-                    ->columnSpan(6),
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
             ])
             ->actions([
                 // Tables\Actions\ViewAction::make(),

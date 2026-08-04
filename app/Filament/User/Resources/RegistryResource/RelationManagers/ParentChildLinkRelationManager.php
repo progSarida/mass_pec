@@ -33,7 +33,7 @@ class ParentChildLinkRelationManager extends RelationManager
         return $form
             ->schema([
                 Forms\Components\Select::make('registry_id')
-                    ->label('Protocollo da collegare')
+                    ->label('Protocollo precedente da collegare')
                     ->required()
                     ->searchable()
                     ->getSearchResultsUsing(function (string $search) {
@@ -175,7 +175,7 @@ class ParentChildLinkRelationManager extends RelationManager
                         Forms\Components\Grid::make(36)
                             ->schema([
                                 Forms\Components\Select::make('registry_id')
-                                    ->label('Protocollo da collegare')
+                                    ->label('Protocollo precedente da collegare')
                                     ->required()
                                     ->searchable()
                                     ->hintIcon('heroicon-o-information-circle', tooltip: 'Inserire il numero di protocollo o una parola chiave dell\'oggetto')
