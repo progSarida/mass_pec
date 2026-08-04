@@ -168,9 +168,10 @@ class ParentChildLinkRelationManager extends RelationManager
                 Tables\Actions\Action::make('attach')
                     ->label('Collega')
                     ->modalHeading('Crea collegamento tra voci protocollo')
-                    ->modalDescription('Seleziona la voce del protocollo a cui fa riferimento quella corrente e il tipo di collegamento che le lega')
+                    ->modalDescription('Seleziona la voce del protocollo precedente a cui fa riferimento quella corrente e il tipo di collegamento che le lega')
                     ->icon('fluentui-link-20-o')
                     ->hidden(fn ($livewire) => $livewire->isReadOnly())
+                    ->modalSubmitActionLabel('Salva collegamento')
                     ->form([
                         Forms\Components\Grid::make(36)
                             ->schema([
