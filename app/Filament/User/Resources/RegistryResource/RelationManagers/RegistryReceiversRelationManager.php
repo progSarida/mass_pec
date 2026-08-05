@@ -45,139 +45,157 @@ class RegistryReceiversRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form
+            ->columns(12)
             ->schema([
                 Forms\Components\Group::make()
                     ->columns(12)
                     ->relationship('recipient')                                                         // sposto il contesto su Recipient
                     ->disabled()
                     ->schema([
-                TextInput::make('description')->label('Nome e Cognome/Denominazione')
-                    ->live(debounce: 500)
-                    ->columnSpan(['sm' => 'full', 'md' => 9]),
-                Select::make('recipient_type')->label('Natura interlocutore')
-                    ->options(RecipientType::getOptions())
-                    ->live()
-                    ->preload()
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                Select::make('admin_type_id')->label('Tipo interlocutore')
-                    ->relationship(
-                        name: 'adminType',
-                        titleAttribute: 'name',
-                        modifyQueryUsing: fn (Builder $query) => $query->orderBy('position', 'asc')
-                        )
-                    ->searchable()
-                    ->preload()
-                    ->columnSpan(['sm' => 'full', 'md' => 6]),
-                Select::make('istat_type_id')->label('Tipo Istat')
-                    ->relationship(name: 'istatType', titleAttribute: 'name')
-                    ->searchable()
-                    ->preload()
-                    ->columnSpan(['sm' => 'full', 'md' => 6]),
-                TextInput::make('tax_code')->label('Codice fiscale')
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                TextInput::make('vat_code')->label('Partita IVA')
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                TextInput::make('code_ipa')->label('Codice Ipa')
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                TextInput::make('acronym')->label('Acronimo')
-                    ->columnSpan(['sm' => 'full', 'md' => 3]),
-                TextInput::make('address')->label('Indirizzo')
-                    // ->required()
-                    ->columnSpan(['sm' => 'full', 'md' => 8]),
-                Select::make('city_id')->label('Comune')
-                    ->relationship(name: 'city', titleAttribute: 'name')
-                    ->searchable()
-                    ->preload()
-                    ->live()
-                    ->columnSpan(['sm' => 'full', 'md' => 4]),
-                Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
-                TextInput::make('city_code')->label('CC')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
-                TextInput::make('city_cap')->label('Cap')
-                    ->disabled(fn ($state) => $state == null || preg_match('/^\d{5}$/', $state))
-                    ->default(fn ($record) => $record?->city_cap ?? $record?->city?->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
-                TextInput::make('city_province')->label('Provincia')->disabled()->columnSpan(['sm' => 'full', 'md' => 2]),
-                TextInput::make('city_region')->label('Regione')->disabled()->columnSpan(['sm' => 'full', 'md' => 3]),
-                    ])->columnSpan('full'),
-                Forms\Components\TextInput::make('address')
-                    ->label('Indirizzo')
-                    ->required()
-                    ->maxLength(255),
-                Section::make('Ricevute')
-                    ->collapsed(fn($record) => !$record)
-                    ->visible(fn($record) => $record)
-                    ->headerActions([
-                        Action::make('downloadReceipts')
-                            ->label('Scarica tutte (.zip)')
-                            ->icon('heroicon-m-arrow-down-tray')
-                            ->color('gray')
-                            ->size('sm')
-                            ->visible(function ($record) {
-                                $path = $record->registry->attachment_path . '/receipts';
-                                if ($record && Storage::exists($path)) {
-                                    $allFiles = Storage::files($path);
-                                    $filteredFiles = collect($allFiles)->filter(function ($file) use ($record) {
-                                        return str_contains(basename($file), $record->address);
-                                    });
-                                    return $filteredFiles->count() > 1;
-                                }
+                        TextInput::make('description')->label('Nome e Cognome/Denominazione')
+                            ->live(debounce: 500)
+                            ->columnSpan(['sm' => 'full', 'md' => 9]),
+                        Select::make('recipient_type')->label('Natura interlocutore')
+                            ->options(RecipientType::getOptions())
+                            ->live()
+                            ->preload()
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        Select::make('admin_type_id')->label('Tipo interlocutore')
+                            ->relationship(
+                                name: 'adminType',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: fn (Builder $query) => $query->orderBy('position', 'asc')
+                                )
+                            ->searchable()
+                            ->preload()
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        Select::make('istat_type_id')->label('Tipo Istat')
+                            ->relationship(name: 'istatType', titleAttribute: 'name')
+                            ->searchable()
+                            ->preload()
+                            ->columnSpan(['sm' => 'full', 'md' => 6]),
+                        TextInput::make('tax_code')->label('Codice fiscale')
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('vat_code')->label('Partita IVA')
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('code_ipa')->label('Codice Ipa')
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('acronym')->label('Acronimo')
+                            ->columnSpan(['sm' => 'full', 'md' => 3]),
+                        TextInput::make('address')->label('Indirizzo')
+                            // ->required()
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+                        Select::make('city_id')->label('Comune')
+                            ->relationship(name: 'city', titleAttribute: 'name')
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->columnSpan(['sm' => 'full', 'md' => 4]),
+                        Placeholder::make('place_1')->label('')->columnSpan(['sm' => 0, 'md' => 3]),
+                        TextInput::make('city_code')->label('CC')->columnSpan(['sm' => 'full', 'md' => 2]),
+                        TextInput::make('city_cap')->label('Cap')
+                            ->disabled(fn ($state) => $state == null || preg_match('/^\d{5}$/', $state))
+                            ->default(fn ($record) => $record?->city_cap ?? $record?->city?->zip_code)->columnSpan(['sm' => 'full', 'md' => 2]),
+                        TextInput::make('city_province')->label('Provincia')->columnSpan(['sm' => 'full', 'md' => 2]),
+                        TextInput::make('city_region')->label('Regione')->columnSpan(['sm' => 'full', 'md' => 3]),
+                            ])->columnSpan('full'),
+                        Forms\Components\TextInput::make('address')
+                            ->label('Indirizzo')
+                            ->required()
+                            ->disabled(fn($record) => $record->pec_status !== PecStatus::WAITING)
+                            ->maxLength(255)
+                            ->columnSpan(['sm' => 'full', 'md' => 8]),
+                        Section::make('Ricevute')
+                            ->collapsed(fn($record) => !$record)
+                            ->visible(fn($record) => $record)
+                            ->headerActions([
+                                Action::make('downloadReceipts')
+                                    ->label('Scarica tutte (.zip)')
+                                    ->icon('heroicon-m-arrow-down-tray')
+                                    ->color('gray')
+                                    ->size('sm')
+                                    ->visible(function ($record) {
+                                        $path = $record->registry->attachment_path . '/receipts';
+                                        if ($record && Storage::exists($path)) {
+                                            $allFiles = Storage::files($path);
+                                            $filteredFiles = collect($allFiles)->filter(function ($file) use ($record) {
+                                                return str_contains(basename($file), $record->address);
+                                            });
+                                            return $filteredFiles->count() > 1;
+                                        }
 
-                                return false;
-                            })
-                            ->url(fn ($record) => route('receipts.zip', [
-                                'id' => $record->id
-                            ]))
-                            ->openUrlInNewTab(),
-                    ])
-                    ->schema([
-                        Placeholder::make('receipts')
-                            ->label('')
-                            ->content(function ($record) {
-                                // Definisco il percorso specifico delle ricevute
-                                $receiptsPath = $record->registry->attachment_path . '/receipts';
+                                        return false;
+                                    })
+                                    ->url(fn ($record) => route('receipts.zip', [
+                                        'id' => $record->id
+                                    ]))
+                                    ->openUrlInNewTab(),
+                            ])
+                            ->schema([
+                                Placeholder::make('receipts')
+                                    ->label('')
+                                    ->content(function ($record) {
+                                        // Definisco il percorso specifico delle ricevute
+                                        $receiptsPath = $record->registry->attachment_path . '/receipts';
 
-                                // Verifico se la cartella esiste prima di leggere i file
-                                if (!Storage::exists($receiptsPath)) {
-                                    return 'Nessuna ricevuta trovata.';
-                                }
+                                        // Verifico se la cartella esiste prima di leggere i file
+                                        if (!Storage::exists($receiptsPath)) {
+                                            return 'Nessuna ricevuta trovata.';
+                                        }
 
-                                $files = collect(Storage::files($receiptsPath));
-                                $registry = $this->getOwnerRecord();
+                                        $files = collect(Storage::files($receiptsPath));
+                                        $registry = $this->getOwnerRecord();
 
-                                if ($registry->isOutgoingEmail()) {
-                                    // Filtro i file: devono contenere l'indirizzo nel nome
-                                    $filteredFiles = $files->filter(function ($file) use ($record) {
-                                        return str_contains(basename($file), $record->address);
-                                    });
-                                } else {
-                                    $filteredFiles = $files->filter(function ($file) use ($record) {
-                                        return str_contains(basename($file), $record->recipient->description);
-                                    });
-                                }
+                                        if ($registry->isOutgoingEmail()) {
+                                            // Filtro i file: devono contenere l'indirizzo nel nome
+                                            $filteredFiles = $files->filter(function ($file) use ($record) {
+                                                return str_contains(basename($file), $record->address);
+                                            });
+                                        } else {
+                                            $filteredFiles = $files->filter(function ($file) use ($record) {
+                                                return str_contains(basename($file), $record->recipient->description);
+                                            });
+                                        }
 
-                                if ($filteredFiles->isEmpty()) {
-                                    return "Nessuna ricevuta disponibile per {$record->address}.";
-                                }
+                                        if ($filteredFiles->isEmpty()) {
+                                            return "Nessuna ricevuta disponibile per {$record->address}.";
+                                        }
 
-                                return new HtmlString(
-                                    $filteredFiles->map(function ($file) {
-                                        $name = basename($file);
+                                        return new HtmlString(
+                                            $filteredFiles->map(function ($file) {
+                                                $name = basename($file);
 
-                                        // Genero URL
-                                        $url = Storage::temporaryUrl($file, now()->addMinutes(15));
+                                                // Genero URL
+                                                $url = Storage::temporaryUrl($file, now()->addMinutes(15));
 
-                                        return <<<HTML
-                                        <div class="flex items-center gap-2 py-1">
-                                            <span class="text-gray-400 text-xs">📄</span>
-                                            <a href="{$url}" target="_blank" class="text-sm text-primary-600 hover:underline transition">
-                                                {$name}
-                                            </a>
-                                        </div>
-                                        HTML;
-                                    })->implode('')
-                                );
-                            })
-                            ->columnSpan('full'),
+                                                return <<<HTML
+                                                <div class="flex items-center gap-2 py-1">
+                                                    <span class="text-gray-400 text-xs">📄</span>
+                                                    <a href="{$url}" target="_blank" class="text-sm text-primary-600 hover:underline transition">
+                                                        {$name}
+                                                    </a>
+                                                </div>
+                                                HTML;
+                                            })->implode('')
+                                        );
+                                    })
+                                    ->columnSpan('full'),
+                        Forms\Components\TextArea::make('anomaly_description')
+                            ->label('Descrizione anomalia')
+                            ->required()
+                            ->visible(fn($record) => $record->anomaly_description || $record->pec_status === PecStatus::ACCEPTED)
+                            ->columnSpan(['sm' => 'full', 'md' => 'full']),
                     ]),
+                Forms\Components\TextArea::make('anomaly_note')
+                    ->label('Note anomalia')
+                    ->required()
+                    ->visible(fn($record) => $record->anomaly_description || $record->pec_status === PecStatus::ACCEPTED)
+                    ->columnSpan(['sm' => 'full', 'md' => 9]),
+                Forms\Components\Toggle::make('anomaly_managed')
+                    ->label('Anomalia gestita')
+                    ->live()
+                    ->visible(fn($record) => $record->anomaly_description || $record->pec_status === PecStatus::ACCEPTED)
+                    ->columnSpan(['sm' => 'full', 'md' => 3]),
             ]);
     }
 
@@ -217,7 +235,10 @@ class RegistryReceiversRelationManager extends RelationManager
                     ->modalHeading('Destinatario'),
                 Tables\Actions\EditAction::make()
                     ->modalHeading('Destinatario')
-                    ->visible(fn($record) => $record->pec_status === PecStatus::WAITING),
+                    ->visible(fn($record) => ($record->pec_status === PecStatus::WAITING 
+                            || $record->pec_status === PecStatus::ACCEPTED
+                            || $record->anomaly_description) 
+                            && !$record->anomaly_managed),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn($record) => $record->pec_status === PecStatus::WAITING),
                 Tables\Actions\Action::make('resend')

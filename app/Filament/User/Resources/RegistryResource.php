@@ -1211,11 +1211,11 @@ class RegistryResource extends Resource
                 //     ->icon('heroicon-o-folder-open')
                 //     ->color('primary'),
             ])
-            ->filtersFormWidth('4xl')
+            ->filtersFormWidth('6xl')
             ->filtersFormColumns([
                 'sm' => 1,
-                'md' => 6,
-                'xl' => 18,
+                'md' => 8,
+                'xl' => 24,
             ])
             ->filters([
                 SelectFilter::make('account_id')
@@ -1254,6 +1254,7 @@ class RegistryResource extends Resource
                     ->multiple()
                     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
 
+                // Filtri per esito e gestione anomalie separati
                 SelectFilter::make('received')
                     ->label('Esito')
                     ->options([
@@ -1324,15 +1325,154 @@ class RegistryResource extends Resource
                     })
                     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
 
+                SelectFilter::make('anomaly_status')
+                    ->label('Gestione anomalie')
+                    ->options([
+                        'pending' => 'Anomalie da gestire',
+                        'managed' => 'Anomalie gestite',
+                    ])
+                    ->placeholder('Tutte')
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        $isAnomaly = fn ($r) => $r->whereNotIn('pec_status', [PecStatus::WAITING, PecStatus::DELIVERED]);
+                        $isUnmanaged = fn ($r) => $isAnomaly($r)->where(function ($qq) {
+                            $qq->where('anomaly_managed', false)->orWhereNull('anomaly_managed');
+                        });
+
+                        return $query->where(function (Builder $q) use ($value, $isAnomaly, $isUnmanaged) {
+                            $q->where('flow_type', FlowType::ISSUED);
+
+                            if ($value === 'pending') {
+                                // almeno un receiver anomalo non gestito
+                                $q->whereHas('registryReceivers', $isUnmanaged);
+                            }
+
+                            if ($value === 'managed') {
+                                // --- VARIANTE A: TUTTI i receiver anomali sono gestiti ---
+                                $q->whereHas('registryReceivers', $isAnomaly)
+                                    ->whereDoesntHave('registryReceivers', $isUnmanaged);
+
+                                // --- VARIANTE B: ALMENO UNO gestito (usa questa al posto delle due righe sopra) ---
+                                // $q->whereHas('registryReceivers', function ($r) use ($isAnomaly) {
+                                //     $isAnomaly($r)->where('anomaly_managed', true);
+                                // });
+                            }
+                        });
+                    })
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
+                // Filtro per esito e gestione anomalie combinati
+                // SelectFilter::make('received')
+                //     ->label('Esito')
+                //     ->options([
+                //         'yes' => 'Consegnate',
+                //         'no_pending' => 'Non consegnate — anomalie da gestire',
+                //         'no_managed' => 'Non consegnate — anomalie gestite',
+                //         'partial_pending' => 'Parzialmente consegnate — anomalie da gestire',
+                //         'partial_managed' => 'Parzialmente consegnate — anomalie gestite',
+                //         'void' => 'Inviate con ricevute da scaricare',
+                //     ])
+                //     ->placeholder('Tutta')
+                //     ->query(function (Builder $query, array $data): Builder {
+                //         $value = $data['value'] ?? null;
+
+                //         if (blank($value)) {
+                //             return $query;
+                //         }
+
+                //         $isAnomaly = fn ($r) => $r->whereNotIn('pec_status', [PecStatus::WAITING, PecStatus::DELIVERED]);
+                //         $isUnmanaged = fn ($r) => $isAnomaly($r)->where(function ($qq) {
+                //             $qq->where('anomaly_managed', false)->orWhereNull('anomaly_managed');
+                //         });
+
+                //         return $query->where(function (Builder $q) use ($value, $isAnomaly, $isUnmanaged) {
+                //             $q->where('flow_type', FlowType::ISSUED);
+
+                //             if ($value === 'yes') {
+                //                 $q->whereNotNull('send_date')
+                //                     ->whereHas('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', PecStatus::DELIVERED);
+                //                     })
+                //                     ->whereDoesntHave('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', '!=', PecStatus::DELIVERED);
+                //                     });
+                //             }
+
+                //             // --- NON CONSEGNATE: base + split anomalia ---
+                //             if ($value === 'no_pending' || $value === 'no_managed') {
+                //                 $q->whereNotNull('send_date')
+                //                     ->whereHas('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', '!=', PecStatus::DELIVERED);
+                //                     })
+                //                     ->whereDoesntHave('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', PecStatus::DELIVERED);
+                //                     });
+
+                //                 if ($value === 'no_pending') {
+                //                     $q->whereHas('registryReceivers', $isUnmanaged);
+                //                 }
+
+                //                 if ($value === 'no_managed') {
+                //                     $q->whereHas('registryReceivers', $isAnomaly)
+                //                         ->whereDoesntHave('registryReceivers', $isUnmanaged);
+                //                 }
+                //             }
+
+                //             // --- PARZIALMENTE CONSEGNATE: base + split anomalia ---
+                //             if ($value === 'partial_pending' || $value === 'partial_managed') {
+                //                 $q->whereNotNull('send_date')
+                //                     ->whereHas('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', PecStatus::DELIVERED);
+                //                     })
+                //                     ->whereHas('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', '!=', PecStatus::DELIVERED);
+                //                     });
+
+                //                 if ($value === 'partial_pending') {
+                //                     $q->whereHas('registryReceivers', $isUnmanaged);
+                //                 }
+
+                //                 if ($value === 'partial_managed') {
+                //                     $q->whereHas('registryReceivers', $isAnomaly)
+                //                         ->whereDoesntHave('registryReceivers', $isUnmanaged);
+                //                 }
+                //             }
+
+                //             if ($value === 'void') {
+                //                 $q->whereNotNull('send_date')
+                //                     ->whereHas('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', PecStatus::WAITING);
+                //                     })
+                //                     ->whereDoesntHave('registryReceivers', function ($r) {
+                //                         $r->whereNotNull('message_id')
+                //                             ->where('pec_status', '!=', PecStatus::WAITING);
+                //                     });
+                //             }
+                //         });
+                //     })
+                //     ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 9]),
+
                 SelectFilter::make('flow_type')
                     ->label('Corrispondenza')
                     ->options(FlowType::class)
-                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
 
                 SelectFilter::make('registry_origin_type')
                     ->label('Origine')
                     ->options(RegistryOriginType::class)
-                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
 
                 SelectFilter::make('is_email')
                     ->label('Tipo')
@@ -1361,10 +1501,10 @@ class RegistryResource extends Resource
 
                         return $query;
                     })
-                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
 
                 Filter::make('ricerca_su_indirizzo')
-                    ->columns(['sm' => 1, 'md' => 3])
+                    ->columns(['sm' => 1, 'md' => 6])
                     ->form([
                         Radio::make('address_type')
                             ->label('Ricerca su')
@@ -1461,7 +1601,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpanFull(),
+                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
 
                 SelectFilter::make('sender')
                     ->label('Mittente')
@@ -1505,7 +1645,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpanFull(),
+                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
 
                 SelectFilter::make('recipient')
                     ->label('Destinatario')
@@ -1543,7 +1683,7 @@ class RegistryResource extends Resource
 
                         return ['Destinatari: ' . implode(', ', $recipients)];
                     })
-                    ->columnSpanFull(),
+                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
 
                 Filter::make('registration_date_range')
                     ->columns(['sm' => 1, 'md' => 2])
@@ -1615,58 +1755,58 @@ class RegistryResource extends Resource
                     })
                     ->columnSpan(['sm' => 'full', 'md' => 6, 'xl' => 12]),
 
-                SelectFilter::make('esito_invio')
-                    ->label('Esito invio')
-                    ->options([
-                        'non_inviato' => 'Non inviato',
-                        'consegnato' => 'Tutto consegnato',
-                        'parziale' => 'Cons. parzialmente',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        $value = $data['value'] ?? null;
+                // SelectFilter::make('esito_invio')
+                //     ->label('Esito invio')
+                //     ->options([
+                //         'non_inviato' => 'Non inviato',
+                //         'consegnato' => 'Tutto consegnato',
+                //         'parziale' => 'Cons. parzialmente',
+                //     ])
+                //     ->query(function (Builder $query, array $data): Builder {
+                //         $value = $data['value'] ?? null;
 
-                        if (blank($value)) {
-                            return $query;
-                        }
-                        // Filtriamo solo le email in uscita       
-                        $query->where('is_email', true);
+                //         if (blank($value)) {
+                //             return $query;
+                //         }
+                //         // Filtriamo solo le email in uscita       
+                //         $query->where('is_email', true);
 
-                        if ($value === 'non_inviato') {
-                            // Email in uscita non ancora inviate
-                            return $query->whereIn('registry_origin_type', [RegistryOriginType::SEND_EMAIL, RegistryOriginType::REPLY, RegistryOriginType::FORWARD])
-                                        ->whereNull('send_date');
-                        }
+                //         if ($value === 'non_inviato') {
+                //             // Email in uscita non ancora inviate
+                //             return $query->whereIn('registry_origin_type', [RegistryOriginType::SEND_EMAIL, RegistryOriginType::REPLY, RegistryOriginType::FORWARD])
+                //                         ->whereNull('send_date');
+                //         }
 
-                        if ($value === 'consegnato') {
-                            // Tutte le email sono state consegnate
-                            return $query->whereNotNull('send_date')
-                                ->whereHas('registryReceivers')
-                                ->whereDoesntHave('registryReceivers', function ($q) {
-                                    $q->whereIn('pec_status', [
-                                        PecStatus::WAITING,
-                                        PecStatus::ACCEPTED,
-                                        PecStatus::NOT_DELIVERED,
-                                        PecStatus::NOT_ACCEPTED
-                                    ]);
-                                });
-                        }
+                //         if ($value === 'consegnato') {
+                //             // Tutte le email sono state consegnate
+                //             return $query->whereNotNull('send_date')
+                //                 ->whereHas('registryReceivers')
+                //                 ->whereDoesntHave('registryReceivers', function ($q) {
+                //                     $q->whereIn('pec_status', [
+                //                         PecStatus::WAITING,
+                //                         PecStatus::ACCEPTED,
+                //                         PecStatus::NOT_DELIVERED,
+                //                         PecStatus::NOT_ACCEPTED
+                //                     ]);
+                //                 });
+                //         }
 
-                        if ($value === 'parziale') {
-                            // Almeno una email non è stata consegnata
-                            return $query->whereNotNull('send_date')
-                                ->whereHas('registryReceivers', function ($q) {
-                                    $q->whereIn('pec_status', [
-                                        PecStatus::WAITING,
-                                        PecStatus::ACCEPTED,
-                                        PecStatus::NOT_DELIVERED,
-                                        PecStatus::NOT_ACCEPTED
-                                    ]);
-                                });
-                        }
+                //         if ($value === 'parziale') {
+                //             // Almeno una email non è stata consegnata
+                //             return $query->whereNotNull('send_date')
+                //                 ->whereHas('registryReceivers', function ($q) {
+                //                     $q->whereIn('pec_status', [
+                //                         PecStatus::WAITING,
+                //                         PecStatus::ACCEPTED,
+                //                         PecStatus::NOT_DELIVERED,
+                //                         PecStatus::NOT_ACCEPTED
+                //                     ]);
+                //                 });
+                //         }
 
-                        return $query;
-                    })
-                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+                //         return $query;
+                //     })
+                //     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
             ])
             ->actions([
                 // Tables\Actions\ViewAction::make(),

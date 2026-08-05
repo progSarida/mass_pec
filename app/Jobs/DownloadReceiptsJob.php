@@ -261,6 +261,8 @@ class DownloadReceiptsJob implements ShouldQueue
                     continue;
                 }
 
+                $decodedBody = $this->decodeBody($rawHeaders, $body);
+
                 // Verifica destinatario corretto
                 if ($receiver->message_id) {
                     if (!$this->isRightReceiptId($rawHeaders, $receiver->message_id)) {
@@ -296,18 +298,21 @@ class DownloadReceiptsJob implements ShouldQueue
 
                 if ($type === "ANOMALIA MESSAGGIO") {
                     $receiver->pec_status = PecStatus::ANOMALY;
+                    $receiver->anomaly_description = $this->extractMotivazione($decodedBody);
                 }
                 elseif ($type === "ACCETTAZIONE" && $receiver->pec_status === PecStatus::WAITING) {
                     $receiver->pec_status = PecStatus::ACCEPTED;
                 }
                 elseif ($type === "AVVISO DI MANCATA ACCETTAZIONE" && $receiver->pec_status === PecStatus::WAITING) {
                     $receiver->pec_status = PecStatus::NOT_ACCEPTED;
+                    $receiver->anomaly_description = $this->extractMotivazione($decodedBody);
                 }
                 elseif ($type === "CONSEGNA") {
                     $receiver->pec_status = PecStatus::DELIVERED;
                 }
                 elseif ($type === "AVVISO DI MANCATA CONSEGNA") {
                     $receiver->pec_status = PecStatus::NOT_DELIVERED;
+                    $receiver->anomaly_description = $this->extractMotivazione($decodedBody);
                 }
 
                 if ($oldStatus !== $receiver->pec_status) {
@@ -443,5 +448,51 @@ class DownloadReceiptsJob implements ShouldQueue
         }
 
         return $type;
+    }
+
+    private function extractMotivazione(string $body): ?string
+    {
+        // Aruba: "è stato rilevato un errore 5.2.1 - ARUBA PEC S.p.A. - <descrizione>"
+        if (preg_match('/rilevato un errore\s+[\d.]+\s*-\s*(.+?)(?:\r?\n|$)/i', $body, $matches)) {
+            $reason = trim(preg_replace('/\s+/', ' ', $matches[1]));
+            return mb_substr($reason, 0, 500);
+        }
+
+        $patterns = [
+            '/a causa di\s*:?\s*(.+?)(?:\r?\n\r?\n|$)/is',
+            '/in quanto\s*:?\s*(.+?)(?:\r?\n\r?\n|$)/is',
+            '/motivo\s*:?\s*(.+?)(?:\r?\n\r?\n|$)/is',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $body, $matches)) {
+                $reason = trim(preg_replace('/\s+/', ' ', $matches[1]));
+                return mb_substr($reason, 0, 500);
+            }
+        }
+
+        return null;
+    }
+
+    private function decodeBody(string $rawHeaders, string $body): string
+    {
+        // Il Content-Transfer-Encoding della parte testuale può essere annidato
+        // in una sotto-parte MIME (multipart/signed, multipart/mixed...) e non
+        // comparire negli header restituiti da imap_fetchheader(): cerchiamo
+        // in tutto il messaggio (header di primo livello + corpo).
+        $haystack = $rawHeaders . "\n" . $body;
+
+        if (preg_match('/Content-Transfer-Encoding:\s*quoted-printable/i', $haystack)) {
+            return quoted_printable_decode($body);
+        }
+
+        if (preg_match('/Content-Transfer-Encoding:\s*base64/i', $haystack)) {
+            $decoded = base64_decode(trim($body), true);
+            if ($decoded !== false) {
+                return $decoded;
+            }
+        }
+
+        return $body;
     }
 }

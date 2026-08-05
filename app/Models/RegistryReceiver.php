@@ -14,10 +14,14 @@ class RegistryReceiver extends Model
         'address',
         'message_id',
         'pec_status',
+        'anomaly_description',                  // descrizione anomalia invio pec
+        'anomaly_managed',                      // flag gestione anomalia invio pec
+        'anomaly_note',                         // commento gestione anomalia invio pec
     ];
 
     protected $casts = [
         'pec_status' => PecStatus::class,
+        'anomaly_managed' => 'boolean',
     ];
 
     public function registry(){

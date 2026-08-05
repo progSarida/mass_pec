@@ -345,6 +345,7 @@ class EditRegistry extends EditRecord
                     ->form([
                         FileUpload::make('receipts')
                             ->label('Seleziona File')
+                            ->helperText('Formato nome file richiesto: <indirizzo>_<ACCETTAZIONE/AVVISO_DI_MANCATA_ACCETTAZIONE/CONSEGNA/AVVISO_DI_MANCATA_CONSEGNA>.eml (es. test@pec.it_ACCETTAZIONE.eml)')
                             ->multiple()
                             ->directory(fn () => $this->getRecord()->attachment_path . '/receipts')
                             ->preserveFilenames()
@@ -371,6 +372,7 @@ class EditRegistry extends EditRecord
                             foreach ($receiverFiles as $fileName) {
                                 $fullPath = $record->attachment_path . '/receipts/' . $fileName;
                                 $content = Storage::get($fullPath);
+                                $decodedContent = static::decodeBody($content);
 
                                 $referencedMessageId = static::extractReferencedMessageId($content);
 
@@ -378,13 +380,33 @@ class EditRegistry extends EditRecord
                                     $receiver->update(['message_id' => $referencedMessageId]);
                                 }
 
-                                $hasConsegna = Str::contains($fileName, 'CONSEGNA', ignoreCase: true);
-                                $hasAccettazione = Str::contains($fileName, 'ACCETTAZIONE', ignoreCase: true);
+                                $hasConsegna = Str::contains($fileName, 'CONSEGNA', ignoreCase: true) 
+                                    && !Str::contains($fileName, 'MANCATA', ignoreCase: true);
+                                $hasAccettazione = Str::contains($fileName, 'ACCETTAZIONE', ignoreCase: true)
+                                    && !Str::contains($fileName, 'MANCATA', ignoreCase: true);
+                                $hasMancataConsegna = Str::contains($fileName, 'MANCATA') && Str::contains($fileName, 'CONSEGNA', ignoreCase: true);
+                                $hasMancataAccettazione = Str::contains($fileName, 'MANCATA') && Str::contains($fileName, 'ACCETTAZIONE', ignoreCase: true);
+                                $hasAnomalia = Str::contains($fileName, 'ANOMALIA', ignoreCase: true);
 
                                 if ($hasConsegna) {
                                     $receiver->update(['pec_status' => PecStatus::DELIVERED]);
                                 } elseif ($hasAccettazione) {
                                     $receiver->update(['pec_status' => PecStatus::ACCEPTED]);
+                                } elseif ($hasMancataConsegna) {
+                                    $receiver->update([
+                                        'pec_status' => PecStatus::NOT_DELIVERED,
+                                        'anomaly_description' => static::extractMotivazione($decodedContent),
+                                    ]);
+                                } elseif ($hasMancataAccettazione) {
+                                    $receiver->update([
+                                        'pec_status' => PecStatus::NOT_ACCEPTED,
+                                        'anomaly_description' => static::extractMotivazione($decodedContent),
+                                    ]);
+                                } elseif ($hasAnomalia) {
+                                    $receiver->update([
+                                        'pec_status' => PecStatus::ANOMALY,
+                                        'anomaly_description' => static::extractMotivazione($decodedContent),
+                                    ]);
                                 }
                             }
                         }                    
@@ -1366,5 +1388,62 @@ class EditRegistry extends EditRecord
         if ($this->pendingReceiverKeys !== null) {
             $this->record->syncReceiversFromKeys($this->pendingReceiverKeys);
         }
+    }
+
+    private static function extractMotivazione(string $body): ?string
+    {
+        // Aruba: "è stato rilevato un errore 5.2.1 - ARUBA PEC S.p.A. - <descrizione>"
+        if (preg_match('/rilevato un errore\s+[\d.]+\s*-\s*(.+?)(?:\r?\n|$)/i', $body, $matches)) {
+            $reason = trim(preg_replace('/\s+/', ' ', $matches[1]));
+            return mb_substr($reason, 0, 500);
+        }
+
+        $patterns = [
+            '/a causa di\s*:?\s*(.+?)(?:\r?\n\r?\n|$)/is',
+            '/in quanto\s*:?\s*(.+?)(?:\r?\n\r?\n|$)/is',
+            '/motivo\s*:?\s*(.+?)(?:\r?\n\r?\n|$)/is',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $body, $matches)) {
+                $reason = trim(preg_replace('/\s+/', ' ', $matches[1]));
+                return mb_substr($reason, 0, 500);
+            }
+        }
+
+        return null;
+    }
+
+    private static function decodeBody(string $rawHeadersOrFullContent, ?string $body = null): string
+    {
+        // Se viene passato un solo argomento = contenuto completo del .eml
+        if ($body === null) {
+            $full = $rawHeadersOrFullContent;
+            // Separiamo header e body nel modo classico (prima riga vuota)
+            $parts = preg_split("/\r?\n\r?\n/", $full, 2);
+            $rawHeaders = $parts[0] ?? '';
+            $body = $parts[1] ?? $full;
+        } else {
+            $rawHeaders = $rawHeadersOrFullContent;
+        }
+
+        // Il Content-Transfer-Encoding della parte testuale può essere annidato
+        // in una sotto-parte MIME (multipart/signed, multipart/mixed...) e non
+        // comparire negli header restituiti da imap_fetchheader(): cerchiamo
+        // in tutto il messaggio (header di primo livello + corpo).
+        $haystack = $rawHeaders . "\n" . $body;
+
+        if (preg_match('/Content-Transfer-Encoding:\s*quoted-printable/i', $haystack)) {
+            return quoted_printable_decode($body);
+        }
+
+        if (preg_match('/Content-Transfer-Encoding:\s*base64/i', $haystack)) {
+            $decoded = base64_decode(trim($body), true);
+            if ($decoded !== false) {
+                return $decoded;
+            }
+        }
+
+        return $body;
     }
 }
