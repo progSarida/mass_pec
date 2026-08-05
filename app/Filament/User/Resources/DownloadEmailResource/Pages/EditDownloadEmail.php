@@ -265,6 +265,16 @@ class EditDownloadEmail extends EditRecord
                 'manage_registry_type' => $manageRegistryType,
             ]);
 
+            if($manageRegistryType === 'todo') {
+                $registryManage = $registry->registryManages()->create([
+                    'manage_registry_type' => $manageRegistryType,
+                    'manage_registry_date' => null,
+                    'manage_registry_mode' => null,
+                    'manage_registration_datetime' => now(),
+                    'manage_registration_user_id' => Auth::id(),
+                ]);
+            }
+
             // Elimino la mail
             // Model::withoutEvents(function () use ($record) {
             //     $record->delete();

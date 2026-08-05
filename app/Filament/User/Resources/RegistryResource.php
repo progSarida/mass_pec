@@ -10,6 +10,7 @@ use App\Enums\RegistryOriginType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\ParentChildLinkRelationManager;
+use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryManagesRelationManager;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\RegistryReceiversRelationManager;
 use App\Models\Account;
 use App\Models\Province;
@@ -1248,10 +1249,33 @@ class RegistryResource extends Resource
                     })
                     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
 
+                // SelectFilter::make('manage_registry_type')
+                //     ->label('Gestione')
+                //     ->options(ManageRegistryType::class)
+                //     ->multiple()
+                //     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('manage_registry_type')
-                    ->label('Gestione')
-                    ->options(ManageRegistryType::class)
+                    ->label('Evasione')
+                    ->options([
+                        ManageRegistryType::NONE->value => ManageRegistryType::NONE->getFilterLabel(),   // Nessuna
+                        ManageRegistryType::TODO->value => ManageRegistryType::TODO->getFilterLabel(),   // Da evadere
+                        ManageRegistryType::DONE->value => ManageRegistryType::DONE->getFilterLabel(),   // Evasa
+                    ])
                     ->multiple()
+                    ->placeholder('Tutte')
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) {
+                            return [];
+                        }
+
+                        $labels = collect($data['values'])
+                            ->map(fn ($value) => ManageRegistryType::tryFrom($value)?->getFilterLabel() ?? $value)
+                            ->filter()
+                            ->implode(', ');
+
+                        return $labels ? ["Stato evasione: {$labels}"] : [];
+                    })
                     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
 
                 // Filtri per esito e gestione anomalie separati
@@ -1827,6 +1851,7 @@ class RegistryResource extends Resource
             // ForwardsRelationManager::class,
             // RepliesRelationManager::class,
             ParentChildLinkRelationManager::class,
+            RegistryManagesRelationManager::class,
         ];
     }
 

@@ -30,6 +30,7 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
@@ -753,10 +754,11 @@ class EditRegistry extends EditRecord
                     }),
 
                 Actions\Action::make('manage')
-                    ->label('Gestisci')
+                    ->label('Aggiorna stato gestione')
                     ->icon('heroicon-o-cog-8-tooth')
                     ->color('info')
                     ->requiresConfirmation()
+                    ->modalWidth('xl')
                     ->visible(fn($record) => $record?->manage_registry_type?->showManage())
                     ->fillForm(fn (Registry $record): array => [
                         'manage_registry_type' => $record?->manage_registry_type?->value,
@@ -764,24 +766,51 @@ class EditRegistry extends EditRecord
                     ])
                     ->form([
                         Select::make('manage_registry_type')
-                            ->label('Gestione')
-                            ->options(
-                                collect(ManageRegistryType::cases())
-                                    ->filter(fn (ManageRegistryType $enum) => $enum->showToUpdate())
+                            ->label('Modifica stato gestione')
+                            ->required()
+                            // ->options(
+                            //     collect(ManageRegistryType::cases())
+                            //         ->filter(fn (ManageRegistryType $enum) => $enum->showToUpdate())
+                            //         ->mapWithKeys(fn (ManageRegistryType $enum) => [
+                            //             $enum->value => $enum->getLabel()
+                            //         ])
+                            // )
+                            ->options(function (?Registry $record): array {
+                                // Se c'è un record e ha un valore enum impostato, usa showOptions()
+                                // Altrimenti, mostra tutti i casi come fallback
+                                $allowedCases = $record?->manage_registry_type 
+                                    ? $record->manage_registry_type->showOptions() 
+                                    : ManageRegistryType::cases();
+
+                                return collect($allowedCases)
                                     ->mapWithKeys(fn (ManageRegistryType $enum) => [
-                                        $enum->value => $enum->getLabel()
+                                        $enum->value => $enum->getLabel(),
                                     ])
-                            )
+                                    ->toArray();
+                            })
                             ->live(),
                         DatePicker::make('manage_registry_date')
-                            ->label('Data gestione')
+                            ->label('Data evasione')
                             ->required()
+                            ->visible(fn (Get $get) =>$get('manage_registry_type') == ManageRegistryType::DONE->value ),
+                        Textarea::make('manage_registry_mode')
+                            ->label('Descrizione delle modalità di evasione')
+                            ->rows(3)
+                            ->maxLength(65535)
                             ->visible(fn (Get $get) =>$get('manage_registry_type') == ManageRegistryType::DONE->value ),
                     ])
                     ->action(function (Registry $record, $data) {
+                        $manageRegistryType = $data['manage_registry_type'] ?? null;
                         $manageRegistryDate = $data['manage_registry_date'] ?? null;
+                        $registryManage = $record->registryManages()->create([
+                            'manage_registry_type' => $manageRegistryType,
+                            'manage_registry_date' => $manageRegistryDate,
+                            'manage_registry_mode' => $data['manage_registry_mode'] ?? null,
+                            'manage_registration_datetime' => now(),
+                            'manage_registration_user_id' => Auth::id(),
+                        ]);
                         $record->update([
-                            'manage_registry_type' => $data['manage_registry_type'],
+                            'manage_registry_type' => $manageRegistryType,
                             'manage_registry_date' => $manageRegistryDate,
                         ]);
                     }),

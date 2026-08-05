@@ -22,6 +22,16 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
         };
     }
 
+    public function getFilterLabel(): string
+    {
+        return match($this) {
+            self::NONE => 'Da non evadere',
+            self::TODO => 'Da evadere',
+            self::DONE => 'Evase',
+            default => '',
+        };
+    }
+
     public function getIcon(): string
     {
         return match($this) {
@@ -42,7 +52,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
         };
     }
 
-    public function showType(): bool                                            // mostra il tipo di gestione nel form della voce del protocollo
+    public function showType(): bool                                                // mostra il tipo di gestione nel form della voce del protocollo
     {
         return match($this) {
             self::NONE => false,
@@ -52,7 +62,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
         };
     }
 
-    public function showToAssign(): bool                                          // le opzioni disponibili per l'assegnazione alla protocollazione
+    public function showToAssign(): bool                                            // le opzioni disponibili per l'assegnazione alla protocollazione
     {
         return match($this) {
             self::NONE => true,
@@ -62,23 +72,44 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
         };
     }
 
-    public function showManage(): bool                                          // mostra il pulsante per la modifica della gestione della voce
+    public function showManage(): bool                                              // mostra il pulsante per la modifica della gestione della voce
     {
         return match($this) {
-            self::NONE => true,
+            self::NONE => false,
             self::TODO => true,
             self::DONE => false,
             default => false,
         };
     }
 
-    public function showToUpdate(): bool                                          // le opzioni disponibili per l'assegnazione alla modifica
+    public function showToUpdate(): bool                                            // le opzioni disponibili per l'assegnazione alla modifica
     {
         return match($this) {
             self::NONE => true,
             self::TODO => true,
             self::DONE => true,
             default => false,
+        };
+    }
+
+    public function showOptions(): array                                            // le opzioni disponibili per l'assegnazione alla modifica in base al valore corrente
+    {
+        return match($this) {
+            self::NONE => [
+                self::NONE,
+                self::TODO,
+                self::DONE,
+            ],
+            self::TODO => [
+                // self::NONE,
+                self::TODO,
+                self::DONE,
+            ],
+            self::DONE => [
+                // self::NONE,
+                self::TODO,
+                self::DONE,
+            ],
         };
     }
 }

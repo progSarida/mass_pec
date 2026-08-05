@@ -11,6 +11,8 @@ use App\Filament\User\Resources\RegistryResource;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -90,6 +92,22 @@ class Registry extends Model
 
     public function registryReceivers(){
         return $this->hasMany(RegistryReceiver::class);
+    }
+
+    /**
+     * Relazione HasMany con lo storico gestioni
+     */
+    public function registryManages(): HasMany
+    {
+        return $this->hasMany(RegistryManage::class);
+    }
+    
+    /**
+     * Relazione HasOne per ottenere velocemente l'ultima gestione inserita
+     */
+    public function latestManage(): HasOne
+    {
+        return $this->hasOne(RegistryManage::class)->latestOfMany();
     }
 
     public function sender(){
