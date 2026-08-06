@@ -61,10 +61,17 @@
         $tipo = $registry->is_email ? 'Posta Elettronica' : 'Posta Ordinaria';
         switch($registry->flow_type){
             case \App\Enums\FlowType::ISSUED :
+                switch($registry->registry_origin_type){
+                    case \App\Enums\RegistryOriginType::MANUAL :
+                        $mittente = 'Sarida s.r.l.';
+                        break;
+                    default:
+                        $mittente = $registry->shipment_id ? \App\Models\Sender::first()->address . " (" : $registry->account->address . " (";
+                        $mittente .= $registry->shipment_id ? \App\Models\Sender::first()->public_name : $registry->account->public_name;
+                        $mittente .= ")";
+                        break;
+                }
                 $data = $registry->send_date;
-                $mittente = $registry->shipment_id ? \App\Models\Sender::first()->address . " (" : $registry->account->address . " (";
-                $mittente .= $registry->shipment_id ? \App\Models\Sender::first()->public_name : $registry->account->public_name;
-                $mittente .= ")";
                 $destinatario = '';
                 if($registry->shipment_id){
                     $spedizione = $registry->shipment;
@@ -77,7 +84,7 @@
                         }
 
                         if ($index !== 0) $destinatario .= ', ';
-                        $destinatario .= $receiver->address;
+                        $destinatario .= $receiver?->address ?? '';
                     }
                     if(count($spedizione->receivers) > 10) $destinatario .= ', ...';
                 }
@@ -89,9 +96,19 @@
                 }
                 break;
             case \App\Enums\FlowType::RECEIVED :
+                switch($registry->registry_origin_type){
+                    case \App\Enums\RegistryOriginType::MANUAL :
+                        $mittente = \App\Models\Recipient::whereIn('id', $registry->other_senders)->get()->pluck('description')->implode(', ');
+                        $destinatario = 'Sarida s.r.l.';
+                        break;
+                    default:
+                        $mittente = $registry->from . " (" . $registry->sender->description . ")";
+                        $destinatario = $registry->receiving_mail . " (" . \App\Models\Account::where('address', $registry->receiving_mail)->first()->public_name . ")";
+                        break;
+                }
                 $data = $registry->receive_date;
-                $mittente = $registry->from . " (" . $registry->sender->description . ")";
-                $destinatario = $registry->receiving_mail . " (" . \App\Models\Account::where('address', $registry->receiving_mail)->first()->public_name . ")";
+                // $mittente = $registry->from . " (" . $registry->sender->description . ")";
+                // $destinatario = $registry->receiving_mail . " (" . \App\Models\Account::where('address', $registry->receiving_mail)->first()->public_name . ")";
                 break;
             default :
                 $data = $registry->created_at;
@@ -100,7 +117,10 @@
                 break;
         }
     @endphp
-    <b class="intestazione-protocollo">{{ $tipo }} id {{ $registry->id }} del {{ $data->format('d.m.Y') }} ({{ $data->format('H:m:s') }})</b><br>
+    <b class="intestazione-protocollo">
+        {{ $tipo }} id {{ $registry->id }} del {{ $data->format('d.m.Y') }} 
+        {{ $registry->registry_origin_type == \App\Enums\RegistryOriginType::MANUAL ? '' : '(' . $data->format('H:i:s') . ')' }}
+    </b><br>
     <b class="intestazione-protocollo">PROTOCOLLO n. {{ $registry->protocol_number }} del {{ $registry->created_at->format('d.m.Y') }} ({{ $registry->flow_type->getLabel() }})</b><br>
     <br>
     <br>

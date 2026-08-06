@@ -2053,14 +2053,20 @@ class RegistryResource extends Resource
         return $content !== $stripped;
     }
 
-    public static function receiverKey($recipientId, string $address): string
+    public static function receiverKey($recipientId, ?string $address): string
     {
         return $recipientId . '::' . $address;
     }
 
-    public static function parseReceiverKey(string $key): array
+    public static function parseReceiverKeyOld(string $key): array
     {
         $parts = explode('::', $key, 2);
         return [$parts[0] ?? null, $parts[1] ?? null];
+    }
+
+    public static function parseReceiverKey(string $key): array
+    {
+        [$recipientId, $address] = array_pad(explode('::', $key, 2), 2, null);
+        return [$recipientId === '' ? null : $recipientId, $address];
     }
 }
