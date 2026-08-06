@@ -134,6 +134,9 @@ class Registry extends Model
                     ->where('registry_origin_type', RegistryOriginType::FORWARD);
     }
 
+    /**
+     * Registry collegati come parent
+     */
     public function parentRegistries()
     {
         return $this->belongsToMany(Registry::class, 'registry_relationships', 'child_id', 'parent_id')
@@ -141,11 +144,202 @@ class Registry extends Model
                     ->withTimestamps();
     }
 
+    /**
+     * Registry collegati come child
+     */
     public function childRegistries()
     {
         return $this->belongsToMany(Registry::class, 'registry_relationships', 'parent_id', 'child_id')
                     ->withPivot('relationship_type')
                     ->withTimestamps();
+    }
+
+    /**
+     * Verifica se il Registry è collegato ad almeno un altro Registry
+     * tramite la tabella pivot registry_relationships (in entrambe le direzioni).
+     */
+    public function hasRelatedRegistries(): bool
+    {
+        return $this->parentRegistries()->exists() || $this->childRegistries()->exists();
+    }
+
+    /**
+     * Conteggio in query builder
+     * utilizzabile come '$registry->parentRegistries_count' o '$registry->childRegistries_count'
+     */ 
+    public function scopeWithRelatedCount(Builder $query): Builder
+    {
+        return $query->withCount(['parentRegistries', 'childRegistries']);
+    }
+
+    /**
+     * Restituisce il conteggio dei Registry collegati, raggruppato per tipo di relazione
+     * e verso (genitore/figlio), usando le etichette semantiche già definite in RelationshipType.
+     *
+     * Esempio di output:
+     * [
+     *     ['type' => 'link',    'direction' => 'parent', 'label' => 'Collegato a',        'color' => 'gray', 'count' => 1],
+     *     ['type' => 'reply',   'direction' => 'child',  'label' => 'Risposta',           'color' => 'info', 'count' => 2],
+     *     ...
+     * ]
+     * array iterabile (esempio)
+     * foreach ($record->getRelatedRegistriesCountByTypeAndDirection() as $item) {
+     *     echo "{$item['label']}: {$item['count']}"; // es. "Risposta a: 1"
+     * }
+     */
+    public function getRelatedRegistriesCountByTypeAndDirection(): array
+    {
+        $counts = [];
+
+        foreach (RelationshipType::cases() as $type) {
+            $counts[$type->value]['parent'] = 0;
+            $counts[$type->value]['child'] = 0;
+        }
+
+        foreach ($this->parentRegistries()->get(['registries.id', 'relationship_type']) as $registry) {
+            $type = $registry->pivot->relationship_type;
+            $type = $type instanceof RelationshipType ? $type : RelationshipType::tryFrom($type);
+            if ($type) {
+                $counts[$type->value]['parent']++;
+            }
+        }
+
+        foreach ($this->childRegistries()->get(['registries.id', 'relationship_type']) as $registry) {
+            $type = $registry->pivot->relationship_type;
+            $type = $type instanceof RelationshipType ? $type : RelationshipType::tryFrom($type);
+            if ($type) {
+                $counts[$type->value]['child']++;
+            }
+        }
+
+        $result = [];
+
+        foreach ($counts as $typeValue => $directions) {
+            $type = RelationshipType::from($typeValue);
+
+            foreach (['parent', 'child'] as $direction) {
+                $count = $directions[$direction];
+
+                if ($count === 0) {
+                    continue; // salta le combinazioni senza collegamenti
+                }
+
+                $result[] = [
+                    'type' => $typeValue,
+                    'direction' => $direction,
+                    'label' => $direction === 'parent' ? $type->parentLabel() : $type->childLabel(),
+                    'color' => $direction === 'parent' ? $type->parentColor() : $type->childColor(),
+                    'count' => $count,
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Restituisce il conteggio dei Registry collegati, con chiave = etichetta
+     * semantica già formattata in base al verso della relazione (genitore/figlio).
+     *
+     * Esempio di output:
+     * [
+     *     'Collegato a' => 1,
+     *     'Collegato da' => 1,
+     *     'Risposta ricevuta' => 2,
+     *     'Inoltro di' => 1,
+     * ]
+     */
+    public function getRelatedRegistriesCountFlat(): array
+    {
+        $result = [];
+
+        foreach ($this->parentRegistries()->get(['registries.id', 'relationship_type']) as $registry) {
+            $type = $registry->pivot->relationship_type;
+            $type = $type instanceof RelationshipType ? $type : RelationshipType::tryFrom($type);
+
+            if (! $type) {
+                continue;
+            }
+
+            $label = $type->parentLabel();
+            $result[$label] = ($result[$label] ?? 0) + 1;
+        }
+
+        foreach ($this->childRegistries()->get(['registries.id', 'relationship_type']) as $registry) {
+            $type = $registry->pivot->relationship_type;
+            $type = $type instanceof RelationshipType ? $type : RelationshipType::tryFrom($type);
+
+            if (! $type) {
+                continue;
+            }
+
+            $label = $type->childLabel();
+            $result[$label] = ($result[$label] ?? 0) + 1;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Registry collegato a qualcosa, qualsiasi tipo/verso
+     */
+    public function scopeWhereLinked(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereHas('parentRegistries')
+                ->orWhereHas('childRegistries');
+        });
+    }
+
+    /**
+     * Registry non collegato a nulla
+     */
+    public function scopeWhereNotLinked(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('parentRegistries')
+            ->whereDoesntHave('childRegistries');
+    }
+
+    /**
+     * Registry che ha un genitore di un certo tipo (questo record è il "figlio")
+     * Es: 'Collegato a', 'Risposta a', 'Inoltro di'
+     */
+    public function scopeWhereHasParentOfType(Builder $query, string $type): Builder
+    {
+        return $query->whereHas('parentRegistries', function (Builder $q) use ($type) {
+            $q->where('registry_relationships.relationship_type', $type);
+        });
+    }
+
+    /**
+     * Registry che ha un figlio di un certo tipo (questo record è il "genitore")
+     * Es: 'Collegato da', 'Risposta ricevuta', 'Inoltrato a'
+     */
+    public function scopeWhereHasChildOfType(Builder $query, string $type): Builder
+    {
+        return $query->whereHas('childRegistries', function (Builder $q) use ($type) {
+            $q->where('registry_relationships.relationship_type', $type);
+        });
+    }
+
+    /**
+     * Registry che ha un genitore con relationship_type in uno dei tipi passati
+     */
+    public function scopeWhereHasParentOfTypes(Builder $query, array $types): Builder
+    {
+        return $query->whereHas('parentRegistries', function (Builder $q) use ($types) {
+            $q->whereIn('registry_relationships.relationship_type', $types);
+        });
+    }
+
+    /**
+     * Registry che ha un figlio con relationship_type in uno dei tipi passati
+     */
+    public function scopeWhereHasChildOfTypes(Builder $query, array $types): Builder
+    {
+        return $query->whereHas('childRegistries', function (Builder $q) use ($types) {
+            $q->whereIn('registry_relationships.relationship_type', $types);
+        });
     }
 
     // Helper utili

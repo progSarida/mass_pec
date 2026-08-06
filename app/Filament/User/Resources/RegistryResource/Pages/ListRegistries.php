@@ -11,12 +11,42 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 
 class ListRegistries extends ListRecords
 {
     protected static string $resource = RegistryResource::class;
+
+    /**
+     * Iniezione stile (non utilizzata)
+     */
+    public function mount(): void
+    {
+        parent::mount();
+
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::HEAD_END,
+            fn (): string => <<<HTML
+                <style>
+                    .tippy-box[data-theme~='linked-tooltip'] {
+                        background-color: rgb(255 255 255);
+                        color: rgb(15 23 42);
+                        border-radius: 0.375rem;
+                        /* font-size: 0.75rem; */
+                        line-height: 1rem;
+                        padding: 0.25rem 0.5rem;
+                    }
+                    .tippy-box[data-theme~='linked-tooltip'] .tippy-arrow {
+                        color: rgb(255 255 255);
+                    }
+                </style>
+            HTML,
+            scopes: static::class,
+        );
+    }
 
     protected function getHeaderActions(): array
     {

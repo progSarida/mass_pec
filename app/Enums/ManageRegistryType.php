@@ -32,6 +32,16 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
         };
     }
 
+    public function getTooltipLabel(): string
+    {
+        return match($this) {
+            self::NONE => '',
+            self::TODO => 'Da evadere',
+            self::DONE => 'Evasa',
+            default => '',
+        };
+    }
+
     public function getIcon(): string
     {
         return match($this) {

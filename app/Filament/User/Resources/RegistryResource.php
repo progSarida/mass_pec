@@ -7,6 +7,7 @@ use App\Enums\MailType;
 use App\Enums\ManageRegistryType;
 use App\Enums\PecStatus;
 use App\Enums\RegistryOriginType;
+use App\Enums\RelationshipType;
 use App\Filament\User\Resources\RegistryResource\Pages;
 use App\Filament\User\Resources\RegistryResource\RelationManagers;
 use App\Filament\User\Resources\RegistryResource\RelationManagers\ParentChildLinkRelationManager;
@@ -871,6 +872,7 @@ class RegistryResource extends Resource
 
                 IconColumn::make('flow_type')
                     ->label('')
+                    ->alignCenter()
                     ->tooltip(fn ($record) => $record->flow_type->getLabel())
                     ->toggleable(isToggledHiddenByDefault: false),
 
@@ -998,8 +1000,11 @@ class RegistryResource extends Resource
                 Tables\Columns\TextColumn::make('receivers')
                     ->label('Destinatari')
                     ->state(fn ($record) => $record?->registryReceivers?->count() ?? 0)
-                    ->formatStateUsing(function ($state) {
+                    ->formatStateUsing(function ($record, $state) {
                         if ($state === 0) return '';
+                        if ($state === 1) {
+                            return static::getRecipientsNameFromIds($record->registryReceivers->pluck('recipient_id')) ;
+                        }
                         return $state . ' ' . ($state === 1 ? 'destinatario' : 'destinatari');
                     })
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -1014,6 +1019,9 @@ class RegistryResource extends Resource
                             return '';
                         }
                         // return static::getRecipientsNameFromAddresses($receivers->pluck('address')) ;
+                        if(count($receivers) == 1) {
+                            return '';
+                        }
                         return static::getRecipientsNameFromIds($receivers->pluck('recipient_id')) ;
                     }),
 
@@ -1041,6 +1049,7 @@ class RegistryResource extends Resource
 
                 IconColumn::make('attachment_path')
                     ->label('Allegati')
+                    ->alignCenter()
                     ->icon(function($record) {
                         $files = Storage::files($record?->attachment_path);
                         if (!empty($files)) { return 'fluentui-mail-attach-20'; }
@@ -1063,8 +1072,43 @@ class RegistryResource extends Resource
                             : "Ci sono {$count} allegati";
                     }),
 
+                TextColumn::make('linked')
+                    ->label('Collegato')
+                    ->alignCenter()
+                    // ->state(fn ($record) => $record->hasRelatedRegistries())
+                    // ->icon(fn ($record) => $record->hasRelatedRegistries() ? 'heroicon-o-link' : '')
+                    ->state(fn ($record) => $record->hasRelatedRegistries() ? 'SI' : 'NO')
+                    ->color(fn ($record) => $record->hasRelatedRegistries() ? 'success' : 'grey')
+                    ->tooltip(function ($record) {
+                        $counts = $record->getRelatedRegistriesCountFlat();
+
+                        if (empty($counts)) {
+                            return '';
+                        }
+
+                        return collect($counts)
+                            ->map(fn ($count, $label) => "{$label}: {$count}")
+                            ->implode(' · ');
+                    })
+                    // ->extraAttributes(function ($record) {
+                    //     $counts = $record->getRelatedRegistriesCountFlat();
+                    //     if (empty($counts)) {
+                    //         return [];
+                    //     }
+
+                    //     $html = collect($counts)
+                    //         ->map(fn ($count, $label) => e("{$label}: {$count}"))
+                    //         ->implode('<br>');
+
+                    //     return [
+                    //         'x-tooltip.raw.html.theme.linked-tooltip' => $html,
+                    //     ];
+                    // }),
+                    ,
+
                 IconColumn::make('esito_report')
                     ->label('Esito')
+                    ->alignCenter()
                     ->getStateUsing(function ($record) {
                         return static::checkReceipts($record);
                     })
@@ -1150,7 +1194,8 @@ class RegistryResource extends Resource
 
                 IconColumn::make('manage_registry_type')
                     ->label('Gestione')
-                    ->tooltip(fn (?ManageRegistryType $state): ?string => $state?->getLabel()),
+                    ->alignCenter()
+                    ->tooltip(fn (?ManageRegistryType $state): ?string => $state?->getTooltipLabel()),
 
                 TextColumn::make('body')
                     ->label('Messaggio')
@@ -1580,6 +1625,89 @@ class RegistryResource extends Resource
                     })
                     ->columnSpanFull(),
 
+                SelectFilter::make('linked_status')
+                    ->label('Stato collegamento')
+                    ->options([
+                        'linked' => 'Collegato (qualsiasi tipo)',
+                        'not_linked' => 'Non collegato',
+                    ])
+                    ->placeholder('Tutti')
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'linked' => $query->whereLinked(),
+                            'not_linked' => $query->whereNotLinked(),
+                            default => $query,
+                        };
+                    })
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
+                SelectFilter::make('relationship_types')
+                    ->label('Tipo collegamento')
+                    ->multiple()
+                    ->options([
+                        'link_parent' => 'Collegato a',
+                        'link_child' => 'Collegato da',
+                        'reply_parent' => 'Risposte',
+                        'reply_child' => 'Risposta ricevuta',
+                        'forward_parent' => 'Inoltri',
+                        'forward_child' => 'Inoltrati',
+                    ])
+                    ->placeholder('Tutti')
+                    ->query(function (Builder $query, array $data): Builder {
+                        $values = $data['values'] ?? [];
+
+                        if (empty($values)) {
+                            return $query;
+                        }
+
+                        $mapParent = [
+                            'link_parent' => RelationshipType::LINK->value,
+                            'reply_parent' => RelationshipType::REPLY->value,
+                            'forward_parent' => RelationshipType::FORWARD->value,
+                        ];
+
+                        $mapChild = [
+                            'link_child' => RelationshipType::LINK->value,
+                            'reply_child' => RelationshipType::REPLY->value,
+                            'forward_child' => RelationshipType::FORWARD->value,
+                        ];
+
+                        $parentTypes = collect($values)->filter(fn ($v) => isset($mapParent[$v]))->map(fn ($v) => $mapParent[$v])->values()->toArray();
+                        $childTypes = collect($values)->filter(fn ($v) => isset($mapChild[$v]))->map(fn ($v) => $mapChild[$v])->values()->toArray();
+
+                        return $query->where(function (Builder $q) use ($parentTypes, $childTypes) {
+                            if (!empty($parentTypes)) {
+                                $q->orWhere(function (Builder $qq) use ($parentTypes) {
+                                    $qq->whereHasParentOfTypes($parentTypes);
+                                });
+                            }
+                            if (!empty($childTypes)) {
+                                $q->orWhere(function (Builder $qq) use ($childTypes) {
+                                    $qq->whereHasChildOfTypes($childTypes);
+                                });
+                            }
+                        });
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        if (empty($data['values'])) {
+                            return [];
+                        }
+
+                        $labels = [
+                            'link_parent' => 'Collegato a',
+                            'link_child' => 'Collegato da',
+                            'reply_parent' => 'Risposta a',
+                            'reply_child' => 'Risposta ricevuta',
+                            'forward_parent' => 'Inoltro di',
+                            'forward_child' => 'Inoltrato a',
+                        ];
+
+                        $selected = collect($data['values'])->map(fn ($v) => $labels[$v] ?? $v)->implode(', ');
+
+                        return ["Tipo collegamento: {$selected}"];
+                    })
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
                 SelectFilter::make('interested')
                     ->label('Iterlocutore')
                     ->multiple()
@@ -1625,7 +1753,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
+                    ->columnSpan(['sm' => 'full', 'md' => 6, 'xl' => 12]),
 
                 SelectFilter::make('sender')
                     ->label('Mittente')
@@ -1669,7 +1797,7 @@ class RegistryResource extends Resource
 
                         return ['Mittenti: ' . implode(', ', $labels)];
                     })
-                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
+                    ->columnSpan(['sm' => 'full', 'md' => 6, 'xl' => 12]),
 
                 SelectFilter::make('recipient')
                     ->label('Destinatario')
@@ -1707,7 +1835,7 @@ class RegistryResource extends Resource
 
                         return ['Destinatari: ' . implode(', ', $recipients)];
                     })
-                    ->columnSpan(['sm' => 'full', 'md' => 4, 'xl' => 8]),
+                    ->columnSpan(['sm' => 'full', 'md' => 6, 'xl' => 12]),
 
                 Filter::make('registration_date_range')
                     ->columns(['sm' => 1, 'md' => 2])
