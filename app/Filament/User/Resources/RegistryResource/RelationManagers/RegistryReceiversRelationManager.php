@@ -180,7 +180,7 @@ class RegistryReceiversRelationManager extends RelationManager
                                         );
                                     })
                                     ->columnSpan('full'),
-                        Forms\Components\TextArea::make('anomaly_description')
+                        Forms\Components\Textarea::make('anomaly_description')
                             ->label('Descrizione anomalia')
                             ->required()
                             ->visible(fn($record) => $record->anomaly_description || $record->pec_status === PecStatus::ACCEPTED)
