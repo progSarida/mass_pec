@@ -10,7 +10,7 @@ use ZipArchive;
 
 class AttachmentController extends Controller
 {
-    public function downloadZip(string $type, $id)
+    public function downloadZip(string $type, int $id)
     {
         // Recupera la classe dal morphMap
         $modelClass = Relation::getMorphedModel($type);
@@ -25,7 +25,16 @@ class AttachmentController extends Controller
 
         if (empty($files)) abort(404, "Nessun file trovato.");
 
-        $zipFileName = "{$type}_{$id}_attachments.zip";
+        $fileName = match($type) {
+            'in_mail' => "allegati_posta_massiva_" . $id,
+            'send_email' => "allegati_pec_uscita_" . $id,
+            'download_email' => "allegati_pec_arrivo_" . $id,
+            'registry' => "allegati_" . \App\Models\Registry::findOrFail($id)->protocol_number,
+            'manual' => "allegati_manuale_" . $id,
+            default => '',
+        };
+
+        $zipFileName = "{$fileName}.zip";
         $zipPath = storage_path("app/temp/{$zipFileName}");
 
         if (!file_exists(storage_path('app/temp'))) {
@@ -43,7 +52,7 @@ class AttachmentController extends Controller
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 
-    public function downloadZipReceipts($id)
+    public function downloadZipReceipts(int $id)
     {
         $record = RegistryReceiver::findOrFail($id);
 
@@ -56,7 +65,7 @@ class AttachmentController extends Controller
 
         if ($files->isEmpty()) abort(404, "Nessun file trovato.");
 
-        $zipFileName = "{$record->address}_receipts.zip";
+        $zipFileName = "ricevute_{$record->address}.zip";
         $zipPath = storage_path("app/temp/{$zipFileName}");
 
         if (!file_exists(storage_path('app/temp'))) {
@@ -74,7 +83,7 @@ class AttachmentController extends Controller
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 
-    public function downloadZipRelated($id)
+    public function downloadZipRelated(int $id)
     {
         $record = Registry::findOrFail($id);
 
@@ -87,7 +96,7 @@ class AttachmentController extends Controller
 
         if ($files->isEmpty()) abort(404, "Nessun file trovato.");
 
-        $zipFileName = "{$record->protocol_number}_related.zip";
+        $zipFileName = "documenti_{$record->protocol_number}.zip";
         $zipPath = storage_path("app/temp/{$zipFileName}");
 
         if (!file_exists(storage_path('app/temp'))) {

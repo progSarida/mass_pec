@@ -217,9 +217,9 @@
             @php
                 $recipientLabel = count($registry->registryReceivers) <= 1 ? 'Interlocutore' : 'Interlocutori';
                 if($registry->flow_type == \App\Enums\FlowType::ISSUED)
-                    $recipient = $registry->registryReceivers?->pluck('recipient.description')->join(', ');
+                    $recipient = $registry->registryReceivers?->pluck('recipient.description')->filter()->join(', ');
                 else if ($registry->flow_type == \App\Enums\FlowType::RECEIVED)
-                    $recipient = $registry->sender->description;
+                    $recipient = $registry->sender?->description;
             @endphp
                 <tr class="bidding-first-row">
                     <td>{{ $registry->protocol_number ?? '' }}</td>

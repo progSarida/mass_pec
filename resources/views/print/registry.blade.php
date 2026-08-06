@@ -118,8 +118,8 @@
         }
     @endphp
     <b class="intestazione-protocollo">
-        {{ $tipo }} id {{ $registry->id }} del {{ $data->format('d.m.Y') }} 
-        {{ $registry->registry_origin_type == \App\Enums\RegistryOriginType::MANUAL ? '' : '(' . $data->format('H:i:s') . ')' }}
+        {{ $tipo }} id {{ $registry->id }}{{ $data ?  'del' . $data->format('d.m.Y') : '' }} 
+        {{ $registry->registry_origin_type == \App\Enums\RegistryOriginType::MANUAL || !$data ? '' : '(' . $data->format('H:i:s') . ')' }}
     </b><br>
     <b class="intestazione-protocollo">PROTOCOLLO n. {{ $registry->protocol_number }} del {{ $registry->created_at->format('d.m.Y') }} ({{ $registry->flow_type->getLabel() }})</b><br>
     <br>

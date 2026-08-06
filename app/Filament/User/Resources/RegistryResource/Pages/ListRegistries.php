@@ -58,7 +58,9 @@ class ListRegistries extends ListRecords
                 ->tooltip('Stampa elenco voci')
                 ->color(Color::rgb('rgb(255, 0, 0)'))
                 ->action(function ($livewire) {
+                    ini_set('memory_limit', '512M');
                     $records = $livewire->getFilteredTableQuery()
+                                ->with(['registryReceivers.recipient', 'sender', 'scopeType'])
                                 ->orderBy('created_at', 'asc')
                                 ->get();
                     $filters = $livewire->tableFilters ?? [];
@@ -90,6 +92,7 @@ class ListRegistries extends ListRecords
                                 ->stream();
                         }, "Registro protocollo.pdf");
                 }),
+                
             // ExportAction::make('esporta')
             //     ->icon('heroicon-s-table-cells')
             //     ->label('Esporta')
