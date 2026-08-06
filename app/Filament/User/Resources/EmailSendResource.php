@@ -464,7 +464,7 @@ class EmailSendResource extends Resource
                         ->label('Stampa selezionate')
                         // ->icon('heroicon-m-arrow-down-tray')
                         ->icon('heroicon-o-printer')
-                        ->color(Color::rgb('rgb(255, 0, 0)'))
+                        ->color('print')
                         ->openUrlInNewTab()
                         // ->deselectRecordsAfterCompletion()
                         ->action(function (Collection $records) {

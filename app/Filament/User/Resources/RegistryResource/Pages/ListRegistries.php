@@ -3,10 +3,12 @@
 namespace App\Filament\User\Resources\RegistryResource\Pages;
 
 use App\Enums\PecStatus;
+use App\Filament\Exports\RegistryExporter;
 use App\Filament\User\Resources\RegistryResource;
 use App\Models\RegistryReceiver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
+use Filament\Actions\ExportAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Support\Colors\Color;
@@ -56,7 +58,7 @@ class ListRegistries extends ListRecords
                 ->icon('heroicon-o-printer')
                 ->label('Stampa')
                 ->tooltip('Stampa elenco voci')
-                ->color(Color::rgb('rgb(255, 0, 0)'))
+                ->color('print')
                 ->action(function ($livewire) {
                     ini_set('memory_limit', '512M');
                     $records = $livewire->getFilteredTableQuery()
@@ -93,12 +95,42 @@ class ListRegistries extends ListRecords
                         }, "Registro protocollo.pdf");
                 }),
                 
-            // ExportAction::make('esporta')
-            //     ->icon('heroicon-s-table-cells')
-            //     ->label('Esporta')
-            //     ->tooltip('Esporta elenco gare')
-            //     ->color(Color::rgb('rgb(0, 153, 0)'))
-            //     ->exporter(BiddingExporter::class),
+            ExportAction::make('esporta')
+                ->icon('heroicon-s-table-cells')
+                ->label('Esporta')
+                ->tooltip('Esporta protocollo')
+                ->modalWidth(MaxWidth::FitContent)
+                ->color('export')
+                ->exporter(RegistryExporter::class)
+                ->form(fn (ExportAction $action): array => [
+                    \Filament\Forms\Components\Fieldset::make(__('filament-actions::export.modal.form.columns.label'))
+                        ->columns(3)
+                        ->inlineLabel()
+                        ->schema(function () use ($action): array {
+                            return array_map(
+                                fn (\Filament\Actions\Exports\ExportColumn $column): \Filament\Forms\Components\Split => \Filament\Forms\Components\Split::make([
+                                    \Filament\Forms\Components\Checkbox::make('isEnabled')
+                                        ->label(__('filament-actions::export.modal.form.columns.form.is_enabled.label', ['column' => $column->getName()]))
+                                        ->hiddenLabel()
+                                        ->default($column->isEnabledByDefault())
+                                        ->live()
+                                        ->grow(false),
+                                    \Filament\Forms\Components\TextInput::make('label')
+                                        ->label(__('filament-actions::export.modal.form.columns.form.label.label', ['column' => $column->getName()]))
+                                        ->hiddenLabel()
+                                        ->default($column->getLabel())
+                                        ->placeholder($column->getLabel())
+                                        ->disabled(fn (\Filament\Forms\Get $get): bool => ! $get('isEnabled'))
+                                        ->required(fn (\Filament\Forms\Get $get): bool => (bool) $get('isEnabled')),
+                                ])
+                                    ->verticallyAlignCenter()
+                                    ->statePath($column->getName()),
+                                $action->getExporter()::getColumns(),
+                            );
+                        })
+                        ->statePath('columnMap'),
+                    ...$action->getExporter()::getOptionsFormComponents(),
+                ]),
 
             Actions\Action::make('send')
                 ->label('Invia Email')

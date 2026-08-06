@@ -1073,7 +1073,7 @@ class RegistryResource extends Resource
                     }),
 
                 TextColumn::make('linked')
-                    ->label('Collegato')
+                    ->label('Collegamenti')
                     ->alignCenter()
                     // ->state(fn ($record) => $record->hasRelatedRegistries())
                     // ->icon(fn ($record) => $record->hasRelatedRegistries() ? 'heroicon-o-link' : '')

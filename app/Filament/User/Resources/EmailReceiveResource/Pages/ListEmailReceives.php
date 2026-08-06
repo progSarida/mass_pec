@@ -58,7 +58,7 @@ class ListEmailReceives extends ListRecords
                 ->icon('heroicon-o-printer')
                 ->label('Stampa')
                 ->tooltip('Stampa elenco email')
-                ->color(Color::rgb('rgb(255, 0, 0)'))
+                ->color('print')
                 ->action(function ($livewire) {
                     $records = $livewire->getFilteredTableQuery()
                         ->orderBy('created_at', 'asc')

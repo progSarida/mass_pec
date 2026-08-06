@@ -85,7 +85,7 @@ class ShipmentErrorsRelationManager extends RelationManager
                     ->icon('heroicon-o-printer')
                     ->label('Stampa')
                     ->tooltip('Stampa elenco errori')
-                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->color('print')
                     ->action(function ($livewire) {
 
                         $shipment = $this->getOwnerRecord();

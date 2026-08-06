@@ -26,7 +26,7 @@ class ListRecipients extends ListRecords
                 ->icon('heroicon-o-printer')
                 ->label('Stampa')
                 ->tooltip('Stampa elenco voci')
-                ->color(Color::rgb('rgb(255, 0, 0)'))
+                ->color('print')
                 ->action(function ($livewire) {
                     $records = $livewire->getFilteredTableQuery()
                         ->with(['emails', 'city.province.region'])
@@ -66,8 +66,38 @@ class ListRecipients extends ListRecords
                 ->icon('heroicon-s-table-cells')
                 ->label('Esporta')
                 ->tooltip('Esporta elenco interlocutori')
-                ->color(Color::rgb('rgb(0, 153, 0)'))
+                ->modalWidth(MaxWidth::FitContent)
+                ->color('export')
                 ->exporter(RecipientExporter::class)
+                ->form(fn (ExportAction $action): array => [
+                    \Filament\Forms\Components\Fieldset::make(__('filament-actions::export.modal.form.columns.label'))
+                        ->columns(3)
+                        ->inlineLabel()
+                        ->schema(function () use ($action): array {
+                            return array_map(
+                                fn (\Filament\Actions\Exports\ExportColumn $column): \Filament\Forms\Components\Split => \Filament\Forms\Components\Split::make([
+                                    \Filament\Forms\Components\Checkbox::make('isEnabled')
+                                        ->label(__('filament-actions::export.modal.form.columns.form.is_enabled.label', ['column' => $column->getName()]))
+                                        ->hiddenLabel()
+                                        ->default($column->isEnabledByDefault())
+                                        ->live()
+                                        ->grow(false),
+                                    \Filament\Forms\Components\TextInput::make('label')
+                                        ->label(__('filament-actions::export.modal.form.columns.form.label.label', ['column' => $column->getName()]))
+                                        ->hiddenLabel()
+                                        ->default($column->getLabel())
+                                        ->placeholder($column->getLabel())
+                                        ->disabled(fn (\Filament\Forms\Get $get): bool => ! $get('isEnabled'))
+                                        ->required(fn (\Filament\Forms\Get $get): bool => (bool) $get('isEnabled')),
+                                ])
+                                    ->verticallyAlignCenter()
+                                    ->statePath($column->getName()),
+                                $action->getExporter()::getColumns(),
+                            );
+                        })
+                        ->statePath('columnMap'),
+                    ...$action->getExporter()::getOptionsFormComponents(),
+                ])
         ];
     }
 

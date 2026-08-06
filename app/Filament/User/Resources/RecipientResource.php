@@ -535,7 +535,7 @@ class RecipientResource extends Resource
                         ->label('Stampa selezionati')
                         // ->icon('heroicon-m-arrow-down-tray')
                         ->icon('heroicon-o-printer')
-                        ->color(Color::rgb('rgb(255, 0, 0)'))
+                        ->color('print')
                         ->openUrlInNewTab()
                         // ->deselectRecordsAfterCompletion()
                         ->action(function (Collection $records) {
@@ -561,7 +561,7 @@ class RecipientResource extends Resource
                         ->icon('heroicon-s-table-cells')
                         ->label('Esporta selezionati')
                         ->tooltip('Esporta elenco interlocutori')
-                        ->color(Color::rgb('rgb(0, 153, 0)'))
+                        ->color('export')
                         ->exporter(RecipientExporter::class)
                 ]),
             ]);

@@ -23,7 +23,7 @@ class ListShipments extends ListRecords
                 ->icon('heroicon-o-printer')
                 ->label('Stampa')
                 ->tooltip('Stampa elenco voci')
-                ->color(Color::rgb('rgb(255, 0, 0)'))
+                ->color('print')
                 ->action(function ($livewire) {
                     $records = $livewire->getFilteredTableQuery()
                                 ->orderBy('created_at', 'asc')

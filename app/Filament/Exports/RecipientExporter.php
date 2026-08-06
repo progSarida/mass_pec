@@ -124,12 +124,29 @@ class RecipientExporter extends Exporter
         ];
     }
 
+    // public static function getCompletedNotificationBody(Export $export): string
+    // {
+    //     $body = 'Your recipient export has completed and ' . number_format($export->successful_rows) . ' ' . str('row')->plural($export->successful_rows) . ' exported.';
+
+    //     if ($failedRowsCount = $export->getFailedRowsCount()) {
+    //         $body .= ' ' . number_format($failedRowsCount) . ' ' . str('row')->plural($failedRowsCount) . ' failed to export.';
+    //     }
+
+    //     return $body;
+    // }
+
     public static function getCompletedNotificationBody(Export $export): string
     {
-        $body = 'Your recipient export has completed and ' . number_format($export->successful_rows) . ' ' . str('row')->plural($export->successful_rows) . ' exported.';
+        $addExported = $export->successful_rows > 1 
+            ? number_format($export->successful_rows) . " elementi esportati" 
+            : '1 elemento esportato';
+        $body = 'L\'esportazione degli interlocutori è stata completata ' . $addExported . "<br>";
 
         if ($failedRowsCount = $export->getFailedRowsCount()) {
-            $body .= ' ' . number_format($failedRowsCount) . ' ' . str('row')->plural($failedRowsCount) . ' failed to export.';
+            $addFailed = $failedRowsCount > 1 
+                ? number_format($failedRowsCount) . " elementi non esportati" 
+                : '1 elemento non esportato';
+            $body .= $addFailed;
         }
 
         return $body;

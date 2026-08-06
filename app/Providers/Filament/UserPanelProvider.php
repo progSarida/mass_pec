@@ -35,6 +35,8 @@ class UserPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('30s')
             ->colors([
                 'primary' => Color::Amber,
+                'print' => Color::rgb('rgb(255, 0, 0)'),
+                'export' => Color::rgb('rgb(0, 153, 0)'),
             ])
             // ->topNavigation()
             ->discoverResources(in: app_path('Filament/User/Resources'), for: 'App\\Filament\\User\\Resources')

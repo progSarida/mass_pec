@@ -127,7 +127,7 @@ class ParentChildLinkRelationManager extends RelationManager
                     ->modalHeading('Stampa Report Collegamenti')
                     ->modalDescription('Seleziona le opzioni per la generazione del PDF dei protocolli collegati.')
                     ->icon('heroicon-o-printer')
-                    ->color('primary')
+                    ->color('print')
                     ->form([
                         Forms\Components\Toggle::make('include_details')
                             ->label('Includi scheda dettagliata per ogni voce collegata')

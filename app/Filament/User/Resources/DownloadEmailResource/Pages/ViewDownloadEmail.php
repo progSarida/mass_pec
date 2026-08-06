@@ -99,7 +99,7 @@ class ViewDownloadEmail extends ViewRecord
                     ->icon('heroicon-o-printer')
                     ->label('Stampa')
                     ->tooltip('Stampa')
-                    ->color(Color::rgb('rgb(255, 0, 0)'))
+                    ->color('print')
                     ->action(function ($record) {
                         Notification::make()
                             ->title('Stampa avviata')
