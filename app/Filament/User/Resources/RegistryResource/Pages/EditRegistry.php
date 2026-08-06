@@ -1219,15 +1219,19 @@ class EditRegistry extends EditRecord
     private function forwardManualInsert(Registry $record) {
         // $emails = RecipientEmail::whereIn('recipient_id', $record->other_senders)->where('mail_type', MailType::PEC)->pluck('email')->toArray();
 
+        $divider = "<br><br>------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------<br><br>";
+
         $newManualInsert = ManualInsert::create([
             'flow_type' => FlowType::ISSUED,
             'receivers' => null,
             'subject' => $record->subject,
-            'body' => $record->eml_body ?? $record->body,
+            'body' => $divider . ($record->eml_body ?? $record->body),
             'is_forward' => true,
             'linked_registry_id' => $record->id,
             'create_user_id' => Auth::user()->id,
         ]);
+
+        logger('BODY SALVATO: ' . $newManualInsert->body);
 
         $newPath = 'manual_insert/' . $newManualInsert->id;
 
@@ -1239,6 +1243,9 @@ class EditRegistry extends EditRecord
     }
 
     private function forwardSendEmail(Registry $record, array $data) {
+        
+        $divider = "<br><br>------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------<br><br>";
+
         $newSendEmail = SendEmail::create([
             'account_id' => $data['account_id'],
             'signature_id' => null,
@@ -1246,7 +1253,7 @@ class EditRegistry extends EditRecord
             'office_type_id' => null,
             'recipients' => null,
             'subject' => $record->subject,
-            'body' => $record->eml_body ?? $record->body,
+            'body' => $divider . ($record->eml_body ?? $record->body),
             'attachment_path' => null,
             'create_date' => today(),
             'create_user_id' => Auth::user()->id,
