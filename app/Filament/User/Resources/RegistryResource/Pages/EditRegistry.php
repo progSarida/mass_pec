@@ -835,7 +835,7 @@ class EditRegistry extends EditRecord
                                 )
                                 ->setPaper('A4', 'portrait')
                                 ->stream();
-                            }, "Voce protocollo_{$record->protocol_number}.pdf");
+                            }, "{$record->protocol_number}_contenuto_protocollo.pdf");
                     }),
                 // Actions\Action::make('link')
                 //     ->label('Collega a voce')

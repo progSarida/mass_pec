@@ -26,11 +26,11 @@ class AttachmentController extends Controller
         if (empty($files)) abort(404, "Nessun file trovato.");
 
         $fileName = match($type) {
-            'in_mail' => "allegati_posta_massiva_" . $id,
-            'send_email' => "allegati_pec_uscita_" . $id,
-            'download_email' => "allegati_pec_arrivo_" . $id,
-            'registry' => "allegati_" . \App\Models\Registry::findOrFail($id)->protocol_number,
-            'manual' => "allegati_manuale_" . $id,
+            'in_mail' => "posta_massiva_ricevuta_ID-" . $id . "_allegati",
+            'send_email' => "pec_uscita_ID-" . $id . "_allegati",
+            'download_email' => "pec_arrivo_ID-" . $id . "_allegati",
+            'registry' => \App\Models\Registry::findOrFail($id)->protocol_number . "_allegati",
+            'manual' => "manuale_ID-" . $id . "_allegati",
             default => '',
         };
 
