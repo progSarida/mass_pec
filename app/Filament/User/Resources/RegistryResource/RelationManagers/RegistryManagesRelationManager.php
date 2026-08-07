@@ -37,7 +37,7 @@ class RegistryManagesRelationManager extends RelationManager
                 Forms\Components\Placeholder::make('fil_date')
                     ->label('')
                     ->visible(fn ($record) => !$record->manage_registry_date),
-                Forms\Components\TextArea::make('manage_registry_mode')
+                Forms\Components\Textarea::make('manage_registry_mode')
                     ->label('Modalità evasione')
                     ->visible(fn ($record) => $record->manage_registry_mode)
                     ->required()
