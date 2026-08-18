@@ -361,6 +361,26 @@ class RegistryResource extends Resource
                             ->visible(fn(Get $get) => $get('flow_type') !== FlowType::RECEIVED->value)
                             ->columnSpan(['sm' => 'full', 'md' => 7]),
 
+                        Select::make('other_receivers')
+                            ->label('Altri destinatari')
+                            ->multiple()
+                            ->disabled()                    // dato certificato dal gestore PEC: sola visualizzazione
+                            ->visible(fn ($record) => filled($record?->other_receivers))
+                            ->options(function ($record): array {
+                                $descriptions = Recipient::descriptionsByEmails($record->other_receivers);
+
+                                return collect($record->other_receivers)
+                                    ->mapWithKeys(function ($email) use ($descriptions) {
+                                        $description = $descriptions[mb_strtolower($email)] ?? null;
+
+                                        return [$email => $description
+                                            ? "{$description} <{$email}>"
+                                            : "{$email} (non in anagrafica)"];
+                                    })
+                                    ->toArray();
+                            })
+                            ->columnSpan(['sm' => 'full', 'md' => 'full']),
+
                         Select::make('other_senders')
                             ->label(fn($record) => $record->is_email ? 'Altri mittenti' : 'Mittenti')
                             ->multiple()

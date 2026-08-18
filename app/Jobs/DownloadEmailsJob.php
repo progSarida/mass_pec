@@ -365,12 +365,15 @@ class DownloadEmailsJob implements ShouldQueue
 
         $body = $message->getCompleteBodyText();
 
+        $otherReceivers = $this->extractOtherReceivers($message, $account);
+
         $inMail = \App\Models\DownloadEmail::create([
             'receiving_mail' => $account->address,
             'uid' => $uid,
             'message_id' => $message_id,
             'sender_id' => $this->getSenderId($from),
             'from' => $this->sanitizeUtf8($from),
+            'other_receivers' => $otherReceivers ?: null,
             'subject' => $this->sanitizeUtf8($subject),
             'body' => substr($this->sanitizeUtf8($body), 0, 5000),
             'receive_date' => $date,
@@ -394,14 +397,14 @@ class DownloadEmailsJob implements ShouldQueue
                 $disk = config('filesystems.default');
                 $storage = \Illuminate\Support\Facades\Storage::disk($disk);
                 $content = $storage->get("{$folderPath}{$append}{$safeName}");
-                $message = $parser->parse($content, false);
+                $emlMessage = $parser->parse($content, false);
 
                 // 1. Prova a prendere il testo semplice
-                $testo_semplice = $message->getTextContent();
+                $testo_semplice = $emlMessage->getTextContent();
 
                 // 2. Se non c'è testo semplice, estrai dal HTML e converti in testo pulito
                 if (empty($testo_semplice)) {
-                    $html = $message->getHtmlContent();
+                    $html = $emlMessage->getHtmlContent();
 
                     if (!empty($html)) {
                         // Converte HTML → testo semplice (rimuove tag, converte entità, ecc.)
@@ -419,6 +422,61 @@ class DownloadEmailsJob implements ShouldQueue
         $inMail->update(['attachment_path' => $folderPath]);
 
         return $inMail;
+    }
+
+    /**
+     * Estrae dal daticert.xml della busta PEC gli altri destinatari certificati,
+     * escludendo la casella sulla quale si sta scaricando.
+     */
+    private function extractOtherReceivers($message, $account): array
+    {
+        try {
+            $xml = null;
+
+            foreach ($message->getAttachments() as $attachment) {
+                if (strtolower((string) $attachment->getFilename()) === 'daticert.xml') {
+                    $xml = $attachment->getDecodedContent();
+                    break;
+                }
+            }
+
+            // Non è una busta PEC (o il gestore non ha allegato la certificazione)
+            if (empty($xml)) {
+                return [];
+            }
+
+            $previous = libxml_use_internal_errors(true);
+            $postacert = simplexml_load_string($xml);
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+
+            if ($postacert === false) {
+                Log::warning("daticert.xml non interpretabile", ['account' => $account->address]);
+                return [];
+            }
+
+            $own = mb_strtolower(trim($account->address));
+            $receivers = [];
+
+            foreach ($postacert->intestazione->destinatari ?? [] as $destinatario) {
+                $email = mb_strtolower(trim((string) $destinatario));
+
+                if ($email === '' || $email === $own) {
+                    continue;
+                }
+
+                $receivers[$email] = $email;    // chiave = email per deduplicare
+            }
+
+            return array_values($receivers);
+        } catch (\Throwable $e) {
+            // Gli altri destinatari sono un dato accessorio: non deve impedire il salvataggio della mail
+            Log::warning("Errore lettura daticert.xml", [
+                'account' => $account->address,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     private static function getAppend($extension): string

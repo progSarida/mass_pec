@@ -15,6 +15,7 @@ class DownloadEmail extends Model
         'message_id',
         'sender_id',
         'from',
+        'other_receivers',
         'subject',
         'body',
         'eml_body',
@@ -25,6 +26,7 @@ class DownloadEmail extends Model
 
     protected $casts = [
         'receive_date' => 'datetime',
+        'other_receivers' => 'array',
     ];
 
     public function downloadUser(){

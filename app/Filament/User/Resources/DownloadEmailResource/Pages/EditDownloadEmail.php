@@ -250,6 +250,7 @@ class EditDownloadEmail extends EditRecord
                 'message_id' => $record->message_id,
                 'sender_id' => $record->sender_id,
                 'from' => $record->from,
+                'other_receivers' => $record->other_receivers,
                 'subject' => $record->subject,
                 'body' => $record->body,
                 'eml_body' => $record->eml_body,

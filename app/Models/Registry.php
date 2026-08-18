@@ -35,6 +35,7 @@ class Registry extends Model
         'sender_id',                // id tabella recipients
         'other_senders',            // array con id della tabella recipients
         'from',
+        'other_receivers',
         'subject',
         'body',
         'eml_body',
@@ -64,6 +65,7 @@ class Registry extends Model
         'send_date' => 'datetime',
         'receive_date' => 'datetime',
         'other_senders' => 'array',
+        'other_receivers' => 'array',
         'manage_registry_type' => ManageRegistryType::class,
         'manage_registry_date' => 'date',
         'void' => 'boolean',

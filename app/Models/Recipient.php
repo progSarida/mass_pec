@@ -157,6 +157,31 @@ class Recipient extends Model
     }
 
     /**
+     * Ritorna [email => descrizione] per le email passate, limitatamente a quelle presenti in anagrafica.
+     * La risoluzione avviene a ogni lettura, così un recipient creato dopo il download viene comunque riconosciuto.
+     */
+    public static function descriptionsByEmails(array $emails): array
+    {
+        $emails = array_values(array_filter(array_map(
+            fn ($email) => mb_strtolower(trim((string) $email)),
+            $emails
+        )));
+
+        if (empty($emails)) {
+            return [];
+        }
+
+        return RecipientEmail::whereIn('email', $emails)
+            ->with('recipient')
+            ->get()
+            ->mapWithKeys(fn ($recipientEmail) => [
+                mb_strtolower($recipientEmail->email) => $recipientEmail->recipient?->description,
+            ])
+            ->filter()
+            ->toArray();
+    }
+
+    /**
      * Scope per cercare per email
      */
     public function scopeWhereEmail($query, string $email)
