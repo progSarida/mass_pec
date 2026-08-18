@@ -85,7 +85,7 @@ enum ManageRegistryType: string implements HasLabel, HasIcon, HasColor
     public function showManage(): bool                                              // mostra il pulsante per la modifica della gestione della voce
     {
         return match($this) {
-            self::NONE => false,
+            self::NONE => true,
             self::TODO => true,
             self::DONE => false,
             default => false,

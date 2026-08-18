@@ -19,6 +19,7 @@ use App\Models\Recipient;
 use App\Models\RecipientEmail;
 use App\Models\Registry;
 use App\Models\RegistryReceiver;
+use App\Models\ScopeType;
 use App\Models\SendEmail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
@@ -99,6 +100,40 @@ class EditRegistry extends EditRecord
                     $this->redirect(RegistryResource::getUrl('edit', ['record' => $nextIRegistry->id]));
                 }),
             Actions\ActionGroup::make([
+                Actions\Action::make('changeScopeType')
+                    ->label('Modifica settore interno')
+                    ->icon('heroicon-o-building-office-2')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalWidth('xl')
+                    ->modalHeading('Modifica settore interno')
+                    ->modalSubmitActionLabel('Salva')
+                    ->fillForm(fn (Registry $record): array => [
+                        'scope_type_id' => $record->scope_type_id,
+                    ])
+                    ->form([
+                        Select::make('scope_type_id')
+                            ->label('Settore interno')
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->options(
+                                fn () => ScopeType::query()
+                                    ->orderBy('position', 'asc')
+                                    ->pluck('name', 'id')
+                                    ->toArray()
+                            ),
+                    ])
+                    ->action(function (Registry $record, array $data) {
+                        $record->update([
+                            'scope_type_id' => $data['scope_type_id'],
+                        ]);
+
+                        Notification::make()
+                            ->title('Settore interno aggiornato')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('addFile')
                     ->label('Carica File')
                     ->icon('heroicon-o-document-arrow-up')
