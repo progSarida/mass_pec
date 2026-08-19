@@ -75,7 +75,7 @@ class ListArchivedEmails extends ListRecords
                         ->options(Auth::user()->accounts()->where('mail_type', MailType::PEC)->where('download', true)->orderBy('position', 'asc')->pluck('public_name', 'accounts.id')),
                     Select::make('year')
                         ->label('Periodo')
-                        ->required()
+                        ->required(fn($get) => Account::find($get('account_id'))?->public_name == 'Corrispondenza')
                         ->options(function (Get $get) {
                             $account = Account::find($get('account_id'));
                             return $account?->public_name == 'Corrispondenza' ?  $this->corrIn : [];
@@ -123,7 +123,7 @@ class ListArchivedEmails extends ListRecords
                         ->options(Auth::user()->accounts()->where('mail_type', MailType::PEC)->where('download', true)->orderBy('position', 'asc')->pluck('public_name', 'accounts.id')),
                     Select::make('year')
                         ->label('Periodo')
-                        ->required()
+                        ->required(fn($get) => Account::find($get('account_id'))?->public_name == 'Corrispondenza')
                         ->options(function (Get $get) {
                             $account = Account::find($get('account_id'));
                             return $account?->public_name == 'Corrispondenza' ?  $this->corrOut : [];

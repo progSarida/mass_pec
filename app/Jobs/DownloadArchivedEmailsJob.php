@@ -118,11 +118,18 @@ class DownloadArchivedEmailsJob implements ShouldQueue
 
         [$connection, $mailbox] = $connect();
 
-        // Configurazione Filtro Semestre
-        [$startYear, $endYear] = $this->getDates($this->semester);
-        $search = new SearchExpression();
-        $search->addCondition(new Since($startYear));
-        $search->addCondition(new Before($endYear));
+        // Configurazione filtro periodo: senza semestre si scarica l'intera casella
+        $search = null;
+
+        if (filled($this->semester)) {
+            [$startYear, $endYear] = $this->getDates($this->semester);
+
+            $search = new SearchExpression();
+            $search->addCondition(new Since($startYear));
+            $search->addCondition(new Before($endYear));
+        } else {
+            Log::info("Account {$account->public_name}: nessun periodo selezionato, scarico l'intera casella");
+        }
 
         $messages = $mailbox->getMessages($search);
         $totalInPeriod = count($messages);
@@ -387,7 +394,7 @@ class DownloadArchivedEmailsJob implements ShouldQueue
         $notif = \Filament\Notifications\Notification::make()
             ->title($failed > 0 ? 'Download completato con anomalie' : 'Download completato');
 
-        $body = "Processati {$processed} account, scaricate {$total} email.";
+        $body = "Processati {$processed} account, scaricate {$total} email.<br>";
         if ($failed > 0) $body .= " Fallimenti: {$failed}. Dettagli: " . implode(', ', $errors);
 
         $notif->body($body);
@@ -401,7 +408,13 @@ class DownloadArchivedEmailsJob implements ShouldQueue
 
     private function getDates($semester): array
     {
-        $semArray = explode('-', $semester);
+        $semArray = explode('-', (string) $semester);
+
+        // Formato atteso: "S-1-2024" (semestre) oppure "T-3-2022" (trimestre)
+        if (count($semArray) !== 3) {
+            throw new \InvalidArgumentException("Periodo non riconosciuto: '{$semester}', atteso il formato S-1-2024 o T-3-2022");
+        }
+
         $year = (int) $semArray[2];
 
         if($semArray[0] == 'S'){
