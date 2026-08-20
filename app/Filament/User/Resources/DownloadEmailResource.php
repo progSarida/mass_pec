@@ -319,7 +319,7 @@ class DownloadEmailResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('sender_id') // Puntiamo a una colonna che esiste sempre sul modello DownloadEmail
-                    ->label('Mittente')
+                    ->label('🔍 Mittente')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
                             $q->where('from', 'like', "%{$search}%")
@@ -338,12 +338,12 @@ class DownloadEmailResource extends Resource
                     ->tooltip(fn ($record) => $record->from . ($record->sender?->adminType?->name ? " ({$record->sender?->adminType?->name})" : '')),
 
                 TextColumn::make('from')
-                    ->label('indirizzo mittente')
+                    ->label('🔍 Indirizzo mittente')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('subject')
-                    ->label('Oggetto')
+                    ->label('🔍 Oggetto')
                     ->searchable()
                     ->limit(30)
                     ->tooltip(fn ($record) => $record->subject),

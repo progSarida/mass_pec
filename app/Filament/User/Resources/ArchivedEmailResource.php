@@ -267,7 +267,7 @@ class ArchivedEmailResource extends Resource
                 //     ->sortable(),
 
                 TextColumn::make('sender_info') // Usa un nome descrittivo
-                    ->label('Mittente')
+                    ->label('🔍 Mittente')
                     ->state(function ($record): string {
                         // Usiamo state() invece di formatStateUsing se la colonna non esiste nel DB
                         if ($record->sender_id && $record->sender) {
@@ -295,7 +295,7 @@ class ArchivedEmailResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('receivers')
-                    ->label('Destinatari')
+                    ->label('🔍 Destinatari')
                     ->state(fn ($record) => $record?->archivedReceivers?->count() ?? 0)
                     ->formatStateUsing(function ($state) {
                         if ($state === 0) return '';
@@ -333,7 +333,7 @@ class ArchivedEmailResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('subject')
-                    ->label('Oggetto')
+                    ->label('🔍 Oggetto')
                     ->searchable()
                     ->limit(28)
                     ->tooltip(fn ($record) => $record?->subject)

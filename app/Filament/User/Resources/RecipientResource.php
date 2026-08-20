@@ -416,7 +416,7 @@ class RecipientResource extends Resource
             ->defaultPaginationPageOption(10)
             ->columns([
                 TextColumn::make('description')
-                    ->label('Descrizione')
+                    ->label('🔍 Descrizione')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         // Applico la stessa logica di pulizia che usi nel boot del modello
                         // per rendere la ricerca coerente con 'description_search'

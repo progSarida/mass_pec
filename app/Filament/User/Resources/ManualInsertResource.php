@@ -440,7 +440,7 @@ class ManualInsertResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('receivers')
-                    ->label('Destinatari')
+                    ->label('🔍 Destinatari')
                     ->state(function ($record) {
                         $count = is_array($record->receivers) ? count($record->receivers) : 0;
                         if ($count === 0) return '';
@@ -464,7 +464,7 @@ class ManualInsertResource extends Resource
                     }),
 
                 Tables\Columns\TextColumn::make('senders')
-                    ->label('Mittenti')
+                    ->label('🔍 Mittenti')
                     ->state(function ($record) {
                         $count = is_array($record->senders) ? count($record->senders) : 0;
                         if ($count === 0) return '';
@@ -498,7 +498,7 @@ class ManualInsertResource extends Resource
                     }),
 
                 Tables\Columns\TextColumn::make('interested_parties')
-                    ->label('Parti Interessate')
+                    ->label('🔍 Parti Interessate')
                     ->state(function ($record) {
                         $count = is_array($record->interested_parties) ? count($record->interested_parties) : 0;
                         if ($count === 0) return '';

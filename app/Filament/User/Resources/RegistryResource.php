@@ -901,7 +901,7 @@ class RegistryResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('protocol_number')
-                    ->label('Protocollo')
+                    ->label('🔍 Protocollo')
                     ->searchable()
                     ->sortable(),
 
@@ -918,7 +918,7 @@ class RegistryResource extends Resource
                 //     ->sortable(),
 
                 TextColumn::make('sender_info') // Usa un nome descrittivo
-                    ->label('Mittente/Parti')
+                    ->label('🔍 Mittente/Parti')
                     ->state(function ($record): string {
                         // Usiamo state() invece di formatStateUsing se la colonna non esiste nel DB
                         if ($record->sender_id && $record->sender) {
@@ -1018,7 +1018,7 @@ class RegistryResource extends Resource
                     ->limit(90),
 
                 Tables\Columns\TextColumn::make('receivers')
-                    ->label('Destinatari')
+                    ->label('🔍 Destinatari')
                     ->state(fn ($record) => $record?->registryReceivers?->count() ?? 0)
                     ->formatStateUsing(function ($record, $state) {
                         if ($state === 0) return '';
@@ -1062,7 +1062,7 @@ class RegistryResource extends Resource
                     ->date('d/m/Y H:i:s'),
 
                 TextColumn::make('subject')
-                    ->label('Oggetto')
+                    ->label('🔍 Oggetto')
                     ->searchable()
                     ->limit(28)
                     ->tooltip(fn ($record) => $record?->subject),
@@ -1218,7 +1218,7 @@ class RegistryResource extends Resource
                     ->tooltip(fn (?ManageRegistryType $state): ?string => $state?->getTooltipLabel()),
 
                 TextColumn::make('body')
-                    ->label('Messaggio')
+                    ->label('🔍 Messaggio')
                     ->searchable()
                     ->limit(50)
                     ->html()

@@ -195,7 +195,7 @@ class ShipmentResource extends Resource
                     ->label('Provincia')
                     ->sortable(),
                 TextColumn::make('description')
-                    ->label('Descrizione')
+                    ->label('🔍 Descrizione')
                     ->searchable()
                     ->limit(30)
                     ->tooltip(fn ($record) => $record->description),

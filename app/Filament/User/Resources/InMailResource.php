@@ -208,7 +208,7 @@ class InMailResource extends Resource
                 //     ->tooltip(fn ($record) => $record->from),
 
                 TextColumn::make('sender_id')
-                    ->label('Mittente')
+                    ->label('🔍 Mittente')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
                             $q->where('from', 'like', "%{$search}%")
@@ -227,7 +227,7 @@ class InMailResource extends Resource
                     ->tooltip(fn ($record) => $record->from),
 
                 TextColumn::make('subject')
-                    ->label('Oggetto')
+                    ->label('🔍 Oggetto')
                     ->searchable()
                     ->limit(30)
                     ->tooltip(fn ($record) => $record->subject),

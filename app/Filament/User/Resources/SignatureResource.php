@@ -48,9 +48,8 @@ class SignatureResource extends Resource
         return $table
             ->defaultSort('position', 'asc')
             ->columns([
-                Tables\Columns\TextColumn::make('position')->label('Posizione')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('description')->label('Descrizione')
+                Tables\Columns\TextColumn::make('position')->label('Posizione'),
+                Tables\Columns\TextColumn::make('description')->label('🔍 Descrizione')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('text')->label('Testo')
                     ->formatStateUsing(fn (string $state): string => strip_tags($state))
