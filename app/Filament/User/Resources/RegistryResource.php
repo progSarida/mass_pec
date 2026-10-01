@@ -61,15 +61,9 @@ class RegistryResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        $waitingEmails = static::getModel()::where('flow_type', 'issued')
-                        ->whereNull('send_date')
-                        ->count();
+        $waitingEmails = static::getModel()::whereToSend()->count();
 
-        $waitingRegistries = static::getModel()::where('flow_type', 'issued')
-                        ->whereNotNull('send_date')
-                        ->whereHas('registryReceivers', function ($query) { 
-                            $query->whereNull('message_id'); 
-                        })->count();
+        $waitingRegistries = static::getModel()::whereSentWithoutReceipts()->count();
 
         $label = 'Protocollo';
         if($waitingEmails > 0 || $waitingRegistries > 0) {
@@ -1411,6 +1405,23 @@ class RegistryResource extends Resource
                                     });
                             }
                         });
+                    })
+                    ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
+
+                // Stessi conteggi mostrati nella navigation label
+                SelectFilter::make('pending_status')
+                    ->label('In sospeso')
+                    ->options([
+                        'to_send' => 'Da inviare',
+                        'no_receipts' => 'Inviate senza ricevute',
+                    ])
+                    ->placeholder('Tutte')
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'to_send' => $query->whereToSend(),
+                            'no_receipts' => $query->whereSentWithoutReceipts(),
+                            default => $query,
+                        };
                     })
                     ->columnSpan(['sm' => 'full', 'md' => 3, 'xl' => 6]),
 

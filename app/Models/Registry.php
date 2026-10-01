@@ -283,6 +283,27 @@ class Registry extends Model
     }
 
     /**
+     * Registry in uscita non ancora inviato (email da inviare)
+     */
+    public function scopeWhereToSend(Builder $query): Builder
+    {
+        return $query->where('flow_type', 'issued')
+            ->whereNull('send_date');
+    }
+
+    /**
+     * Registry in uscita inviato ma con almeno un destinatario senza ricevute
+     */
+    public function scopeWhereSentWithoutReceipts(Builder $query): Builder
+    {
+        return $query->where('flow_type', 'issued')
+            ->whereNotNull('send_date')
+            ->whereHas('registryReceivers', function ($q) {
+                $q->whereNull('message_id');
+            });
+    }
+
+    /**
      * Registry collegato a qualcosa, qualsiasi tipo/verso
      */
     public function scopeWhereLinked(Builder $query): Builder

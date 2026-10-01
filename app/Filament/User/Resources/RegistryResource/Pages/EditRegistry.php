@@ -312,6 +312,9 @@ class EditRegistry extends EditRecord
                                 ->duration(5000)
                                 ->send();
 
+                            // Esco dalla modifica: il form resterebbe attivo anche dopo che il job ha impostato send_date
+                            $this->redirect(RegistryResource::getUrl('view', ['record' => $record]));
+
                         } catch (\Exception $e) {
                             Notification::make()
                                 ->title('Errore avvio invio')
@@ -1451,7 +1454,27 @@ class EditRegistry extends EditRecord
             unset($data['registryReceivers']);
         }
 
+        // Dati di invio scritti solo dai job: il form non deve mai sovrascriverli
+        unset($data['send_date'], $data['send_user_id']);
+
         return $data;
+    }
+
+    protected function beforeSave(): void
+    {
+        // Il blocco del form è calcolato al rendering: una pagina aperta prima dell'invio resta modificabile
+        $sendDate = Registry::whereKey($this->record->getKey())->value('send_date');
+
+        if ($this->record->isOutgoingEmail() && $sendDate) {
+            Notification::make()
+                ->title('Modifica non consentita')
+                ->body("L'email del protocollo {$this->record->protocol_number} è già stata inviata. Ricarica la pagina.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
     }
 
     protected function afterSave(): void
