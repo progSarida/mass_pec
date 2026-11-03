@@ -12,6 +12,7 @@ use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use App\Models\SendEmail;
 use App\Models\Signature;
+use App\Services\AttachmentLimitService;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\FileUpload;
@@ -268,6 +269,9 @@ class SendEmailResource extends Resource
                     ->multiple()
                     ->directory('send_email/0')
                     ->preserveFilenames()
+                    ->maxSize(AttachmentLimitService::maxSizeKb())
+                    ->helperText(AttachmentLimitService::helperText())
+                    ->rule(AttachmentLimitService::totalSizeRule())
                     ->visible(fn($record) => !$record)
                     ->getUploadedFileNameForStorageUsing(function ($file) {
                         $disk = config('filesystems.default');

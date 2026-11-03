@@ -20,6 +20,7 @@ use App\Models\Region;
 use App\Models\Registry;
 use App\Models\Sender;
 use App\Models\User;
+use App\Services\AttachmentLimitService;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Checkbox;
@@ -693,6 +694,9 @@ class RegistryResource extends Resource
                     ->multiple()
                     ->directory('registry/0')
                     ->preserveFilenames()
+                    ->maxSize(AttachmentLimitService::maxSizeKb())
+                    ->helperText(AttachmentLimitService::helperText())
+                    ->rule(AttachmentLimitService::totalSizeRule())
                     ->visible(fn($record) => !$record)
                     ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                         $disk = config('filesystems.default');

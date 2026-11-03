@@ -21,6 +21,7 @@ use App\Models\Registry;
 use App\Models\RegistryReceiver;
 use App\Models\ScopeType;
 use App\Models\SendEmail;
+use App\Services\AttachmentLimitService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Actions\Action;
@@ -542,6 +543,9 @@ class EditRegistry extends EditRecord
                                 ->multiple()
                                 ->directory(fn ($record) => $record->attachment_path)
                                 ->preserveFilenames()
+                                ->maxSize(AttachmentLimitService::maxSizeKb())
+                                ->helperText(AttachmentLimitService::helperText())
+                                ->rule(AttachmentLimitService::totalSizeRule(countExisting: true))
                                 ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                                     $disk = config('filesystems.default');
                                     $directory = $record->attachment_path;

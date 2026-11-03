@@ -16,6 +16,9 @@ return [
 
     'default' => env('MAIL_MAILER', 'log'),
 
+    // Dimensione massima totale degli allegati di una PEC in uscita (MB)
+    'max_attachments_size' => env('MAIL_MAX_ATTACHMENTS_SIZE', 30),
+
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations
