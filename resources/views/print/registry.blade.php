@@ -138,7 +138,8 @@
     @if($mittente !== 'self' && $destinatario !== 'self')
     <div class="partecipanti">
         <b>Mittente:</b> {{ $mittente }}<br>
-        <b>Destinatari:</b> {{ $destinatario }}
+        <b>Destinatari:</b> {{-- max 2 righe: le email non vanno a capo, quindi ~70 caratteri utili per riga --}}
+        {{ mb_strlen($destinatario) > 140 ? rtrim(\Illuminate\Support\Str::limit($destinatario, 140, '', preserveWords: true), ', ') . ', ...' : $destinatario }}
     </div>
     <br>
     @endif
