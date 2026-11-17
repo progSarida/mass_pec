@@ -106,6 +106,14 @@
                         $destinatario = $registry->receiving_mail . " (" . \App\Models\Account::where('address', $registry->receiving_mail)->first()->public_name . ")";
                         break;
                 }
+                // altri destinatari certificati (daticert.xml), esclusa la casella ricevente
+                if (filled($registry->other_receivers)) {
+                    $descrizioni = \App\Models\Recipient::descriptionsByEmails($registry->other_receivers);
+                    foreach ($registry->other_receivers as $email) {
+                        $descrizione = $descrizioni[mb_strtolower($email)] ?? null;
+                        $destinatario .= ', ' . ($descrizione ? "{$email} ({$descrizione})" : $email);
+                    }
+                }
                 $data = $registry->receive_date;
                 // $mittente = $registry->from . " (" . $registry->sender->description . ")";
                 // $destinatario = $registry->receiving_mail . " (" . \App\Models\Account::where('address', $registry->receiving_mail)->first()->public_name . ")";
@@ -118,7 +126,7 @@
         }
     @endphp
     <b class="intestazione-protocollo">
-        {{ $tipo }} id {{ $registry->id }}{{ $data ?  'del' . $data->format('d.m.Y') : '' }} 
+        {{ $tipo }} id {{ $registry->id }}{{ $data ?  ' del ' . $data->format('d.m.Y') : '' }} 
         {{ $registry->registry_origin_type == \App\Enums\RegistryOriginType::MANUAL || !$data ? '' : '(' . $data->format('H:i:s') . ')' }}
     </b><br>
     <b class="intestazione-protocollo">PROTOCOLLO n. {{ $registry->protocol_number }} del {{ $registry->created_at->format('d.m.Y') }} ({{ $registry->flow_type->getLabel() }})</b><br>

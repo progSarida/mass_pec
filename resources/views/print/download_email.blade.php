@@ -65,6 +65,14 @@
             $mittente .= " (" . $email->sender->description . ")";
         }
         $destinatario = $email->receiving_mail . " (" . \App\Models\Account::where('address', $email->receiving_mail)->first()->public_name . ")";
+        // altri destinatari certificati (daticert.xml), esclusa la casella ricevente
+        if (filled($email->other_receivers)) {
+            $descrizioni = \App\Models\Recipient::descriptionsByEmails($email->other_receivers);
+            foreach ($email->other_receivers as $altroDestinatario) {
+                $descrizione = $descrizioni[mb_strtolower($altroDestinatario)] ?? null;
+                $destinatario .= ', ' . ($descrizione ? "{$altroDestinatario} ({$descrizione})" : $altroDestinatario);
+            }
+        }
     @endphp
     <b class="intestazione-protocollo">Posta Elettronica (id {{ $email->id }}) del {{ $data->format('d.m.Y') }} ({{ $data->format('H:m:s') }})</b><br>
     <b class="intestazione-protocollo">Scaricata il {{ $email->created_at->format('d.m.Y') }} da {{ $email->downloadUser->name }}</b><br>
