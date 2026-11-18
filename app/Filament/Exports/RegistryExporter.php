@@ -204,6 +204,7 @@ class RegistryExporter extends Exporter
             case RegistryOriginType::MANUAL:
                 return 'manual';
             case RegistryOriginType::DOWNLOAD_EMAIL:
+            case RegistryOriginType::IN_MAIL:
                 return 'download';
             case RegistryOriginType::SHIPMENT:
                 return 'shipment';

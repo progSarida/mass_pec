@@ -2114,6 +2114,7 @@ class RegistryResource extends Resource
                 return 'manual';
                 break;
             case RegistryOriginType::DOWNLOAD_EMAIL:
+            case RegistryOriginType::IN_MAIL:
                 return 'download';
                 break;
             case RegistryOriginType::SHIPMENT:
